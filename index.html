@@ -65,6 +65,7 @@ details.how[open]>summary::before{content:"▾ "}
 .fig{background:var(--card); border-radius:10px; padding:8px 6px 2px; margin:2px 0 10px; text-align:center}
 .fig svg{width:100%; max-width:230px; height:auto; color:#8fa3b5}
 .fig .acc{color:var(--acc)}
+.fig img{width:100%;max-width:230px;height:auto;display:block;margin:0 auto;border-radius:8px}
 @keyframes repBob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
 @keyframes repGlow{0%,100%{opacity:1}50%{opacity:.4}}
 .fig svg{animation:repBob 6s ease-in-out infinite}
@@ -149,7 +150,7 @@ textarea:focus{border-color:var(--acc)}
   <h1>Week 1 · Calibration</h1>
   <p class="sub">HSR test drive — find your 15RM <b>at tempo</b> on every lift. This week IS the test.</p>
   <div class="progressWrap"><div class="progressBar" id="pbar"></div></div>
-  <div class="progressTxt" id="ptxt">0 / 15 logged</div>
+  <div class="progressTxt" id="ptxt">0 / 14 logged</div>
   <div class="topRow">
     <div class="tgl" id="hideDoneT">☑ Hide done</div>
     <div class="tgl" id="wakeT">☀ Keep screen on</div>
@@ -226,6 +227,7 @@ textarea:focus{border-color:var(--acc)}
     <div class="gItem"><div class="n">3</div><div><b>Quadruped step-throughs</b> — 5/side. Cross-body anti-rotation + opens the front of the shoulder.</div></div>
     <div class="gItem"><div class="n">4</div><div><b>Light DB windmills</b> — 5/side. Shoulder stability in open angles; wakes the cuff before heavy presses. Keep it genuinely light.</div></div>
     <div class="gItem"><div class="n">5</div><div><b>Band dislocates + pull-aparts</b> — 10 + 15. Floods rear delts / rhomboids / lower traps; gets the scapulae gliding before the pulls.</div></div>
+    <div class="gItem"><div class="n">6</div><div><b>Towel-roll internal rotation</b> — 2×15/side, light. Cuff balance (internal) to pair with the windmills.</div></div>
     <div class="rule">Then 1–2 light ramp-up sets on the first lift — not counted.</div>
   </div>
 </details>
@@ -343,12 +345,6 @@ var DAYS={
   ]}
  ]},
  day2:{cnt:"d2Cnt", blocks:[
-  {head:"Semi-warm-up · after ~5 min easy warm-up", ex:[
-   {id:"irot", kind:"semi", name:"Towel-Roll Internal Rotation", target:"cuff activation — warms the shoulder for pressing", svg:"ir",
-    chips:["2 × 15 per arm","3–4 RIR — deliberately light","Tempo 3·3"],
-    cues:["On your back, towel roll between upper arm and ribs, elbow bent 90°.","Light DB: rotate forearm from pointing out → toward the belly, 3 s each way.","Submaximal on purpose. This is a primer, not a test."],
-    fields:[{k:"w",lab:"Weight used (kg)",type:"num"}]}
-  ]},
   {head:"Heavy block · <b>failure test</b> · 3 sets · 2.5 min rest", ex:[
    {id:"vpull", kind:"heavy", nameKey:"pull", names:{pulldown:"Cable Pulldown", chinup:"Weighted Chin-up"}, target:"lats · biceps · medial elbow tendons", svg:"pull", unit:"kg",
     chips:["Tempo 3·3","no swinging"],
@@ -359,7 +355,7 @@ var DAYS={
    {id:"row1", kind:"heavy", name:"Half-Kneeling 1-Arm Cable Row", target:"upper back · anti-rotation core", svg:"row", unit:"kg/arm",
     chips:["Tempo 3·3","per arm: L → R → rest","torso does NOT twist"],
     cues:["Half-kneeling, down-knee under hip, tall trunk.","Row to the ribs 3 s, resist out 3 s.","If the torso twists, the weight is lying — drop it."]},
-   {id:"vpush", kind:"heavy", nameKey:"push", names:{ext:"Overhead Triceps Extension", dips:"Dips"}, target:"triceps · lateral elbow tendons", svg:"ohext", unit:"kg",
+   {id:"vpush", kind:"heavy", nameKey:"push", names:{ext:"Cable Overhead Triceps Extension", dips:"Dips"}, target:"triceps · lateral elbow tendons", svg:"ohext", unit:"kg",
     chips:["Tempo 3·3","full stretch under load"],
     cues:["Elbows close to the ears, upper arms still.","3 s lower behind the head to a FULL triceps stretch, 3 s extend.","The loaded stretch is the tendon stimulus — don't cut it short."]}
   ]},
@@ -422,7 +418,7 @@ function cardHtml(ex){
    +'<button class="doneBtn" data-done="'+ex.id+'" aria-label="mark done">✓</button></div>'
    +'<div class="chips">'+chips+'</div>'
    +'<details class="how" data-how="'+ex.id+'"'+howOpen+'><summary>How to do it</summary><div class="howBody">'
-   +'<div class="fig">'+SVGS[ex.svg]+'</div>'
+   +'<div class="fig"><img src="gifs/'+ex.id+'.gif" alt="'+esc(exName(ex))+'" loading="lazy"></div>'
    +'<ul class="cues">'+ex.cues.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul>'
    +'</div></details>'
    +'<div class="logs">'+logs+'</div></div>';

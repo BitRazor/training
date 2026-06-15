@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0f12">
 <title>Week 1 · Calibration</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c0f12'/><circle cx='16' cy='16' r='7' fill='none' stroke='%2334d399' stroke-width='3'/></svg>">
 <style>
 :root{
   --bg:#0c0f12; --card:#151b22; --card2:#1b232c; --line:#27313c;
@@ -141,6 +142,16 @@ textarea:focus{border-color:var(--acc)}
 @keyframes fl{50%{background:var(--acc); color:#06281c}}
 .disp small{display:block; font-size:10px; font-weight:600; letter-spacing:.1em; color:var(--dim); margin-top:-2px}
 .disp.run small{color:#5fbf9a}
+/* day tabs */
+.dayTabs{display:flex; gap:8px; margin:16px 0 6px}
+.dayTab{flex:1; display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px; font-weight:650; padding:13px 8px; border-radius:12px; border:1px solid var(--line); background:var(--card); color:var(--mut); cursor:pointer; user-select:none}
+.dayTab.sel{border-color:var(--acc); color:var(--acc); background:var(--accD)}
+.dayTab .cnt{font-size:11.5px; font-weight:600; background:var(--card2); color:var(--mut); padding:2px 8px; border-radius:99px}
+.dayTab.sel .cnt{background:#0e1d17; color:var(--acc)}
+.dayPanel[hidden]{display:none}
+/* always-visible exercise gif (compact) */
+.exFig{background:var(--card); border-radius:10px; padding:6px; margin:8px 12px 2px; text-align:center}
+.exFig img{width:100%; max-width:150px; height:auto; display:block; margin:0 auto; border-radius:8px}
 @media(min-width:620px){body{max-width:600px; margin:0 auto}}
 </style>
 </head>
@@ -158,7 +169,7 @@ textarea:focus{border-color:var(--acc)}
 </header>
 
 <!-- PRE-SESSION -->
-<details class="sec" id="sec-pre" open>
+<details class="sec" id="sec-pre">
   <summary>Pre-session checklist <span class="cnt" id="preCnt"></span><svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
   <div class="secBody">
     <div class="bwRow">
@@ -194,7 +205,7 @@ textarea:focus{border-color:var(--acc)}
 </details>
 
 <!-- TEST GUIDE -->
-<details class="sec" id="sec-guide" open>
+<details class="sec" id="sec-guide">
   <summary>How to test <svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
   <div class="secBody">
     <div class="rule"><b>Tempo IS the exercise.</b> Every rep — ramps included — at <b>3 s down / 3 s up</b> (calves 3-3-3). A fast rep gives a number ~20–30% too heavy and miscalibrates the whole block. Use the tempo button below.</div>
@@ -210,7 +221,7 @@ textarea:focus{border-color:var(--acc)}
 </details>
 
 <!-- WARM-UP -->
-<details class="sec" id="sec-warm" open>
+<details class="sec" id="sec-warm">
   <summary>Warm-up <span class="cnt">~8–10 min</span><svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
   <div class="secBody">
     <div class="blockHead">Day 1 — Lower</div>
@@ -232,17 +243,13 @@ textarea:focus{border-color:var(--acc)}
   </div>
 </details>
 
-<!-- DAY 1 -->
-<details class="sec" id="sec-d1" open>
-  <summary>Day 1 — Lower <span class="cnt" id="d1Cnt"></span><svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
-  <div class="secBody" id="day1"></div>
-</details>
-
-<!-- DAY 2 -->
-<details class="sec" id="sec-d2">
-  <summary>Day 2 — Upper <span class="cnt" id="d2Cnt"></span><svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
-  <div class="secBody" id="day2"></div>
-</details>
+<!-- DAY TABS -->
+<div class="dayTabs" role="tablist">
+  <button class="dayTab" data-day="day1">Day 1 · Lower <span class="cnt" id="d1Cnt"></span></button>
+  <button class="dayTab" data-day="day2">Day 2 · Upper <span class="cnt" id="d2Cnt"></span></button>
+</div>
+<div class="dayPanel" id="panel-day1"><div class="secBody" id="day1"></div></div>
+<div class="dayPanel" id="panel-day2" hidden><div class="secBody" id="day2"></div></div>
 
 <!-- RESULTS -->
 <details class="sec" id="sec-res">
@@ -374,7 +381,7 @@ var DAYS={
 
 /* ---------- state ---------- */
 var KEY="w1cal-v1";
-var state={v:{},done:{},open:{},choices:{pull:"pulldown",press:"machine",push:"ext"},hideDone:false};
+var state={v:{},open:{},choices:{pull:"pulldown",press:"machine",push:"ext"},hideDone:false,activeDay:"day1"};
 try{var saved=JSON.parse(localStorage.getItem(KEY)||"null"); if(saved){for(var k in state){if(saved[k]!==undefined)state[k]=saved[k];}}}catch(e){}
 var saveT=null;
 function save(){clearTimeout(saveT); saveT=setTimeout(function(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}},150);}
@@ -385,6 +392,10 @@ function $$(s,el){return Array.prototype.slice.call((el||document).querySelector
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 function r05(x){return Math.round(x*2)/2;}
 function exName(ex){return ex.nameKey?ex.names[state.choices[ex.nameKey]]:ex.name;}
+function isLogged(ex){
+  return ex.kind==="heavy" ? (parseFloat(state.v[ex.id+"_fin"])>0)
+    : ex.fields.some(function(f){var v=state.v[ex.id+"_"+f.k]; return v!==undefined&&String(v).trim()!=="";});
+}
 function vib(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 var AC=null;
 function beep(f,d){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)(); var o=AC.createOscillator(),g=AC.createGain(); o.frequency.value=f; o.connect(g); g.connect(AC.destination); g.gain.setValueAtTime(.25,AC.currentTime); g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+d); o.start(); o.stop(AC.currentTime+d);}catch(e){}}
@@ -412,13 +423,13 @@ function cardHtml(ex){
     var cls=/RIR|NOT to failure|light/i.test(c)?"chip warn":(/Tempo|3 s|squeeze|stretch/i.test(c)?"chip acc":"chip");
     return '<span class="'+cls+'">'+c+'</span>';
   }).join("");
-  var howOpen=state.open["how_"+ex.id]===false?"":" open";
-  return '<div class="ex'+(state.done[ex.id]?' done':'')+'" id="ex_'+ex.id+'">'
+  var howOpen=state.open["how_"+ex.id]===true?" open":"";
+  return '<div class="ex'+(isLogged(ex)?' done':'')+'" id="ex_'+ex.id+'">'
    +'<div class="exHead"><div><div class="exName" data-nm="'+ex.id+'">'+esc(exName(ex))+'</div><div class="exTarget">'+ex.target+'</div></div>'
-   +'<button class="doneBtn" data-done="'+ex.id+'" aria-label="mark done">✓</button></div>'
+   +'<button class="doneBtn" data-done="'+ex.id+'" aria-label="Jump to the weight field" title="Jump to the weight field">✓</button></div>'
    +'<div class="chips">'+chips+'</div>'
+   +'<div class="exFig"><img src="gifs/'+ex.id+'.gif" alt="'+esc(exName(ex))+'" loading="lazy"></div>'
    +'<details class="how" data-how="'+ex.id+'"'+howOpen+'><summary>How to do it</summary><div class="howBody">'
-   +'<div class="fig"><img src="gifs/'+ex.id+'.gif" alt="'+esc(exName(ex))+'" loading="lazy"></div>'
    +'<ul class="cues">'+ex.cues.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul>'
    +'</div></details>'
    +'<div class="logs">'+logs+'</div></div>';
@@ -464,9 +475,9 @@ function progress(){
   var tot=0, done=0;
   allEx().forEach(function(ex){
     tot++;
-    var filled = ex.kind==="heavy" ? (parseFloat(state.v[ex.id+"_fin"])>0)
-      : ex.fields.some(function(f){var v=state.v[ex.id+"_"+f.k]; return v!==undefined&&String(v).trim()!=="";});
+    var filled=isLogged(ex);
     if(filled)done++;
+    var el=$("#ex_"+ex.id); if(el)el.classList.toggle("done",filled);
   });
   $("#pbar").style.width=(done/tot*100)+"%";
   $("#ptxt").textContent=done+" / "+tot+" logged"+(done===tot?" — calibration complete ✓":"");
@@ -474,9 +485,7 @@ function progress(){
     var t=0,dn=0;
     DAYS[d].blocks.forEach(function(b){b.ex.forEach(function(ex){
       t++;
-      var filled = ex.kind==="heavy" ? (parseFloat(state.v[ex.id+"_fin"])>0)
-        : ex.fields.some(function(f){var v=state.v[ex.id+"_"+f.k]; return v!==undefined&&String(v).trim()!=="";});
-      if(filled)dn++;
+      if(isLogged(ex))dn++;
     });});
     $("#"+DAYS[d].cnt).textContent=dn+"/"+t;
   });
@@ -533,8 +542,9 @@ document.addEventListener("click",function(e){
   }
   if(t.hasAttribute("data-done")){
     var id2=t.getAttribute("data-done");
-    state.done[id2]=!state.done[id2]; save();
-    $("#ex_"+id2).classList.toggle("done",!!state.done[id2]); return;
+    var fld=$("#"+id2+"_fin")||$("#"+id2+"_w");
+    if(fld){fld.scrollIntoView({block:"center"}); setTimeout(function(){fld.focus();},120);}
+    return;
   }
   if(t.classList.contains("opt")){
     var key=t.parentElement.getAttribute("data-choice");
@@ -638,12 +648,23 @@ $("#wakeT").addEventListener("click",function(){
 });
 document.addEventListener("visibilitychange",function(){if(wakeOn&&document.visibilityState==="visible")reqWake();});
 
+/* ---------- day tabs ---------- */
+function showDay(d){
+  state.activeDay=d; save();
+  $$(".dayTab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-day")===d);});
+  var p1=$("#panel-day1"), p2=$("#panel-day2");
+  if(p1)p1.hidden=(d!=="day1");
+  if(p2)p2.hidden=(d!=="day2");
+}
+$$(".dayTab").forEach(function(b){b.addEventListener("click",function(){showDay(b.getAttribute("data-day"));});});
+
 /* ---------- init ---------- */
 render();
+showDay(state.activeDay||"day1");
 /* restore checkboxes + section open states */
 $$("input[type=checkbox][data-k]").forEach(function(c){c.checked=!!state.v[c.getAttribute("data-k")];});
-["sec-pre","sec-guide","sec-d1","sec-d2","sec-res"].forEach(function(id){
-  if(state.open[id]!==undefined)$("#"+id).open=state.open[id];
+["sec-pre","sec-guide","sec-warm","sec-res"].forEach(function(id){
+  var el=$("#"+id); if(el&&state.open[id]!==undefined)el.open=state.open[id];
 });
 var notesEl=$("textarea[data-k=notes]"); if(notesEl&&state.v["notes"])notesEl.value=state.v["notes"];
 progress();

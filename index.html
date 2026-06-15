@@ -43,7 +43,7 @@ details.sec>summary .cnt{font-size:12px; color:var(--mut); font-weight:500; back
 .blockHead b{color:var(--warn); font-weight:700}
 /* exercise card */
 .ex{background:var(--card2); border:1px solid var(--line); border-radius:12px; margin:0 0 10px; overflow:hidden}
-.ex.done{opacity:.45}
+.ex.done{opacity:.6}
 body.hideDone .ex.done{display:none}
 .exHead{display:flex; align-items:flex-start; gap:10px; padding:12px 12px 4px}
 .exName{font-weight:650; font-size:15.5px}
@@ -381,8 +381,11 @@ var DAYS={
 
 /* ---------- state ---------- */
 var KEY="w1cal-v1";
-var state={v:{},open:{},choices:{pull:"pulldown",press:"machine",push:"ext"},hideDone:false,activeDay:"day1"};
+var state={v:{},open:{},choices:{pull:"pulldown",press:"machine",push:"ext"},hideDone:false,activeDay:"day1",uxMigrated:false};
 try{var saved=JSON.parse(localStorage.getItem(KEY)||"null"); if(saved){for(var k in state){if(saved[k]!==undefined)state[k]=saved[k];}}}catch(e){}
+/* one-time cleanup: drop the expand/collapse memory from the old pre-tabs layout so
+   returning users land on the new collapsed defaults. Logged numbers (state.v) stay put. */
+if(!state.uxMigrated){state.open={}; state.uxMigrated=true; save();}
 var saveT=null;
 function save(){clearTimeout(saveT); saveT=setTimeout(function(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}},150);}
 
@@ -663,6 +666,7 @@ render();
 showDay(state.activeDay||"day1");
 /* restore checkboxes + section open states */
 $$("input[type=checkbox][data-k]").forEach(function(c){c.checked=!!state.v[c.getAttribute("data-k")];});
+var bwEl=$("#bw"); if(bwEl&&state.v["bw"]!==undefined&&state.v["bw"]!=="")bwEl.value=state.v["bw"];
 ["sec-pre","sec-guide","sec-warm","sec-res"].forEach(function(id){
   var el=$("#"+id); if(el&&state.open[id]!==undefined)el.open=state.open[id];
 });

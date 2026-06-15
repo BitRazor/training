@@ -63,9 +63,10 @@ function cardHtml(ex){
    +'<div class="logs">'+logs+'</div></div>';
 }
 function warmCardHtml(w){
+  var g=(w.gif||w.id)+".gif";
   return '<div class="ex wu" id="'+w.id+'">'
    +'<div class="exHead"><div><div class="exName">'+esc(w.name)+'</div><div class="exTarget">'+esc(w.detail)+'</div></div></div>'
-   +'<div class="exFig"><img src="gifs/'+(w.gif||w.id)+'.gif" alt="'+esc(w.name)+'" loading="lazy" onerror="this.parentNode.style.display=\'none\'"></div>'
+   +'<div class="exFig" data-gif="'+g+'"><img src="gifs/'+g+'" alt="'+esc(w.name)+'" loading="lazy" onerror="var p=this.parentNode; this.remove(); p.classList.add(\'missing\')"></div>'
    +'</div>';
 }
 function renderWarmup(day){

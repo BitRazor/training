@@ -56,7 +56,7 @@ function cardHtml(ex){
    +'<div class="exHead" data-arm="'+ex.id+'"><div><div class="exName" data-nm="'+ex.id+'">'+esc(exName(ex))+'</div><div class="exTarget">'+ex.target+'</div></div>'
    +'<button class="doneBtn" data-done="'+ex.id+'" aria-label="mark done" title="Mark done — collapses the card">✓</button></div>'
    +'<div class="chips">'+chips+'</div>'
-   +'<div class="exFig"><img src="gifs/'+ex.id+'.gif" alt="'+esc(exName(ex))+'" loading="lazy"></div>'
+   +'<div class="exFig" data-gif="'+ex.id+'.gif"><img src="gifs/'+ex.id+'.gif" alt="'+esc(exName(ex))+'" loading="lazy" onerror="var p=this.parentNode; this.remove(); p.classList.add(\'missing\')"></div>'
    +'<details class="how" data-how="'+ex.id+'"'+howOpen+'><summary>How to do it</summary><div class="howBody">'
    +'<ul class="cues">'+ex.cues.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul>'
    +'</div></details>'

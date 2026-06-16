@@ -146,8 +146,8 @@ textarea:focus{border-color:var(--acc)}
 /* always-visible exercise gif (compact) */
 .exFig{background:var(--card); border-radius:10px; padding:6px; margin:8px 12px 2px; text-align:center}
 .exFig img{width:100%; max-width:150px; height:auto; display:block; margin:0 auto; border-radius:8px}
-/* warm-up gif slot: until the file exists, show a labelled placeholder so it's clearly wired */
-.ex.wu .exFig.missing::after{content:"add gifs/" attr(data-gif); display:block; color:var(--dim); font-size:11.5px; padding:16px 8px; border:1px dashed var(--line); border-radius:8px}
+/* any missing gif (warm-up or a new exercise): show a labelled placeholder so it's clearly wired */
+.exFig.missing::after{content:"add gifs/" attr(data-gif); display:block; color:var(--dim); font-size:11.5px; padding:16px 8px; border:1px dashed var(--line); border-radius:8px}
 /* tap an exercise to arm its rest + tempo in the bottom bar */
 .ex .exHead{cursor:pointer}
 .ex.wu .exHead{cursor:default}

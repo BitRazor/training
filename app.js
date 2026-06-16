@@ -21,8 +21,8 @@ function isLogged(ex){
     : ex.fields.some(function(f){var v=state.v[ex.id+"_"+f.k]; return v!==undefined&&String(v).trim()!=="";});
 }
 function exById(id){var r=null; allEx().forEach(function(e){if(e.id===id)r=e;}); return r;}
-function restFor(ex){return ex.kind==="heavy"?150:(ex.kind==="gap"?90:45);}
-function tempoFor(ex){return ex.id==="calf"?"9":(ex.kind==="semi"?null:"6");}
+function restFor(ex){return ex.rest!=null?ex.rest:(ex.kind==="heavy"?150:(ex.kind==="gap"?90:45));}
+function tempoFor(ex){return ex.tempo!==undefined?ex.tempo:(ex.id==="calf"?"9":(ex.kind==="semi"?null:"6"));}
 var activeEx=null;
 function vib(p){try{if(navigator.vibrate)navigator.vibrate(p);}catch(e){}}
 var AC=null;
@@ -138,7 +138,7 @@ function results(){
     DAYS[d].blocks.forEach(function(b){b.ex.forEach(function(ex){
       var val;
       if(ex.kind==="heavy"){var f=state.v[ex.id+"_fin"]; val=f?f+" "+(ex.unit||"kg"):null;}
-      else{var ff=ex.fields[0]; var v=state.v[ex.id+"_"+ff.k]; val=(v!==undefined&&String(v).trim()!=="")?(ff.type==="num"?v+" kg":v):null;}
+      else{var ff=ex.fields[0]; var v=state.v[ex.id+"_"+ff.k]; val=(v!==undefined&&String(v).trim()!=="")?(ff.type==="num"?v+" "+(ff.unit||"kg"):v):null;}
       rows+="<tr><td>"+esc(exName(ex))+"</td><td"+(val?"":" class='miss'")+">"+(val||"—")+"</td></tr>";
     });});
   });
@@ -155,7 +155,7 @@ function summaryText(){
       if(ex.kind==="heavy"){
         var f=state.v[ex.id+"_fin"], w=state.v[ex.id+"_w1"], r=state.v[ex.id+"_r1"];
         val=(f?f+" "+(ex.unit||"kg"):"—")+(w&&r?"  (set1: "+w+" kg × "+r+")":"");
-      } else { var ff=ex.fields[0], v=state.v[ex.id+"_"+ff.k]; val=(v!==undefined&&String(v).trim()!=="")?(ff.type==="num"?v+" kg":String(v)):"—"; }
+      } else { var ff=ex.fields[0], v=state.v[ex.id+"_"+ff.k]; val=(v!==undefined&&String(v).trim()!=="")?(ff.type==="num"?v+" "+(ff.unit||"kg"):String(v)):"—"; }
       L.push("- "+exName(ex)+": "+val);
     });});
   });

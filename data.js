@@ -27,20 +27,20 @@ var DAYS={
     chips:["3 × 10 per leg","3 s hold at top","standing on one leg"],
     cues:["Stand on the support leg, cuff or cable on the working ankle (low cable).","Drive the knee up toward the chest — 3 s hold at the top — lower with control.","Loads the hip flexor and taxes balance + standing core."],
     fields:[{k:"w",lab:"Working weight (kg)",type:"num"}]},
-   {id:"adduct", kind:"gap", name:"Standing Cable Hip Adduction", target:"adductors · inner thigh / groin",
-    chips:["3 × 12–15 per leg","2 s in · 2 s out","1–2 RIR"],
-    cues:["Stand side-on to a low cable, cuff on the inner ankle of the near (working) leg.","Pull that leg across your midline, in front of the stance leg — 2 s in, control 2 s back out.","Keep the pelvis level and square; the inner thigh does the work, not a trunk lean."],
-    fields:[{k:"w",lab:"Working weight (kg)",type:"num"}]},
-   {id:"wristc", kind:"gap", name:"Reverse Wrist Curls — bilateral", target:"wrist extensors · lateral elbow", svg:"wrist",
-    chips:["Tempo 3·3","3 × 15 @ 1–2 RIR","forearms on bench"],
-    cues:["Both forearms flat on a bench, palms down, fingers curled around the DBs.","Knuckles up 3 s, lower 3 s. Forearms never leave the bench."],
-    fields:[{k:"w",lab:"Weight per hand (kg)",type:"num"}]}
+   {id:"copen", kind:"gap", name:"Copenhagen Plank", target:"adductors · groin / inner thigh · obliques", tempo:null,
+    chips:["3 × 20–30 s per side","top shin on a bench","knee-bent → straight over weeks"],
+    cues:["Side plank with your TOP foot/shin resting on a bench, bottom leg hanging underneath.","Lift the bottom leg up to meet the bench and hold — hips stacked, body in one straight line, no sag.","Start knee-bent (shin on the bench) for a shorter, easier lever; progress toward a straight top leg over the weeks."],
+    fields:[{k:"s",lab:"Top hold (s) / side",type:"num",unit:"s"}]}
   ]},
-  {head:"Finisher · <b>NOT to failure</b>", ex:[
+  {head:"Finisher · grip fresh → forearm burn-out", ex:[
    {id:"carry", kind:"semi", name:"Single-Arm Suitcase Carry", target:"grip · anti-lateral-flexion core", svg:"carry",
-    chips:["3 × 60 s per arm","NOT to failure","~45 s rest"],
-    cues:["One heavy DB/KB at your side. Stand tall, shoulders level.","Walk normal pace 60 s — no lean, no shrug. Switch arms.","Heavy, but posture never breaks."],
-    fields:[{k:"w",lab:"Weight used (kg)",type:"num"}]}
+    chips:["3 × 60 s per arm","heavy · grip still fresh","brace hard — no lean"],
+    cues:["Done here while your grip is fresh — before the wrist curls — so go genuinely heavy.","One heavy DB/KB at your side, stand tall, shoulders level.","Walk a normal pace 60 s, brace the whole core, no lean or shrug. Switch arms."],
+    fields:[{k:"w",lab:"Weight used (kg)",type:"num"}]},
+   {id:"wristc", kind:"gap", name:"Reverse Wrist Curls — bilateral", target:"wrist extensors · lateral elbow", svg:"wrist", rest:45,
+    chips:["Tempo 3·3","3 × 15–20 · last set to failure","final forearm burn-out"],
+    cues:["Both forearms flat on a bench, palms down, fingers curled around the DBs.","Knuckles up 3 s, lower 3 s. Forearms never leave the bench.","Last thing on Day 1 — burn the extensors out; nothing after this needs your grip."],
+    fields:[{k:"w",lab:"Weight per hand (kg)",type:"num"}]}
   ]}
  ]},
  day2:{cnt:"d2Cnt", blocks:[

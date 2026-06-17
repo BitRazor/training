@@ -83,8 +83,6 @@ function render(){
     var key=o.getAttribute("data-choice");
     $$(".opt",o).forEach(function(btn){btn.classList.toggle("sel",btn.getAttribute("data-v")===state.choices[key]);});
   });
-  document.body.classList.toggle("hideDone",!!state.hideDone);
-  $("#hideDoneT").classList.toggle("on",!!state.hideDone);
   allEx().forEach(function(ex){if(ex.kind==="heavy")verdict(ex.id);});
   progress();
 }
@@ -127,8 +125,6 @@ function progress(){
     });});
     $("#"+DAYS[d].cnt).textContent=dn+"/"+t;
   });
-  var pc=(state.v["bw"]?1:0)+(state.v["c_collagen"]?1:0)+(state.v["c_stomach"]?1:0);
-  $("#preCnt").textContent=pc+"/3";
   results();
 }
 function results(){
@@ -199,7 +195,6 @@ document.addEventListener("toggle",function(e){
   if(d.classList&&d.classList.contains("how")){state.open["how_"+d.getAttribute("data-how")]=d.open; save();}
   if(d.classList&&d.classList.contains("sec")){state.open[d.id]=d.open; save();}
 },true);
-$("#hideDoneT").addEventListener("click",function(){state.hideDone=!state.hideDone; save(); document.body.classList.toggle("hideDone",state.hideDone); this.classList.toggle("on",state.hideDone);});
 $("#copyBtn").addEventListener("click",function(){
   var txt=summaryText(), b=this;
   function ok(){b.textContent="Copied ✓"; setTimeout(function(){b.textContent="Copy summary";},1600);}
@@ -315,7 +310,7 @@ showDay(state.activeDay||"day1");
 /* restore checkboxes + section open states */
 $$("input[type=checkbox][data-k]").forEach(function(c){c.checked=!!state.v[c.getAttribute("data-k")];});
 var bwEl=$("#bw"); if(bwEl&&state.v["bw"]!==undefined&&state.v["bw"]!=="")bwEl.value=state.v["bw"];
-["sec-pre","sec-guide","sec-warm","sec-res"].forEach(function(id){
+["sec-warm","sec-res"].forEach(function(id){
   var el=$("#"+id); if(el&&state.open[id]!==undefined)el.open=state.open[id];
 });
 var notesEl=$("textarea[data-k=notes]"); if(notesEl&&state.v["notes"])notesEl.value=state.v["notes"];

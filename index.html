@@ -9,69 +9,14 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="topBar"><div class="tgl" id="wakeT">☀ Keep screen on</div></div>
 
 <header>
   <h1>Week 1 · Calibration</h1>
   <p class="sub">HSR test drive — find your 15RM <b>at tempo</b> on every lift. This week IS the test.</p>
   <div class="progressWrap"><div class="progressBar" id="pbar"></div></div>
   <div class="progressTxt" id="ptxt">0 / 15 done</div>
-  <div class="topRow">
-    <div class="tgl" id="hideDoneT">☑ Hide done</div>
-    <div class="tgl" id="wakeT">☀ Keep screen on</div>
-  </div>
-</header>
-
-<!-- PRE-SESSION -->
-<details class="sec" id="sec-pre">
-  <summary>Pre-session checklist <span class="cnt" id="preCnt"></span><svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
-  <div class="secBody">
-    <div class="bwRow">
-      <label for="bw">Morning bodyweight</label>
-      <input type="number" step="0.1" inputmode="decimal" id="bw" data-k="bw" placeholder="kg">
-    </div>
-    <label class="check"><input type="checkbox" data-k="c_collagen"><span><b>Collagen 20–30 g + vit C ~50 mg</b>, 45–60 min before. Small drink, stay upright (GERD).</span></label>
-    <label class="check"><input type="checkbox" data-k="c_stomach"><span><b>Settled stomach</b> — no big meal close to the session.</span></label>
-    <div class="choiceRow">
-      <div class="q">Vertical pull — test only the one you'll keep:</div>
-      <div class="opts" data-choice="pull">
-        <div class="opt" data-v="pulldown">Cable Pulldown</div>
-        <div class="opt" data-v="chinup">Weighted Chin-up</div>
-      </div>
-      <div class="hint">15 slow-tempo chin-ups is out of reach for almost everyone — pulldown is the right Week-1 call.</div>
-    </div>
-    <div class="choiceRow">
-      <div class="q">Chest press:</div>
-      <div class="opts" data-choice="press">
-        <div class="opt" data-v="machine">Machine</div>
-        <div class="opt" data-v="db">Dumbbell</div>
-      </div>
-    </div>
-    <div class="choiceRow">
-      <div class="q">Vertical push:</div>
-      <div class="opts" data-choice="push">
-        <div class="opt" data-v="ext">Overhead Extension</div>
-        <div class="opt" data-v="dips">Dips</div>
-      </div>
-      <div class="hint">15 reps at 6-s tempo favors the extension; dips suit later, heavier phases.</div>
-    </div>
-  </div>
-</details>
-
-<!-- TEST GUIDE -->
-<details class="sec" id="sec-guide">
-  <summary>How to test <svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
-  <div class="secBody">
-    <div class="rule"><b>Tempo IS the exercise.</b> Every rep — ramps included — at <b>3 s down / 3 s up</b> (calves 3-3-3). A fast rep gives a number ~20–30% too heavy and miscalibrates the whole block. Use the tempo button below.</div>
-    <div class="rule"><b>Warm up first.</b> 3–5 min backward sled or backward treadmill, then World's Greatest Stretch · inchworm · quadruped step-through · lateral drop lunge · eyes-closed balance — then ramp the first lift.</div>
-    <div class="gItem"><div class="n">1</div><div><b>Ramp.</b> Light → 3–4 reps at tempo → rest ~1 min → add weight → again. 2–3 steps, until it feels like "I could do ~15–18 of these."</div></div>
-    <div class="gItem"><div class="n">2</div><div><b>Set 1 = the test.</b> That weight, to failure, strict tempo. Failure = the rep slows past tempo or form breaks. Stop there — no ugly grinding.</div></div>
-    <div class="gItem"><div class="n">3</div><div><b>Read the reps</b> (the app does this for you): <b>13–17</b> → calibrated, that's the 15RM · <b>18+</b> → +5–10% next set · <b>≤11</b> → −10% next set. Sets 2–3 at the corrected weight.</div></div>
-    <div class="rule"><b>Gap-Closure lifts are NOT tested to failure.</b> Find the weight where rep 13–14 is hard but you're sure 1–2 more were there (1–2 RIR). Log that.</div>
-    <div class="rule"><b>In doubt between two weights → take the lighter.</b> Undershooting costs nothing in week 1; overshooting strains the tendon.</div>
-    <div class="rule">Rest <b>2.5 min</b> Heavy · <b>1.5 min</b> Gap-Closure · ~45 s semi-warm-up. Unilateral: <b>left, then right, then rest</b> = one set.</div>
-    <div class="rule warn"><b>Pain rule (even in week 1):</b> ≤3/10 that's gone by next morning = fine. Climbing through a set, or worse next morning = drop that load.</div>
-  </div>
-</details>
+  </header>
 
 <!-- WARM-UP -->
 <details class="sec" id="sec-warm">

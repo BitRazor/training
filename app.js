@@ -2,7 +2,7 @@
 
 /* ---------- state ---------- */
 var KEY="w1cal-v1";
-var state={v:{},done:{},open:{},choices:{pull:"pulldown",press:"machine",push:"ext"},hideDone:false,activeDay:"day1",uxMigrated:false};
+var state={v:{},done:{},open:{},choices:{pull:"pulldown",press:"machine",push:"ext"},activeDay:"day1",uxMigrated:false};
 try{var saved=JSON.parse(localStorage.getItem(KEY)||"null"); if(saved){for(var k in state){if(saved[k]!==undefined)state[k]=saved[k];}}}catch(e){}
 /* one-time cleanup: drop the expand/collapse memory from the old pre-tabs layout so
    returning users land on the new collapsed defaults. Logged numbers (state.v) stay put. */
@@ -16,10 +16,6 @@ function $$(s,el){return Array.prototype.slice.call((el||document).querySelector
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
 function r05(x){return Math.round(x*2)/2;}
 function exName(ex){return ex.nameKey?ex.names[state.choices[ex.nameKey]]:ex.name;}
-function isLogged(ex){
-  return ex.kind==="heavy" ? (parseFloat(state.v[ex.id+"_fin"])>0)
-    : ex.fields.some(function(f){var v=state.v[ex.id+"_"+f.k]; return v!==undefined&&String(v).trim()!=="";});
-}
 function exById(id){var r=null; allEx().forEach(function(e){if(e.id===id)r=e;}); return r;}
 function restFor(ex){return ex.rest!=null?ex.rest:(ex.kind==="heavy"?150:(ex.kind==="gap"?90:45));}
 function tempoFor(ex){return ex.tempo!==undefined?ex.tempo:(ex.id==="calf"?"9":(ex.kind==="semi"?null:"6"));}
@@ -52,10 +48,11 @@ function cardHtml(ex){
     return '<span class="'+cls+'">'+c+'</span>';
   }).join("");
   var howOpen=state.open["how_"+ex.id]===true?" open":"";
+  var variant=ex.nameKey?'<div class="opts vsel" data-choice="'+ex.nameKey+'">'+Object.keys(ex.names).map(function(v){return '<button type="button" class="opt'+(state.choices[ex.nameKey]===v?" sel":"")+'" data-v="'+v+'">'+esc(ex.names[v])+'</button>';}).join("")+'</div>':"";
   return '<div class="ex'+(state.done[ex.id]?' done':'')+'" id="ex_'+ex.id+'">'
    +'<div class="exHead" data-arm="'+ex.id+'"><div><div class="exName" data-nm="'+ex.id+'">'+esc(exName(ex))+'</div><div class="exTarget">'+ex.target+'</div></div>'
    +'<button class="doneBtn" data-done="'+ex.id+'" aria-label="mark done" title="Mark done — collapses the card">✓</button></div>'
-   +'<div class="chips">'+chips+'</div>'
+   +'<div class="chips">'+chips+'</div>'+variant
    +'<div class="exFig" data-gif="'+ex.id+'.gif"><img src="gifs/'+ex.id+'.gif" alt="'+esc(exName(ex))+'" loading="lazy" onerror="var p=this.parentNode; this.remove(); p.classList.add(\'missing\')"></div>'
    +'<details class="how" data-how="'+ex.id+'"'+howOpen+'><summary>How to do it</summary><div class="howBody">'
    +'<ul class="cues">'+ex.cues.map(function(c){return "<li>"+c+"</li>";}).join("")+'</ul>'
@@ -142,8 +139,7 @@ function results(){
 }
 function summaryText(){
   var L=["Week 1 calibration results — "+new Date().toISOString().slice(0,10)];
-  L.push("Bodyweight: "+(state.v["bw"]||"—")+" kg");
-  L.push("Defaults: "+state.choices.pull+", "+state.choices.press+" press, "+state.choices.push);
+  L.push("Variants: "+state.choices.pull+", "+state.choices.press+" press, "+state.choices.push);
   ["day1","day2"].forEach(function(d){
     L.push(""); L.push(d==="day1"?"DAY 1 — LOWER":"DAY 2 — UPPER");
     DAYS[d].blocks.forEach(function(b){b.ex.forEach(function(ex){
@@ -202,7 +198,7 @@ $("#copyBtn").addEventListener("click",function(){
   function fallback(){var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy"); ok();}catch(e){} document.body.removeChild(ta);}
 });
 $("#dlBtn").addEventListener("click",function(){
-  var data={exported:new Date().toISOString(), bodyweight:state.v["bw"]||null, choices:state.choices, values:state.v, summary:summaryText()};
+  var data={exported:new Date().toISOString(), choices:state.choices, values:state.v, summary:summaryText()};
   var a=document.createElement("a");
   a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:"application/json"}));
   a.download="week1-calibration-results.json"; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
@@ -307,9 +303,7 @@ function armExercise(id){
 /* ---------- init ---------- */
 render();
 showDay(state.activeDay||"day1");
-/* restore checkboxes + section open states */
-$$("input[type=checkbox][data-k]").forEach(function(c){c.checked=!!state.v[c.getAttribute("data-k")];});
-var bwEl=$("#bw"); if(bwEl&&state.v["bw"]!==undefined&&state.v["bw"]!=="")bwEl.value=state.v["bw"];
+/* restore section open states */
 ["sec-warm","sec-res"].forEach(function(id){
   var el=$("#"+id); if(el&&state.open[id]!==undefined)el.open=state.open[id];
 });

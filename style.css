@@ -35,10 +35,9 @@ details.sec>summary .cnt{font-size:12px; color:var(--mut); font-weight:500; back
 /* exercise card */
 .ex{background:var(--card2); border:1px solid var(--line); border-radius:12px; margin:0 0 10px; overflow:hidden}
 .ex.done{opacity:1}
-.ex.done .exTarget,.ex.done .chips,.ex.done .exFig,.ex.done details.how,.ex.done .logs{display:none}
+.ex.done .exTarget,.ex.done .chips,.ex.done .opts,.ex.done .exFig,.ex.done details.how,.ex.done .logs{display:none}
 .ex.done .exHead{padding:12px}
 .ex.done .exName{color:var(--mut); font-weight:600}
-body.hideDone .ex.done{display:none}
 .exHead{display:flex; align-items:flex-start; gap:10px; padding:12px 12px 4px}
 .exName{font-weight:650; font-size:15.5px}
 .exTarget{font-size:12.5px; color:var(--mut); margin-top:1px}
@@ -57,15 +56,6 @@ details.how>summary::-webkit-details-marker{display:none}
 details.how>summary::before{content:"▸ "; color:var(--dim)}
 details.how[open]>summary::before{content:"▾ "}
 .howBody{padding:0 12px 12px}
-.fig{background:var(--card); border-radius:10px; padding:8px 6px 2px; margin:2px 0 10px; text-align:center}
-.fig svg{width:100%; max-width:230px; height:auto; color:#8fa3b5}
-.fig .acc{color:var(--acc)}
-.fig img{width:100%;max-width:230px;height:auto;display:block;margin:0 auto;border-radius:8px}
-@keyframes repBob{0%,100%{transform:translateY(0)}50%{transform:translateY(4px)}}
-@keyframes repGlow{0%,100%{opacity:1}50%{opacity:.4}}
-.fig svg{animation:repBob 6s ease-in-out infinite}
-.fig svg .acc{animation:repGlow 6s ease-in-out infinite}
-@media(prefers-reduced-motion:reduce){.fig svg,.fig svg .acc{animation:none}}
 .cues{margin:0; padding-left:18px; font-size:13.5px; color:#c6d2dd}
 .cues li{margin:0 0 5px}
 .logs{padding:8px 12px 12px; display:flex; flex-direction:column; gap:8px}
@@ -83,25 +73,12 @@ details.how[open]>summary::before{content:"▾ "}
 .verdict.up{display:block; background:#3a2d08; color:var(--warn)}
 .verdict.dn{display:block; background:#3a1414; color:var(--bad)}
 .useBtn{margin-top:7px; font-size:13px; background:var(--acc); color:#06281c; border:0; border-radius:8px; padding:7px 12px; font-weight:650; cursor:pointer}
-/* guide + prechecks */
-.gItem{display:flex; gap:10px; margin:0 0 12px; font-size:14px; color:#c6d2dd}
-.gItem .n{flex:none; width:24px; height:24px; border-radius:8px; background:var(--card2); border:1px solid var(--line); color:var(--acc); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center}
-.rule{background:var(--card2); border-left:3px solid var(--acc); border-radius:8px; padding:9px 12px; font-size:13.5px; margin:0 0 8px; color:#c6d2dd}
-.rule b{color:var(--tx)}
-.rule.warn{border-left-color:var(--warn)}
-.check{display:flex; align-items:center; gap:11px; padding:11px 4px; border-bottom:1px solid var(--line); font-size:14.5px; cursor:pointer; user-select:none}
-.check:last-child{border-bottom:0}
-.check input{width:21px; height:21px; accent-color:var(--acc); flex:none}
-.choiceRow{padding:10px 4px; border-bottom:1px solid var(--line)}
-.choiceRow:last-child{border-bottom:0}
-.choiceRow .q{font-size:13px; color:var(--mut); margin-bottom:7px}
+/* inline variant toggle (Day-2 pull/press/push) */
 .opts{display:flex; gap:8px}
-.opt{flex:1; text-align:center; font-size:13.5px; padding:9px 6px; border-radius:10px; border:1.5px solid var(--line); color:var(--mut); cursor:pointer; user-select:none}
+.opts.vsel{margin:8px 12px 0}
+.opt{flex:1; text-align:center; font-size:13.5px; font-family:inherit; padding:9px 6px; border-radius:10px; border:1.5px solid var(--line); background:transparent; color:var(--mut); cursor:pointer; user-select:none}
 .opt.sel{border-color:var(--acc); color:var(--acc); background:var(--accD); font-weight:650}
 .hint{font-size:12px; color:var(--dim); margin-top:6px}
-.bwRow{display:flex; align-items:center; gap:10px; padding:12px 4px; border-bottom:1px solid var(--line)}
-.bwRow label{font-size:14.5px}
-.bwRow input{width:110px; margin-left:auto; font-size:16px; padding:10px 12px; border-radius:10px; border:1px solid var(--line); background:var(--bg); color:var(--tx); text-align:center}
 /* results */
 .resT{width:100%; border-collapse:collapse; font-size:13.5px}
 .resT td{padding:8px 6px; border-bottom:1px solid var(--line)}

@@ -84,7 +84,7 @@ var WARMUP={
   {id:"wu_hindu",gif:"wu_hindu",name:"Hindu push-ups",detail:"6–8. Swoop low → push into extension. Drives thoracic extension."},
   {id:"wu_quad2",gif:"wu_quad",name:"Quadruped step-throughs",detail:"5/side. Cross-body anti-rotation + opens the front of the shoulder."},
   {id:"wu_windmill",gif:"wu_windmill",name:"Light DB windmills",detail:"5/side. Shoulder stability in open angles; wakes the cuff. Keep it genuinely light."},
-  {id:"wu_stickpass",gif:"wu_stickpass",name:"Stick shoulder pass-throughs",detail:"8–10 slow. Wide grip on a stick/broomstick, arms straight — pass it overhead from front to behind and back. Opens the whole overhead arc."},
+  {id:"wu_stickpass",gif:"wu_stickpass.jpg",name:"Stick shoulder pass-throughs",detail:"8–10 slow. Wide grip on a stick/broomstick, arms straight — pass it overhead from front to behind and back. Opens the whole overhead arc."},
   {id:"wu_band",gif:"wu_band",name:"Band pull-aparts",detail:"15–20. Arms straight, pull the band apart to the chest, squeeze the shoulder blades — wakes the rear delts/scapula before the pulls."}
  ]
 };

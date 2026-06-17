@@ -64,7 +64,7 @@ function exBlockHtml(en,ei){
     +(en.adhoc?'<select class="field" data-act="exsel" style="width:100%;font-size:15px;padding:8px 10px">'+db.exercises.map(function(x){return '<option value="'+x.id+'"'+(x.id===en.exerciseId?" selected":"")+'>'+esc(x.name)+'</option>';}).join("")+'</select>':'<div class="exName">'+esc(ex.name)+'</div>')
     +'<div class="exMeta">'+esc(ex.pattern||"")+' · '+esc(en.block||"extra")+' · target '+(en.mode==="timed"?"hold":(en.sets.length+"×"+(en.adhoc?"–":repForEntry(en))))+'</div>'
     +(lastStr?'<div class="lastTime">last: '+esc(lastStr)+'</div>':'<div class="lastTime dim">no prior data</div>')+'</div>';
-  h+=howToHtml(en.exerciseId);
+  h+=gifHtml(en.exerciseId)+howToHtml(en.exerciseId);
   h+='<div class="setHead"><span></span><span>'+mf.l1+'</span><span>'+mf.l2+'</span><span>RPE</span><span></span></div>';
   en.sets.forEach(function(st,si){
     var er=(en.mode==="external"||en.mode==="bodyweight")?e1rm(st.weightKg,st.reps):null;
@@ -175,6 +175,11 @@ function howToHtml(exId){
     +'<div class="howRow"><span class="howK">Cue</span><span>'+esc(d.cue)+'</span></div>'
     +'<div class="howRow"><span class="howK">Feel</span><span>'+esc(d.feel)+'</span></div>'
     +'</div></details>';
+}
+/* always-visible exercise gif (compact); hides itself if the file is missing or absent */
+function gifHtml(exId){
+  var g=EX_GIF[exId]; if(!g) return "";
+  return '<div class="exFig"><img src="gifs/'+g+'.gif" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div>';
 }
 
 /* ---------- NUTRITION ---------- */

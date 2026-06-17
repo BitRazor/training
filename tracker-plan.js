@@ -42,7 +42,7 @@ function renderPlan(){
       h += '<div class="planCard"><div class="planTop"><div class="exName">' + esc(ex.name) + '</div>' +
            '<span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
            '<div class="planPresc">' + prescStr(en, ex, w) + ' · rest ' + en.restSec + 's</div>' +
-           howToHtml(en.exerciseId) + '</div>';
+           gifHtml(en.exerciseId) + howToHtml(en.exerciseId) + '</div>';
     });
   });
 

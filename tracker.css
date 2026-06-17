@@ -165,3 +165,5 @@ details.how[open]>summary::before{content:"▾ "}
 .howBody{padding:2px 10px 10px; font-size:12.5px; line-height:1.5; color:#c6d2dd}
 .howRow{margin:0 0 5px; display:flex; gap:7px}
 .howK{flex:none; min-width:42px; color:var(--acc); font-weight:700; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; padding-top:2px}
+.exFig{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:6px; margin:7px 0 2px; text-align:center}
+.exFig img{width:100%; max-width:150px; height:auto; display:block; margin:0 auto; border-radius:8px}

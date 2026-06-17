@@ -3,6 +3,16 @@
    Source: programs/strength/exercise-guide.md + the calibration app's cues; fresh
    guide-standard entries written for Copenhagen Plank + Towel-Roll Internal Rotation
    (both were missing a full description). Keyed by exercise id. Loaded before tracker.js. */
+
+/* exercise id -> gif filename in gifs/ (the calibration app's verified animations).
+   internal-rotation has no gif (the cuff primer never had one). */
+var EX_GIF = {
+  "atg-split-squat":"atg", "rdl":"rdl", "leg-curl":"legcurl", "calf-raise":"calf",
+  "tibialis-raise":"tib", "hip-flexion":"psoas", "copenhagen-plank":"copen",
+  "suitcase-carry":"carry", "reverse-wrist-curl":"wristc", "cable-pulldown":"vpull",
+  "chest-press":"press", "cable-row":"row1", "triceps-overhead":"vpush",
+  "face-pulls":"facep", "lateral-raise":"latr"
+};
 var EX_DESC = {
   "atg-split-squat": {
     setup: "Split stance, both feet pointing forward; front foot flat (heel stays down), rear heel up on the ball. Torso tall. Front heel on a small wedge is optional for ankle range.",

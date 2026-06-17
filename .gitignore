@@ -1,0 +1,8 @@
+# Internal Claude / cowork artifacts — kept on the PC, NOT published to this public app repo.
+docs/
+.claude/
+
+# Scratch / OS
+*.log
+.DS_Store
+Thumbs.db

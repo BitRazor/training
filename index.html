@@ -4,72 +4,48 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0f12">
-<title>Week 1 · Calibration</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c0f12'/><circle cx='16' cy='16' r='7' fill='none' stroke='%2334d399' stroke-width='3'/></svg>">
-<link rel="stylesheet" href="style.css">
+<title>Training Tracker</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c0f12'/><path d='M7 16h18M11 11v10M21 11v10' stroke='%2334d399' stroke-width='3' fill='none' stroke-linecap='round'/></svg>">
+<link rel="stylesheet" href="tracker.css">
 </head>
 <body>
-<div class="topBar"><div class="tgl" id="wakeT">☀ Keep screen on</div></div>
+<header class="appHead">
+  <div class="appTitle">Training Tracker</div>
+  <div class="headMeta" id="headMeta"></div>
+</header>
 
-<header>
-  <h1>Week 1 · Calibration</h1>
-  <p class="sub">HSR test drive — find your 15RM <b>at tempo</b> on every lift. This week IS the test.</p>
-  <div class="progressWrap"><div class="progressBar" id="pbar"></div></div>
-  <div class="progressTxt" id="ptxt">0 / 15 done</div>
-  </header>
+<main>
+  <section class="view" id="view-today"></section>
+  <section class="view" id="view-log" hidden></section>
+  <section class="view" id="view-history" hidden></section>
+  <section class="view" id="view-programs" hidden></section>
+  <section class="view" id="view-nutrition" hidden></section>
+  <section class="view" id="view-settings" hidden></section>
+</main>
 
-<!-- WARM-UP -->
-<details class="sec" id="sec-warm">
-  <summary>Warm-up <span class="cnt">~8–10 min</span><svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
-  <div class="secBody" id="warmBody"></div>
-</details>
-
-<!-- DAY TABS -->
-<div class="dayTabs" role="tablist">
-  <button class="dayTab" data-day="day1">Day 1 · Lower <span class="cnt" id="d1Cnt"></span></button>
-  <button class="dayTab" data-day="day2">Day 2 · Upper <span class="cnt" id="d2Cnt"></span></button>
-</div>
-<div class="dayPanel" id="panel-day1"><div class="secBody" id="day1"></div></div>
-<div class="dayPanel" id="panel-day2" hidden><div class="secBody" id="day2"></div></div>
-
-<!-- RESULTS -->
-<details class="sec" id="sec-res">
-  <summary>Results &amp; export <svg class="chev" width="16" height="16" viewBox="0 0 16 16"><path d="M3 6l5 5 5-5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></summary>
-  <div class="secBody">
-    <table class="resT" id="resT"></table>
-    <div style="margin-top:12px">
-      <label style="font-size:12.5px;color:var(--mut)">Notes — pain, machine quirks, anything off:</label>
-      <textarea data-k="notes" placeholder="e.g. calf machine maxes out · slight knee niggle on split squat set 3, gone next morning"></textarea>
-    </div>
-    <div class="btnRow">
-      <button class="btn" id="copyBtn">Copy summary</button>
-      <button class="btn" id="impBtn">Import JSON</button>
-      <button class="btn primary" id="dlBtn">Download JSON</button>
-    </div>
-    <input type="file" id="impFile" accept="application/json,.json" style="display:none">
-    <p class="hint" style="margin-top:8px">Moving to a new web address (e.g. GitHub)? Your typed numbers stay in the old browser. <b>Download JSON here, then Import it on the new page</b> to carry everything over.</p>
-    <p class="hint" style="margin-top:10px">When every field is filled, hand these numbers to Claude → the 12-week per-exercise load table gets computed into <b>baselines.md</b> and seeds the tracker app.</p>
-  </div>
-</details>
-
-<div class="resetRow"><button id="resetBtn">Reset all data</button></div>
-
-<!-- STICKY TOOLBAR -->
-<div class="bar">
-  <div class="barRow">
-    <button class="bbtn" data-rest="150">Rest 2:30</button>
-    <button class="bbtn" data-rest="90">Rest 1:30</button>
-    <button class="bbtn" data-rest="45">0:45</button>
-    <div class="disp" id="disp">--:--<small id="dispSub">TIMER</small></div>
-  </div>
-  <div class="barRow">
-    <button class="bbtn met" data-met="6">Tempo 3·3</button>
-    <button class="bbtn met" data-met="9">Calf 3·3·3</button>
-    <button class="bbtn met" id="metStop" style="flex:.7">Stop</button>
-  </div>
+<!-- floating rest timer (shown during logging) -->
+<div class="restBar" id="restBar" hidden>
+  <button class="rbtn" id="restMinus">−15</button>
+  <div class="restDisp" id="restDisp">2:00<small>REST</small></div>
+  <button class="rbtn" id="restPlus">+15</button>
+  <button class="rbtn stop" id="restStop">✕</button>
 </div>
 
-<script src="data.js"></script>
-<script src="app.js"></script>
+<nav class="tabbar">
+  <button class="tab sel" data-view="today"><span class="ti">▣</span>Today</button>
+  <button class="tab" data-view="log"><span class="ti">＋</span>Log</button>
+  <button class="tab" data-view="history"><span class="ti">📈</span>History</button>
+  <button class="tab" data-view="programs"><span class="ti">▤</span>Plan</button>
+  <button class="tab" data-view="nutrition"><span class="ti">🍴</span>Fuel</button>
+  <button class="tab" data-view="settings"><span class="ti">⚙</span>Settings</button>
+</nav>
+
+<input type="file" id="importFile" accept="application/json,.json" hidden>
+
+<script src="tracker-seed.js"></script>
+<script src="tracker-desc.js"></script>
+<script src="tracker-views.js"></script>
+<script src="tracker-plan.js"></script>
+<script src="tracker.js"></script>
 </body>
 </html>

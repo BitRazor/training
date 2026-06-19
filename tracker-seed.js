@@ -19,10 +19,12 @@ var SEED_SETTINGS = { theme:"dark", units:"metric", weekStart:"monday", lastExpo
 /* ---- tested 15RM / working weights (profile/baselines.md, 2026-06-13). null = not calibrated yet ----
    Heavy lifts ladder off these; gap/prehab hold a steady working weight; timed lifts use a time target. */
 var SEED_TESTED = {
-  "rdl": 40, "calf-raise": 40,                                  // Day-1 heavy, tested
-  "tibialis-raise": 10, "hip-flexion": 12.5, "reverse-wrist-curl": 6, // Day-1 gap, working weights
-  "suitcase-carry": 16                                          // timed finisher
-  /* untested → enter at the gym: atg-split-squat, leg-curl (retest), and ALL Day-2 lifts */
+  /* from the user's calibration export (week1-calibration-results.json, 2026-06-16) — final 15RM / working weights */
+  "atg-split-squat":8, "rdl":60, "leg-curl":20, "calf-raise":17.5,            // Day-1 heavy
+  "tibialis-raise":10, "hip-flexion":12.5, "reverse-wrist-curl":6, "suitcase-carry":16, // Day-1 gap/finisher
+  "cable-pulldown":50, "chest-press":70, "cable-row":25, "triceps-overhead":17.5,        // Day-2 heavy (chest press logged as DB)
+  "face-pulls":7.5, "lateral-raise":3                                          // Day-2 gap
+  /* copenhagen-plank = timed (no load) · internal-rotation = warm-up cuff (untested) */
 };
 
 /* ---- the 12-week algorithm ----

@@ -26,7 +26,10 @@ function seedDb(){
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
   if(!db.tested) db.tested={};
-  for(var k in SEED_TESTED){ if(db.tested[k]===undefined) db.tested[k]=SEED_TESTED[k]; }
+  /* one-time: load the 2026-06-16 calibration-export weights, overwriting old placeholders once,
+     then on later loads only fill gaps so the user's own overrides are preserved */
+  if(db.settings.testedSeed!=="2026-06-16"){ for(var k in SEED_TESTED) db.tested[k]=SEED_TESTED[k]; db.settings.testedSeed="2026-06-16"; }
+  else { for(var k2 in SEED_TESTED){ if(db.tested[k2]===undefined) db.tested[k2]=SEED_TESTED[k2]; } }
   if(!db.progress) db.progress={};
   STRENGTH_DAYS.forEach(function(p){ if(!db.progress[p]) db.progress[p]={weeksDone:[]}; if(!db.progress[p].weeksDone) db.progress[p].weeksDone=[]; });
   if(!db.notes) db.notes=[];

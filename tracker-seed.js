@@ -1,127 +1,108 @@
 "use strict";
-/* training-tracker — embedded seed. Mirrors the Markdown design in
-   Documents/Claude/Projects/Training (profile, programs/strength, nutrition).
-   Loaded before tracker.js. Edit the Markdown first, then mirror here + bump CHANGELOG. */
+/* training-tracker — embedded seed + the 12-week load algorithm.
+   Mirrors Documents/Claude/Projects/Training (profile, programs/strength, week1-calibration, nutrition). */
 
-var SCHEMA_VERSION = 1;
+var SCHEMA_VERSION = 2;
 var STORE_KEY = "training-tracker:v1";
+var TOTAL_WEEKS = 12;
 
-/* ---- profile defaults (profile/athlete.md · null = ⚠ CONFIRM) ---- */
+/* ---- profile (bodyweight = TARGET lean bodyweight, ~10–15% body fat — drives protein) ---- */
 var SEED_PROFILE = {
   name: "Arnoldas",
-  bodyweightKg: null,
+  targetBodyweightKg: null,           // lean target (~10–15% BF) — protein is figured on this, not total mass
   maxHr: 193,
-  restingHr: null,
   proteinTargetGPerKg: { low: 1.6, high: 2.0 },
   hrZones: { z1:[97,116], z2:[116,135], z3:[135,154], z4:[154,174], z5:[174,193] }
 };
+var SEED_SETTINGS = { theme:"dark", units:"metric", weekStart:"monday", lastExportAt:null };
 
-var SEED_SETTINGS = {
-  theme:"dark", units:"metric", restTimerDefaultSec:120,
-  weekStart:"monday", blockPhaseWeek:1, weeksDone:[], barKg:20,
-  platesKg:[25,20,15,10,5,2.5,1.25], lastExportAt:null
+/* ---- tested 15RM / working weights (profile/baselines.md, 2026-06-13). null = not calibrated yet ----
+   Heavy lifts ladder off these; gap/prehab hold a steady working weight; timed lifts use a time target. */
+var SEED_TESTED = {
+  "rdl": 40, "calf-raise": 40,                                  // Day-1 heavy, tested
+  "tibialis-raise": 10, "hip-flexion": 12.5, "reverse-wrist-curl": 6, // Day-1 gap, working weights
+  "suitcase-carry": 16                                          // timed finisher
+  /* untested → enter at the gym: atg-split-squat, leg-curl (retest), and ALL Day-2 lifts */
 };
 
-/* ---- exercise library (strength) ----
-   pattern ∈ squat|hinge|h-push|h-pull|v-push|v-pull|carry|core|isolation
-   loadType ∈ external|bodyweight|timed|carry   (unit: per-side hints in defaultUnit) */
+/* ---- the 12-week algorithm ----
+   est 1RM from a tested 15RM, add a weekly strength bump, then weight = 1RM × rep-max% for that week's reps. */
+var REP_LADDER = [15,14,13,12,11,10,9,8,8,7,6,6];   // weeks 1..12 (most reps → 6)
+var WEEKLY_GAIN = 0.01;                              // +1%/week predicted strength gain (novice, conservative)
+var PCT_1RM = {1:1.00,2:0.95,3:0.93,4:0.90,5:0.87,6:0.85,7:0.83,8:0.80,9:0.77,10:0.75,11:0.72,12:0.70,13:0.67,14:0.66,15:0.65};
+function pct(reps){ return PCT_1RM[reps] || PCT_1RM[15]; }
+function repForWeek(w){ return REP_LADDER[(w||1)-1] || REP_LADDER[0]; }
+function phaseForWeek(w){ return w<=1?"System Flush":(w<=4?"Anchor Hypertrophy":(w<=8?"Tension Transition":"Max Stiffness")); }
+function roundTo(x,step){ return Math.round(x/step)*step; }
+function est1RM(tested15){ return tested15==null?null:(tested15 / pct(15)); }
+/* prescribed weight for a heavy lift at week w, from its tested 15RM */
+function calcWeight(tested15, w){
+  if(tested15==null) return null;
+  var orm = est1RM(tested15) * Math.pow(1+WEEKLY_GAIN, (w||1)-1);
+  return roundTo(orm * pct(repForWeek(w)), 2.5);
+}
+/* re-anchor: from an actual weight lifted at week w, back out the equivalent tested 15RM */
+function deriveTested(actualWeight, w){
+  return actualWeight * pct(15) / (Math.pow(1+WEEKLY_GAIN, (w||1)-1) * pct(repForWeek(w)));
+}
+
+/* ---- exercise library (pattern incl. isolation; loadType incl. timed/carry) ---- */
 var SEED_EXERCISES = [
-  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     equipment:["dumbbell"], loadType:"external", defaultUnit:"kg/leg", notes:"Front-foot elevated to start; 3·3 tempo, deep ROM. Per leg."},
-  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     equipment:["barbell"],  loadType:"external", defaultUnit:"kg",     notes:"Straps if grip fails before hamstrings. Load must climb the ladder."},
-  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     equipment:["machine"],  loadType:"external", defaultUnit:"kg",     notes:"Knee-flexion hamstring (gap the RDL leaves). 6-s tempo."},
-  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", equipment:["machine"],  loadType:"external", defaultUnit:"kg",     notes:"9-s tempo: 3 s down · 3 s loaded-stretch hold · 3 s up. Soleus."},
-  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", equipment:["plate"],    loadType:"external", defaultUnit:"kg",     notes:"Anterior shin. 6-s tempo, 3×15, seated."},
-  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", equipment:["cable"],   loadType:"external", defaultUnit:"kg/leg", notes:"3-s hold at top, 3×10/leg. Loads hip flexor + standing balance/core."},
-  {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      equipment:["bodyweight"],loadType:"timed",   defaultUnit:"s",      notes:"Top shin on a bench; knee-bent→straight over weeks. 3×20–30 s/side. Log hold seconds."},
-  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     equipment:["dumbbell"], loadType:"carry",    defaultUnit:"kg",     notes:"Heavy, grip fresh (before wrist curls). 3×60 s/arm, tall, no lean."},
-  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", equipment:["dumbbell"], loadType:"external", defaultUnit:"kg",     notes:"Wrist extensors / lateral elbow. 3×15, last set to failure. Day-1 finisher."},
-  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    equipment:["cable"],    loadType:"external", defaultUnit:"kg",     notes:"Or Weighted Chin-up. Pick one default and stick to it. 3·3 tempo."},
-  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    equipment:["machine"],  loadType:"external", defaultUnit:"kg",     notes:"Or Heavy DB Press. Stop short of lockout. 3·3 tempo."},
-  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", equipment:["cable"],   loadType:"external", defaultUnit:"kg/arm", notes:"Torso does NOT twist. Per arm. 3·3 tempo."},
-  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    equipment:["cable"],    loadType:"external", defaultUnit:"kg",     notes:"Or Dips. Full triceps stretch under load. 3·3 tempo."},
-  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    equipment:["cable"],    loadType:"external", defaultUnit:"kg",     notes:"Rear delts / scapular retraction. 2-s squeeze. 3×15."},
-  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", equipment:["dumbbell"], loadType:"external", defaultUnit:"kg",     notes:"Medial delt. To shoulder height only. 3×15."},
-  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", equipment:["dumbbell"],loadType:"external", defaultUnit:"kg/arm", notes:"Subscapularis/cuff. SUBMAXIMAL — leave 3–4 in tank. 2×15/arm. (Cuff primer — see HANDOFF: placement under review.)"}
+  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg"},
+  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg"},
+  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg"},
+  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg"},
+  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg"},
+  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg"},
+  {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s"},
+  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg"},
+  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg"},
+  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg"},
+  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg"},
+  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm"},
+  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg"},
+  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg"},
+  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg"},
+  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm"}
 ];
 
-/* ---- programs (mirrors hsr-tendon-hypertrophy.md v1.7 + the app's current order) ----
-   block ∈ heavy|gap|finisher (display grouping). reps = target at week-1 (System Flush);
-   the 12-week ladder overrides the number via settings.blockPhaseWeek (see HSR_LADDER). */
+/* ---- programs (block: heavy = laddered by the algorithm · gap = steady working weight · timed = hold/carry) ---- */
 var SEED_PROGRAMS = {
-  "strength-a": {
-    id:"strength-a", name:"HSR Lower (Day 1)", restDefaults:{heavy:150, gap:90, finisher:90},
-    entries:[
-      {exerciseId:"atg-split-squat",  block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"rdl",              block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"leg-curl",         block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"calf-raise",       block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"tibialis-raise",   block:"gap",   sets:3, reps:15, restSec:90},
-      {exerciseId:"hip-flexion",      block:"gap",   sets:3, reps:10, restSec:90},
-      {exerciseId:"copenhagen-plank", block:"gap",   sets:3, reps:null, restSec:90, timed:true},
-      {exerciseId:"suitcase-carry",   block:"finisher", sets:3, reps:null, restSec:90, timed:true},
-      {exerciseId:"reverse-wrist-curl",block:"finisher",sets:3, reps:15, restSec:60}
-    ]
-  },
-  "strength-b": {
-    id:"strength-b", name:"HSR Upper (Day 2)", restDefaults:{heavy:150, gap:90},
-    entries:[
-      {exerciseId:"cable-pulldown",   block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"chest-press",      block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"cable-row",        block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"triceps-overhead", block:"heavy", sets:3, reps:15, restSec:150},
-      {exerciseId:"face-pulls",       block:"gap",   sets:3, reps:15, restSec:90},
-      {exerciseId:"lateral-raise",    block:"gap",   sets:3, reps:15, restSec:90},
-      {exerciseId:"internal-rotation",block:"gap",   sets:2, reps:15, restSec:90}
-    ]
-  }
+  "strength-a": { id:"strength-a", name:"HSR Lower (Day 1)", entries:[
+    {exerciseId:"atg-split-squat",  block:"heavy", sets:3, restSec:150},
+    {exerciseId:"rdl",              block:"heavy", sets:3, restSec:150},
+    {exerciseId:"leg-curl",         block:"heavy", sets:3, restSec:150},
+    {exerciseId:"calf-raise",       block:"heavy", sets:3, restSec:150},
+    {exerciseId:"tibialis-raise",   block:"gap",   sets:3, restSec:90, reps:15},
+    {exerciseId:"hip-flexion",      block:"gap",   sets:3, restSec:90, reps:10},
+    {exerciseId:"copenhagen-plank", block:"gap",   sets:3, restSec:90, timed:true},
+    {exerciseId:"suitcase-carry",   block:"finisher", sets:3, restSec:90, timed:true},
+    {exerciseId:"reverse-wrist-curl",block:"gap",  sets:3, restSec:60, reps:15}
+  ]},
+  "strength-b": { id:"strength-b", name:"HSR Upper (Day 2)", entries:[
+    {exerciseId:"cable-pulldown",   block:"heavy", sets:3, restSec:150},
+    {exerciseId:"chest-press",      block:"heavy", sets:3, restSec:150},
+    {exerciseId:"cable-row",        block:"heavy", sets:3, restSec:150},
+    {exerciseId:"triceps-overhead", block:"heavy", sets:3, restSec:150},
+    {exerciseId:"face-pulls",       block:"gap",   sets:3, restSec:90, reps:15},
+    {exerciseId:"lateral-raise",    block:"gap",   sets:3, restSec:90, reps:15},
+    {exerciseId:"internal-rotation",block:"gap",   sets:2, restSec:90, reps:15}
+  ]}
 };
+var STRENGTH_DAYS = ["strength-a","strength-b"];
 
-/* 12-week HSR rep ladder (hsr-tendon-hypertrophy.md). reps = target RM bracket top. */
-var HSR_LADDER = [
-  {phase:"System Flush",       weeks:[1],      reps:15, note:"Calibrate to slow-eccentric failure"},
-  {phase:"Anchor Hypertrophy", weeks:[2,3,4],  reps:12, note:"Volume accumulation, high TUT"},
-  {phase:"Tension Transition", weeks:[5,6,7,8],reps:10, note:"Mechanical tension climbs"},
-  {phase:"Max Stiffness",      weeks:[9,10,11,12], reps:8, note:"Heaviest loads; peak remodeling"},
-  {phase:"Deload",             weeks:[13],     reps:null, note:"1 wk light, normal tempo"}
-];
-function phaseForWeek(w){
-  for(var i=0;i<HSR_LADDER.length;i++){ if(HSR_LADDER[i].weeks.indexOf(w)>=0) return HSR_LADDER[i]; }
-  return HSR_LADDER[0];
-}
-var TOTAL_WEEKS = 13;
-/* per-week coaching note (beyond the phase intent) — only the weeks that change something */
-var WEEK_INTENT = {
-  1:"Calibration week — find the load that brings slow-eccentric failure inside the rep bracket on each lift.",
-  2:"First building week — keep the loads honest, every rep at the 3·3 tempo.",
-  5:"Tension climbs — reps drop and load goes up. Warm up thoroughly.",
-  9:"Heaviest phase — add load carefully, warm up extra, and be the first to trim conditioning.",
-  13:"Deload — light loads, normal tempo. Let the connective tissue consolidate, then recycle to week 2."
-};
-function weekPlan(w){
-  var ph=phaseForWeek(w);
-  return {week:w, phase:ph.phase, heavyReps:ph.reps, gapReps:"12–15", deload:(w===13),
-    intent:(WEEK_INTENT[w]||ph.note)};
-}
-/* reps to show for one program entry in a given week: heavy lifts ladder by phase,
-   gap/prehab keeps its fixed prescription, timed lifts (carry/Copenhagen) show no rep count */
-function repsForEntryWeek(en,w){
-  if(en.timed) return null;
-  if(en.block==="heavy"){ var r=phaseForWeek(w).reps; return r==null?"light":r; }
-  return en.reps;
-}
-
-/* current week schedule (programs/current-week.md v2.0). type ∈ strength|cardio|hiit|rest */
+/* current week (programs/current-week.md, schedule confirmed 2026-06-17) */
 var CURRENT_WEEK = [
-  {day:"Mon", label:"HSR Lower", type:"strength", ref:"strength-a", note:"Heavy labor daytime · evening lift · NO cold-water immersion"},
-  {day:"Tue", label:"Zone 2 · 45–60 min", type:"cardio", ref:"z2", note:"Easy, zero-impact"},
-  {day:"Wed", label:"HSR Upper", type:"strength", ref:"strength-b", note:"NO cold-water immersion after lifting"},
-  {day:"Thu", label:"Zone 2 · 45–60 min", type:"cardio", ref:"z2", note:"Easy, zero-impact"},
-  {day:"Fri", label:"Complete rest", type:"rest", ref:null, note:"Labor day · no evening session"},
-  {day:"Sat", label:"Norwegian 4×4", type:"hiit", ref:"norwegian-4x4", note:"Morning · CWI OK today · carb refill"},
-  {day:"Sun", label:"Rest", type:"rest", ref:null, note:"Eat normally · optional light Z2 only if readiness calls for it"}
+  {day:"Mon", label:"Zone 2 · 45–60 min", type:"cardio",   ref:"z2", note:"Easy, zero-impact"},
+  {day:"Tue", label:"HSR Lower",          type:"strength", ref:"strength-a", note:"Heavy + gap-closure · evening · NO cold-water after"},
+  {day:"Wed", label:"Zone 2 · 45–60 min", type:"cardio",   ref:"z2", note:"Easy, zero-impact"},
+  {day:"Thu", label:"HSR Upper",          type:"strength", ref:"strength-b", note:"Heavy + gap-closure · evening · NO cold-water after"},
+  {day:"Fri", label:"Complete rest",      type:"rest",     ref:null, note:"Recover"},
+  {day:"Sat", label:"Norwegian 4×4",      type:"hiit",     ref:"norwegian-4x4", note:"Morning · CWI OK today · carb refill"},
+  {day:"Sun", label:"Rest",               type:"rest",     ref:null, note:"Eat normally"}
 ];
 
-/* nutrition reference (nutrition/protein-protocol.md) — rendered read-only + drives the calculator */
+/* nutrition reference (nutrition/protein-protocol.md) */
 var NUTRITION = {
   targetLow:1.6, targetHigh:2.0, ceiling:2.2, mealsPerDay:[3,4], perMealMinGPerKg:0.3,
   rules:[

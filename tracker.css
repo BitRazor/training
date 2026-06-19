@@ -167,3 +167,18 @@ details.how[open]>summary::before{content:"▾ "}
 .howK{flex:none; min-width:42px; color:var(--acc); font-weight:700; font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; padding-top:2px}
 .exFig{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:6px; margin:7px 0 2px; text-align:center}
 .exFig img{width:100%; max-width:150px; height:auto; display:block; margin:0 auto; border-radius:8px}
+/* ---- plan redesign: program toggle, tappable weights, notes ---- */
+.progTabs{display:flex; gap:8px; margin:14px 0 4px}
+.progTab{flex:1; font-size:14px; font-weight:650; padding:11px 8px; border-radius:11px; border:1px solid var(--line); background:var(--card); color:var(--mut); cursor:pointer}
+.progTab.sel{border-color:var(--acc); color:var(--acc); background:var(--accD)}
+.planPresc.tap{cursor:pointer; display:flex; align-items:center; justify-content:space-between}
+.planPresc b{color:var(--tx); font-size:15px}
+.planPresc .editi{color:var(--dim); font-size:12px; flex:none; margin-left:8px}
+.planCard.untested{border-style:dashed}
+.planCard.untested .planPresc{color:var(--warn)}
+.noteBtn{margin-top:8px; font-size:12px; padding:6px 12px; border-radius:9px; border:1px solid var(--line); background:var(--card2); color:var(--mut); cursor:pointer}
+.noteRow{padding:9px 2px; border-bottom:1px solid var(--line)}
+.noteRow:last-child{border-bottom:0}
+.noteHd{display:flex; justify-content:space-between; font-size:13px; margin-bottom:3px}
+.noteTx{font-size:13px; color:#c6d2dd; line-height:1.45}
+.goarrow{color:var(--dim); font-size:18px; font-weight:700; padding-left:6px}

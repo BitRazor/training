@@ -16,26 +16,16 @@
 
 <main>
   <section class="view" id="view-today"></section>
-  <section class="view" id="view-log" hidden></section>
-  <section class="view" id="view-history" hidden></section>
   <section class="view" id="view-programs" hidden></section>
+  <section class="view" id="view-log" hidden></section>
   <section class="view" id="view-nutrition" hidden></section>
   <section class="view" id="view-settings" hidden></section>
 </main>
 
-<!-- floating rest timer (shown during logging) -->
-<div class="restBar" id="restBar" hidden>
-  <button class="rbtn" id="restMinus">−15</button>
-  <div class="restDisp" id="restDisp">2:00<small>REST</small></div>
-  <button class="rbtn" id="restPlus">+15</button>
-  <button class="rbtn stop" id="restStop">✕</button>
-</div>
-
 <nav class="tabbar">
   <button class="tab sel" data-view="today"><span class="ti">▣</span>Today</button>
-  <button class="tab" data-view="log"><span class="ti">＋</span>Log</button>
-  <button class="tab" data-view="history"><span class="ti">📈</span>History</button>
   <button class="tab" data-view="programs"><span class="ti">▤</span>Plan</button>
+  <button class="tab" data-view="log"><span class="ti">✎</span>Notes</button>
   <button class="tab" data-view="nutrition"><span class="ti">🍴</span>Fuel</button>
   <button class="tab" data-view="settings"><span class="ti">⚙</span>Settings</button>
 </nav>

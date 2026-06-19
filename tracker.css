@@ -182,3 +182,12 @@ details.how[open]>summary::before{content:"▾ "}
 .noteHd{display:flex; justify-content:space-between; font-size:13px; margin-bottom:3px}
 .noteTx{font-size:13px; color:#c6d2dd; line-height:1.45}
 .goarrow{color:var(--dim); font-size:18px; font-weight:700; padding-left:6px}
+/* warm-up section on the Plan */
+.warmSec{background:var(--card); border:1px solid var(--line); border-radius:12px; margin:8px 0 4px; overflow:hidden}
+.warmSec>summary{list-style:none; cursor:pointer; padding:12px 14px; font-weight:650; font-size:14.5px; color:var(--mut); user-select:none}
+.warmSec>summary::-webkit-details-marker{display:none}
+.warmSec[open]>summary{color:var(--acc)}
+.warmSec .secBody{padding:2px 12px 12px}
+.wuCard{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:10px; margin:0 0 8px}
+.wuName{font-weight:600; font-size:14px}
+.wuDetail{font-size:12px; color:var(--mut); margin:2px 0 4px}

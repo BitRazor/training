@@ -69,9 +69,14 @@ var SEED_EXERCISES = [
 /* ---- programs (block: heavy = laddered by the algorithm · gap = steady working weight · timed = hold/carry) ---- */
 var SEED_PROGRAMS = {
   "strength-a": { id:"strength-a", name:"HSR Lower (Day 1)", entries:[
-    {exerciseId:"atg-split-squat",  block:"heavy", sets:3, restSec:150},
-    {exerciseId:"rdl",              block:"heavy", sets:3, restSec:150},
+    /* Heavy order = PRE-EXHAUST the weak / problematic hamstrings (reordered 2026-06-19):
+       isolation Leg Curl FIRST (hamstrings hit with full energy, zero spine load), then the
+       RDL while the spine + core are still fresh, then the quad-dominant ATG split squat,
+       then calves. Chosen over the "heavy hinge first" option because the hamstrings are the
+       weak link and the lower back is spared by doing the isolation before the spinal loading. */
     {exerciseId:"leg-curl",         block:"heavy", sets:3, restSec:150},
+    {exerciseId:"rdl",              block:"heavy", sets:3, restSec:150},
+    {exerciseId:"atg-split-squat",  block:"heavy", sets:3, restSec:150},
     {exerciseId:"calf-raise",       block:"heavy", sets:3, restSec:150},
     {exerciseId:"tibialis-raise",   block:"gap",   sets:3, restSec:90, reps:15},
     {exerciseId:"hip-flexion",      block:"gap",   sets:3, restSec:90, reps:10},
@@ -90,6 +95,24 @@ var SEED_PROGRAMS = {
   ]}
 };
 var STRENGTH_DAYS = ["strength-a","strength-b"];
+
+/* warm-up sequences per strength day — gifs in gifs/wu_*.gif (a missing one hides gracefully) */
+var WARMUP_BY_PROG = {
+  "strength-a":[
+    {gif:"wu_sled",      name:"Backward sled drag / treadmill", detail:"3–5 min — drives blood into the knee & patellar tendon before deep loading."},
+    {gif:"wu_wgs",       name:"World's Greatest Stretch",       detail:"3–4 per side."},
+    {gif:"wu_inchworm",  name:"Inchworm → push-up",             detail:"4–5 reps."},
+    {gif:"wu_droplunge", name:"Lateral drop lunge",             detail:"5 per side — frontal-plane prep."},
+    {gif:"wu_balance",   name:"Eyes-closed single-leg balance", detail:"20–30 s per leg, once you're warm."}
+  ],
+  "strength-b":[
+    {gif:"wu_hindu",     name:"Hindu push-ups",                 detail:"6–8 — swoop low, push into extension; opens the thoracic spine."},
+    {gif:"wu_quad",      name:"Quadruped step-throughs",        detail:"5 per side — cross-body anti-rotation, opens the shoulder."},
+    {gif:"wu_windmill",  name:"Light DB windmills",             detail:"5 per side — shoulder stability, wakes the cuff. Keep it light."},
+    {gif:"wu_stickpass.jpg", name:"Stick shoulder pass-throughs", detail:"8–10 slow — opens the whole overhead arc."},
+    {gif:"wu_band",      name:"Band pull-aparts",               detail:"15–20 — wakes the rear delts/scapula before the pulls."}
+  ]
+};
 
 /* current week (programs/current-week.md, schedule confirmed 2026-06-17) */
 var CURRENT_WEEK = [

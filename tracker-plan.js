@@ -32,6 +32,10 @@ function renderPlan(){
   h += '</div>';
   h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseForWeek(w) + '</div>' +
        '<div class="phaseReps">Target ' + repForWeek(w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM</div></div>';
+  var wu = WARMUP_BY_PROG[prog] || [];
+  h += '<details class="warmSec"><summary>🔥 Warm-up · ~8–10 min before lifting</summary><div class="secBody">' +
+       wu.map(function(m){ var g = m.gif.indexOf(".") >= 0 ? m.gif : m.gif + ".gif"; return '<div class="wuCard"><div class="wuName">' + esc(m.name) + '</div><div class="wuDetail">' + esc(m.detail) + '</div><div class="exFig"><img src="gifs/' + g + '" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div></div>'; }).join("") +
+       '</div></details>';
   P.entries.forEach(function(en){
     var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed");
     h += '<div class="planCard' + (pr.tested ? "" : " untested") + '"><div class="planTop"><div class="exName">' + esc(ex.name) + '</div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +

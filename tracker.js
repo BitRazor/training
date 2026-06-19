@@ -71,8 +71,8 @@ function doExport(){
 function onSetWeight(t){
   var exId=t.getAttribute("data-ex"), kind=t.getAttribute("data-kind"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
   if(kind==="gap"){
-    var v=prompt("Working weight for "+ex.name+" (kg):", cur==null?"":cur);
-    if(v!=null&&String(v).trim()!==""&&num(v)!=null){ db.tested[exId]=num(v); save(); renderPlan(); }
+    var v=prompt("Working weight you used at week "+w+" for "+ex.name+" (kg) — it creeps up each week:", cur==null?"":gapWeight(cur,w));
+    if(v!=null&&String(v).trim()!==""&&num(v)!=null){ db.tested[exId]=Math.round(deriveGap(num(v),w)*2)/2; save(); renderPlan(); }
   } else if(cur==null){
     var v2=prompt("Your tested 15RM for "+ex.name+" — the weight you fail at ~15 slow reps (kg):","");
     if(v2!=null&&String(v2).trim()!==""&&num(v2)!=null){ db.tested[exId]=num(v2); save(); renderPlan(); }

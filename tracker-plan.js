@@ -18,7 +18,7 @@ function prescFor(en, week){
     return { text: "<b>" + calcWeight(tested, week) + " kg</b> · " + en.sets + " × " + repForWeek(week) + side, tested: true, kind: "heavy" };
   }
   if(tested == null) return { text: "tap to enter working weight · " + en.sets + " × " + en.reps + side, tested: false, kind: "gap" };
-  return { text: "<b>" + tested + " kg</b> · " + en.sets + " × " + en.reps + side, tested: true, kind: "gap" };
+  return { text: "<b>" + gapWeight(tested, week) + " kg</b> · " + en.sets + " × " + en.reps + side, tested: true, kind: "gap" };
 }
 function renderPlan(){
   if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";

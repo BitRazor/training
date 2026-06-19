@@ -47,6 +47,9 @@ function calcWeight(tested15, w){
 function deriveTested(actualWeight, w){
   return actualWeight * pct(15) / (Math.pow(1+WEEKLY_GAIN, (w||1)-1) * pct(repForWeek(w)));
 }
+/* gap/prehab lifts: reps stay fixed (prehab dose), but the working weight still creeps +1%/week */
+function gapWeight(tested, w){ return tested==null?null:roundTo(tested*Math.pow(1+WEEKLY_GAIN,(w||1)-1), 0.5); }
+function deriveGap(actualWeight, w){ return actualWeight/Math.pow(1+WEEKLY_GAIN,(w||1)-1); }
 
 /* ---- exercise library (pattern incl. isolation; loadType incl. timed/carry) ---- */
 var SEED_EXERCISES = [

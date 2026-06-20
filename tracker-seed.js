@@ -36,19 +36,27 @@ function pct(reps){ return PCT_1RM[reps] || PCT_1RM[15]; }
 function repForWeek(w){ return REP_LADDER[(w||1)-1] || REP_LADDER[0]; }
 function phaseForWeek(w){ return w<=1?"System Flush":(w<=4?"Anchor Hypertrophy":(w<=8?"Tension Transition":"Max Stiffness")); }
 function roundTo(x,step){ return Math.round(x/step)*step; }
+/* rounding increment scaled to the lift's load — lighter lifts step 0.5 kg so they actually
+   climb (a fixed 2.5 kg step left e.g. lateral raises frozen for months); heavy barbell/stack
+   lifts step 2.5 kg (loadable plates). Threshold 20 keeps week-1 == the tested value exactly
+   for every current lift (all tested <20 are .5-clean; all tested ≥20 are 2.5-clean). */
+function loadStep(t){ return t==null?2.5:(t<20?0.5:2.5); }
 function est1RM(tested15){ return tested15==null?null:(tested15 / pct(15)); }
-/* prescribed weight for a heavy lift at week w, from its tested 15RM */
+/* prescribed weight for ANY loaded lift at week w, from its tested 15RM:
+   1RM estimate → +WEEKLY_GAIN/week strength bump → 1RM × rep-max %(that week's reps). */
 function calcWeight(tested15, w){
   if(tested15==null) return null;
   var orm = est1RM(tested15) * Math.pow(1+WEEKLY_GAIN, (w||1)-1);
-  return roundTo(orm * pct(repForWeek(w)), 2.5);
+  return roundTo(orm * pct(repForWeek(w)), loadStep(tested15));
 }
+/* bodyweight holds (Copenhagen plank): no load, so progress the HOLD TIME instead — 20 s → 40 s across the block */
+function holdSec(w){ return 20 + Math.round(((w||1)-1) * 20 / (TOTAL_WEEKS-1)); }
 /* re-anchor: from an actual weight lifted at week w, back out the equivalent tested 15RM */
 function deriveTested(actualWeight, w){
   return actualWeight * pct(15) / (Math.pow(1+WEEKLY_GAIN, (w||1)-1) * pct(repForWeek(w)));
 }
 /* gap/prehab lifts: reps stay fixed (prehab dose), but the working weight still creeps +1%/week */
-function gapWeight(tested, w){ return tested==null?null:roundTo(tested*Math.pow(1+WEEKLY_GAIN,(w||1)-1), 0.5); }
+function gapWeight(tested, w){ return tested==null?null:roundTo(tested*Math.pow(1+WEEKLY_GAIN,(w||1)-1), loadStep(tested)); }
 function deriveGap(actualWeight, w){ return actualWeight/Math.pow(1+WEEKLY_GAIN,(w||1)-1); }
 
 /* ---- exercise library (pattern incl. isolation; loadType incl. timed/carry) ---- */
@@ -95,8 +103,9 @@ var SEED_PROGRAMS = {
     {exerciseId:"cable-row",        block:"heavy", sets:3, restSec:150},
     {exerciseId:"triceps-overhead", block:"heavy", sets:3, restSec:150},
     {exerciseId:"face-pulls",       block:"gap",   sets:3, restSec:90, reps:15},
-    {exerciseId:"lateral-raise",    block:"gap",   sets:3, restSec:90, reps:15},
-    {exerciseId:"internal-rotation",block:"gap",   sets:2, restSec:90, reps:15}
+    {exerciseId:"lateral-raise",    block:"gap",   sets:3, restSec:90, reps:15}
+    /* Towel-Roll Internal Rotation removed from the logged plan 2026-06-20 — it's a warm-up
+       cuff primer per exercise-guide.md, not a working set (exercise + desc kept in the library). */
   ]}
 };
 var STRENGTH_DAYS = ["strength-a","strength-b"];

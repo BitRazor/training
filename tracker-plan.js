@@ -15,15 +15,19 @@ function progEntry(prog, exId){ var P = db.programs[prog]; if(!P) return null; f
    untested / timed) — the single source the note-stamp + UI both read, so they can't diverge. */
 function prescFor(en, week){
   var ex = exById(en.exerciseId) || {}, tested = db.tested[en.exerciseId], side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
-  if(en.timed) return { text: (en.exerciseId === "copenhagen-plank" ? "3 × 20–30 s/side" : "3 × 60 s/arm"), tested: true, kind: "timed", weight: null };
-  if(en.block === "heavy"){
-    if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
-    var hw = calcWeight(tested, week);
-    return { text: "<b>" + hw + " kg</b> · " + en.sets + " × " + repForWeek(week) + side, tested: true, kind: "heavy", weight: hw };
+  // Copenhagen plank: bodyweight hold → progress the HOLD TIME (seconds), no load
+  if(en.exerciseId === "copenhagen-plank") return { text: en.sets + " × " + holdSec(week) + " s/side", tested: true, kind: "hold", weight: null };
+  // Suitcase carry: loaded carry → weight climbs, measured by time per arm (no reps)
+  if(en.exerciseId === "suitcase-carry"){
+    if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "gap", weight: null };
+    var cw = gapWeight(tested, week);
+    return { text: "<b>" + cw + " kg</b> · " + en.sets + " × ~40 s/arm", tested: true, kind: "gap", weight: cw };
   }
-  if(tested == null) return { text: "tap to enter working weight · " + en.sets + " × " + en.reps + side, tested: false, kind: "gap", weight: null };
-  var gw = gapWeight(tested, week);
-  return { text: "<b>" + gw + " kg</b> · " + en.sets + " × " + en.reps + side, tested: true, kind: "gap", weight: gw };
+  // every other loaded lift — heavy AND accessory alike — on ONE rep-ladder + load model,
+  // so accessories climb too (rep-reduction 15→6 + the per-week strength bump), not a frozen +1%/wk.
+  if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
+  var w = calcWeight(tested, week);
+  return { text: "<b>" + w + " kg</b> · " + en.sets + " × " + repForWeek(week) + side, tested: true, kind: "heavy", weight: w };
 }
 function renderPlan(){
   if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";
@@ -50,7 +54,7 @@ function renderPlan(){
        '</div></details>';
   h += '<div class="liftsHead">Main lifts · ' + liftDone + '/' + P.entries.length + ' done</div>';
   P.entries.forEach(function(en){
-    var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed"), exd = isDone(prog, w, en.exerciseId);
+    var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold"), exd = isDone(prog, w, en.exerciseId);
     h += '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (exd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="mark done">✓</button><div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
          '<div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
          gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +

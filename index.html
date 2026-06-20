@@ -5,6 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0c0f12">
 <title>Training Tracker</title>
+<!-- installable PWA: Add to Home Screen launches it standalone (no browser chrome) -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Training">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c0f12'/><path d='M7 16h18M11 11v10M21 11v10' stroke='%2334d399' stroke-width='3' fill='none' stroke-linecap='round'/></svg>">
 <link rel="stylesheet" href="tracker.css">
 </head>
@@ -37,5 +44,11 @@
 <script src="tracker-views.js"></script>
 <script src="tracker-plan.js"></script>
 <script src="tracker.js"></script>
+<script>
+/* register the service worker only when served over http(s) — skipped for the offline single-file build (file://) */
+if (("serviceWorker" in navigator) && location.protocol.indexOf("http") === 0) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+}
+</script>
 </body>
 </html>

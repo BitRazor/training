@@ -10,18 +10,24 @@ function currentWeek(prog){
   var wd = (db.progress[prog] && db.progress[prog].weeksDone) || [];
   return wd.length ? Math.min(Math.max.apply(null, wd) + 1, TOTAL_WEEKS) : 1;
 }
+function progEntry(prog, exId){ var P = db.programs[prog]; if(!P) return null; for(var i = 0; i < P.entries.length; i++) if(P.entries[i].exerciseId === exId) return P.entries[i]; return null; }
+/* prescription for one entry at a given week. `weight` = the raw prescribed kg (or null for
+   untested / timed) — the single source the note-stamp + UI both read, so they can't diverge. */
 function prescFor(en, week){
   var ex = exById(en.exerciseId) || {}, tested = db.tested[en.exerciseId], side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
-  if(en.timed) return { text: (en.exerciseId === "copenhagen-plank" ? "3 × 20–30 s/side" : "3 × 60 s/arm"), tested: true, kind: "timed" };
+  if(en.timed) return { text: (en.exerciseId === "copenhagen-plank" ? "3 × 20–30 s/side" : "3 × 60 s/arm"), tested: true, kind: "timed", weight: null };
   if(en.block === "heavy"){
-    if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy" };
-    return { text: "<b>" + calcWeight(tested, week) + " kg</b> · " + en.sets + " × " + repForWeek(week) + side, tested: true, kind: "heavy" };
+    if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
+    var hw = calcWeight(tested, week);
+    return { text: "<b>" + hw + " kg</b> · " + en.sets + " × " + repForWeek(week) + side, tested: true, kind: "heavy", weight: hw };
   }
-  if(tested == null) return { text: "tap to enter working weight · " + en.sets + " × " + en.reps + side, tested: false, kind: "gap" };
-  return { text: "<b>" + gapWeight(tested, week) + " kg</b> · " + en.sets + " × " + en.reps + side, tested: true, kind: "gap" };
+  if(tested == null) return { text: "tap to enter working weight · " + en.sets + " × " + en.reps + side, tested: false, kind: "gap", weight: null };
+  var gw = gapWeight(tested, week);
+  return { text: "<b>" + gw + " kg</b> · " + en.sets + " × " + en.reps + side, tested: true, kind: "gap", weight: gw };
 }
 function renderPlan(){
   if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";
+  var existingWarm = document.querySelector(".warmSec"); if(existingWarm) ui.warmOpen = existingWarm.open;   /* keep warm-up open across re-renders */
   var prog = ui.planProg, P = db.programs[prog], cur = currentWeek(prog), done = (db.progress[prog].weeksDone) || [];
   if(!ui.planWeek || ui.planLastProg !== prog){ ui.planWeek = cur; ui.planLastProg = prog; }
   var w = ui.planWeek;
@@ -30,22 +36,29 @@ function renderPlan(){
   h += '<div class="weekPick">';
   for(var k = 1; k <= TOTAL_WEEKS; k++){ var dn = done.indexOf(k) >= 0; h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '">' + k + (dn ? '<span class="wtick">✓</span>' : "") + '</button>'; }
   h += '</div>';
-  h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseForWeek(w) + '</div>' +
+  var liftIds = P.entries.map(function(en){ return en.exerciseId; }), liftDone = doneCount(prog, w, liftIds);
+  h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseForWeek(w) + ' · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
        '<div class="phaseReps">Target ' + repForWeek(w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM</div></div>';
-  var wu = WARMUP_BY_PROG[prog] || [];
-  h += '<details class="warmSec"><summary>🔥 Warm-up · ~8–10 min before lifting</summary><div class="secBody">' +
-       wu.map(function(m){ var g = m.gif.indexOf(".") >= 0 ? m.gif : m.gif + ".gif"; return '<div class="wuCard"><div class="wuName">' + esc(m.name) + '</div><div class="wuDetail">' + esc(m.detail) + '</div><div class="exFig"><img src="gifs/' + g + '" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div></div>'; }).join("") +
+  /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
+  var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
+  h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~8–10 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
+       wu.map(function(m){
+         var g = m.gif.indexOf(".") >= 0 ? m.gif : m.gif + ".gif", wd = isDone(prog, w, "wu:" + m.gif);
+         return '<div class="wuCard' + (wd ? " done" : "") + '"><div class="wuTop"><button class="exTick' + (wd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="wu:' + m.gif + '" aria-label="mark done">✓</button><div class="wuName">' + esc(m.name) + '</div></div><div class="wuDetail">' + esc(m.detail) + '</div><div class="exFig"><img src="gifs/' + g + '" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div></div>';
+       }).join("") +
+       '<button class="warmCollapse" data-act="warmcollapse">▲ Collapse warm-up</button>' +
        '</div></details>';
+  h += '<div class="liftsHead">Main lifts · ' + liftDone + '/' + P.entries.length + ' done</div>';
   P.entries.forEach(function(en){
-    var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed");
-    h += '<div class="planCard' + (pr.tested ? "" : " untested") + '"><div class="planTop"><div class="exName">' + esc(ex.name) + '</div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
+    var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed"), exd = isDone(prog, w, en.exerciseId);
+    h += '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (exd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="mark done">✓</button><div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
          '<div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
          gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
          '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button></div>';
   });
-  var isDone = done.indexOf(w) >= 0;
+  var weekIsDone = done.indexOf(w) >= 0;
   h += '<div class="btnRow" style="margin:14px 0 6px"><button class="btn primary block" data-act="weekdone" data-prog="' + prog + '" data-week="' + w + '">' +
-       (isDone ? "✓ Week " + w + " " + shortName(prog) + " done — tap to undo" : "✓ Mark Week " + w + " " + shortName(prog) + " done") + '</button></div>';
-  h += '<div class="note dim" style="margin:4px 2px">Heavy lifts auto-calculate (tested 15RM → +1%/week → rep-max %). Tap a weight (✎) to log what you actually lifted — the rest of the block recomputes. "+ note" logs go to the Log tab.</div>';
+       (weekIsDone ? "✓ Week " + w + " " + shortName(prog) + " done — tap to undo" : "✓ Mark Week " + w + " " + shortName(prog) + " done") + '</button></div>';
+  h += '<div class="note dim" style="margin:4px 2px">Tick each lift as you finish it (top-left ✓) — the day count updates. Heavy lifts auto-calculate; tap a weight (✎) to log what you actually lifted. "+ note" logs go to the Notes tab.</div>';
   $("#view-programs").innerHTML = h;
 }

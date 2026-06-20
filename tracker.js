@@ -15,13 +15,13 @@ function weekdayIdx(){var w=new Date().getDay();return w===0?6:w-1;}
 function zoneRange(z){var zz=db.profile.hrZones[z];return zz?zz[0]+"–"+zz[1]+" bpm":"";}
 
 /* ---------- state ---------- */
-var db=null, ui={view:"today", planProg:null, planWeek:null, planLastProg:null};
+var db=null, ui={view:"today", planProg:null, planWeek:null, planLastProg:null, warmOpen:false};
 
 function seedDb(){
   return {schemaVersion:SCHEMA_VERSION, app:"training-tracker", exportedAt:null,
     profile:clone(SEED_PROFILE), exercises:clone(SEED_EXERCISES), programs:clone(SEED_PROGRAMS),
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    notes:[], settings:clone(SEED_SETTINGS)};
+    notes:[], done:{}, settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -33,6 +33,7 @@ function migrate(){
   if(!db.progress) db.progress={};
   STRENGTH_DAYS.forEach(function(p){ if(!db.progress[p]) db.progress[p]={weeksDone:[]}; if(!db.progress[p].weeksDone) db.progress[p].weeksDone=[]; });
   if(!db.notes) db.notes=[];
+  if(!db.done) db.done={};   /* per-exercise + warm-up done-ticks, keyed prog:week:item */
   if(db.profile && db.profile.targetBodyweightKg==null && db.profile.bodyweightKg!=null) db.profile.targetBodyweightKg=db.profile.bodyweightKg;
   /* embedded design always refreshed to the current seed */
   db.exercises=clone(SEED_EXERCISES); db.programs=clone(SEED_PROGRAMS);
@@ -49,6 +50,12 @@ function load(){
 var saveT=null;
 function save(){clearTimeout(saveT);saveT=setTimeout(function(){try{localStorage.setItem(STORE_KEY,JSON.stringify(db));}catch(e){}},150);}
 function exById(id){for(var i=0;i<db.exercises.length;i++)if(db.exercises[i].id===id)return db.exercises[i];return null;}
+
+/* ---------- done-ticks (per-exercise + per warm-up move), keyed prog:week:item so each week starts fresh ---------- */
+function doneKey(prog,week,item){return prog+":"+(week||1)+":"+item;}
+function isDone(prog,week,item){return !!db.done[doneKey(prog,week,item)];}
+function toggleDone(prog,week,item){var k=doneKey(prog,week,item);if(db.done[k])delete db.done[k];else db.done[k]=true;save();}
+function doneCount(prog,week,items){var n=0;for(var i=0;i<items.length;i++)if(isDone(prog,week,items[i]))n++;return n;}
 
 /* ---------- router (5 views; Plan renders into #view-programs) ---------- */
 var VIEWS=["today","programs","log","nutrition","settings"];
@@ -84,7 +91,18 @@ function onSetWeight(t){
 function onNote(t){
   var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId};
   var txt=prompt("Note for "+ex.name+" (pain, machine quirks, how it felt):","");
-  if(txt!=null&&txt.trim()!==""){ db.notes.push({date:todayISO(), exerciseId:exId, text:txt.trim()}); save(); alert("Note saved — see the Log tab."); }
+  if(txt!=null&&txt.trim()!==""){
+    /* auto-stamp the week + the prescribed weight at the moment of the note, as its own record */
+    var prog=ui.planProg||todayProgram()||"strength-a", week=ui.planWeek||1;
+    var en=progEntry(prog,exId), pr=en?prescFor(en,week):null;
+    var weight=(pr&&pr.weight!=null)?(pr.weight+" kg"):((pr&&pr.kind==="timed")?"timed":"");
+    db.notes.push({date:todayISO(), week:week, exerciseId:exId, weight:weight, text:txt.trim()});
+    save(); alert("Note saved — see the Notes tab.");
+  }
+}
+function onDelNote(t){
+  var idx=+t.getAttribute("data-idx");
+  if(!isNaN(idx)&&idx>=0&&idx<db.notes.length){ db.notes.splice(idx,1); save(); renderLog(); }
 }
 
 /* ---------- events ---------- */
@@ -105,6 +123,9 @@ document.addEventListener("click",function(e){
   if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=db.progress[pr].weeksDone, ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,TOTAL_WEEKS); } save(); renderPlan(); return; }
   if(act==="setw"){ onSetWeight(t); return; }
   if(act==="note"){ onNote(t); return; }
+  if(act==="delnote"){ onDelNote(t); return; }
+  if(act==="donetick"){ toggleDone(t.getAttribute("data-prog"), +t.getAttribute("data-week"), t.getAttribute("data-item")); renderPlan(); return; }
+  if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }
   if(act==="export"){ doExport(); return; }
   if(act==="import"){ $("#importFile").click(); return; }
   if(act==="reset"){ if(confirm("Erase ALL tracker data on this device?")){ localStorage.removeItem(STORE_KEY); location.reload(); } return; }

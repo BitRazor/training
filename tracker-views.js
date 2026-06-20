@@ -43,12 +43,18 @@ function howToHtml(exId){
 
 /* ---------- LOG = notes ---------- */
 function renderLog(){
-  var notes = (db.notes || []).slice().reverse();
-  var h = '<div class="viewH">Notes</div><div class="viewSub">Notes you logged per exercise from the Plan tab.</div>';
-  if(!notes.length) h += '<div class="note dim" style="margin-top:12px">No notes yet. On the <b>Plan</b> tab, tap <b>+ note</b> under any exercise — pain, machine quirks, how it felt — and they collect here.</div>';
-  else h += '<div class="card">' + notes.map(function(n){
-    var ex = exById(n.exerciseId) || { name: n.exerciseId };
-    return '<div class="noteRow"><div class="noteHd"><b>' + esc(ex.name) + '</b><span class="dim">' + esc(n.date) + '</span></div><div class="noteTx">' + esc(n.text) + '</div></div>';
+  /* keep each note's ORIGINAL index for stable deletion, then show newest-first */
+  var notes = (db.notes || []).map(function(n, i){ return { n: n, i: i }; }).reverse();
+  var h = '<div class="viewH">Notes</div><div class="viewSub">Per-exercise notes from the Plan — week & weight are stamped automatically as a record.</div>';
+  if(!notes.length) h += '<div class="note dim" style="margin-top:12px">No notes yet. On the <b>Plan</b> tab, tap <b>+ note</b> under any exercise — pain, machine quirks, how it felt — and they collect here with the week and weight.</div>';
+  else h += '<div class="card">' + notes.map(function(o){
+    var n = o.n, ex = exById(n.exerciseId) || { name: n.exerciseId }, rec = [];
+    if(n.week) rec.push("Week " + n.week);
+    if(n.weight) rec.push(n.weight);
+    return '<div class="noteRow"><div class="noteHd"><b>' + esc(ex.name) + '</b><span class="dim">' + esc(n.date) + '</span></div>' +
+      (rec.length ? '<div class="noteRec">' + esc(rec.join(" · ")) + '</div>' : "") +
+      '<div class="noteTx">' + esc(n.text) + '</div>' +
+      '<button class="noteDel" data-act="delnote" data-idx="' + o.i + '">Delete</button></div>';
   }).join("") + '</div>';
   $("#view-log").innerHTML = h;
 }

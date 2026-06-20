@@ -3,7 +3,7 @@
    refresh in the background), so published updates land within a visit or two.
    Bump CACHE on each release to evict the old shell. */
 "use strict";
-var CACHE = "training-2026-06-20";
+var CACHE = "training-2026-06-20b";   /* bump on every release so returning phones evict the old shell */
 var CORE = [
   "./", "./index.html", "./tracker.css",
   "./tracker-seed.js", "./tracker-desc.js", "./tracker-views.js", "./tracker-plan.js", "./tracker.js",

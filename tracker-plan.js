@@ -17,11 +17,12 @@ function prescFor(en, week){
   var ex = exById(en.exerciseId) || {}, tested = db.tested[en.exerciseId], side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
   // Copenhagen plank: bodyweight hold → progress the HOLD TIME (seconds), no load
   if(en.exerciseId === "copenhagen-plank") return { text: en.sets + " × " + holdSec(week) + " s/side", tested: true, kind: "hold", weight: null };
-  // Suitcase carry: loaded carry → weight climbs, measured by time per arm (no reps)
+  // Suitcase carry: loaded carry, measured by time per arm (no reps) — but the LOAD must climb on
+  // the SAME curve as every other lift (calcWeight), so it doesn't lag behind. Display time, not reps.
   if(en.exerciseId === "suitcase-carry"){
-    if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "gap", weight: null };
-    var cw = gapWeight(tested, week);
-    return { text: "<b>" + cw + " kg</b> · " + en.sets + " × ~40 s/arm", tested: true, kind: "gap", weight: cw };
+    if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "heavy", weight: null };
+    var cw = calcWeight(tested, week);
+    return { text: "<b>" + cw + " kg</b> · " + en.sets + " × ~40 s/arm", tested: true, kind: "heavy", weight: cw };
   }
   // every other loaded lift — heavy AND accessory alike — on ONE rep-ladder + load model,
   // so accessories climb too (rep-reduction 15→6 + the per-week strength bump), not a frozen +1%/wk.

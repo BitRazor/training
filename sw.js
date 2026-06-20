@@ -3,7 +3,7 @@
    immediately when online (cache is only the offline fallback); CACHE-FIRST for images
    /manifest (rarely change → fast, saves data). Bump CACHE on each release. */
 "use strict";
-var CACHE = "training-2026-06-20c";   /* bump on every release so returning phones evict the old shell */
+var CACHE = "training-2026-06-20d";   /* bump on every release so returning phones evict the old shell */
 var CORE = [
   "./", "./index.html", "./tracker.css",
   "./tracker-seed.js", "./tracker-desc.js", "./tracker-views.js", "./tracker-plan.js", "./tracker.js",
@@ -23,8 +23,11 @@ self.addEventListener("activate", function (e) {
   );
 });
 
-function fromNet(req) {
-  return fetch(req).then(function (res) {
+function fromNet(req, bypassHttpCache) {
+  /* bypassHttpCache → force revalidation against the server (ETag), so a freshly-published
+     shell lands immediately instead of waiting out the browser's max-age. */
+  var input = bypassHttpCache ? new Request(req.url, { cache: "no-cache" }) : req;
+  return fetch(input).then(function (res) {
     if (res && res.ok) { var copy = res.clone(); caches.open(CACHE).then(function (c) { c.put(req, copy); }); }
     return res;
   });
@@ -35,6 +38,6 @@ self.addEventListener("fetch", function (e) {
   if (/\.(gif|jpg|jpeg|png|svg|webmanifest)$/i.test(url.pathname)) {
     e.respondWith(caches.match(req).then(function (c) { return c || fromNet(req); }));        // images: cache-first
   } else {
-    e.respondWith(fromNet(req).catch(function () { return caches.match(req); }));             // shell: network-first, cache = offline fallback
+    e.respondWith(fromNet(req, true).catch(function () { return caches.match(req); }));       // shell: network-first + bypass HTTP cache; cache = offline fallback
   }
 });

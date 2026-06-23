@@ -17,11 +17,12 @@ function prescFor(en, week){
   var ex = exById(en.exerciseId) || {}, tested = db.tested[en.exerciseId], side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
   // Copenhagen plank: bodyweight hold → progress the HOLD TIME (seconds), no load
   if(en.exerciseId === "copenhagen-plank") return { text: en.sets + " × " + holdSec(week) + " s/side", tested: true, kind: "hold", weight: null };
-  // Suitcase carry: loaded carry, measured by time per arm (no reps) — load climbs on the gated ladder
+  // Suitcase carry: a timed carry — its "reps" dimension is TIME, so the seconds climb each week
+  // (reps×3 s/arm), then drop when the weight steps up. Same double-progression, shown as time.
   if(en.exerciseId === "suitcase-carry"){
     if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "heavy", weight: null };
     var cp = ladderFor(tested, ex.inc)[week];
-    return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × ~40 s/arm", tested: true, kind: "heavy", weight: cp.kg };
+    return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × " + (cp.reps * 3) + " s/arm", tested: true, kind: "heavy", weight: cp.kg };
   }
   // every other loaded lift — gated rep-ladder: reps only drop on a week the weight steps up a full
   // increment, so nothing ever gets easier than the week before (fixes light-lift "easier week 2/3").

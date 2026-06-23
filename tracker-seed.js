@@ -64,17 +64,28 @@ function deriveGap(actualWeight, w){ return actualWeight/Math.pow(1+WEEKLY_GAIN,
    steps up by the lift's real increment `inc` once that curve has climbed a full step — and reps
    only drop on a week the weight actually steps up. Between steps, weight AND reps are HELD
    ("waiting"), so no week is ever easier than the one before. Returns {1..12:{kg,reps}}. */
+/* inverse of the rep-max table: the reps (6–15) whose %1RM is closest to `frac` */
+function invpct(frac){ var best=6, bd=9; for(var r=6; r<=15; r++){ var d=Math.abs(pct(r)-frac); if(d<bd){ bd=d; best=r; } } return best; }
+
+/* UNIVERSAL gated double-progression — one rule for every lift, every starting weight, never easier:
+   - if the strength curve has earned a full plate at this week's planned reps → step the weight, reps = ladder (classic HSR for lifts you can load heavy);
+   - else if reps already hit the ceiling → the reps earned the plate: add it, reset reps to where it's equally hard;
+   - else → not strong enough for a plate yet, so add ONE rep (progress via reps; never flat, never easier).
+   A strong lifter's heavy lift steps weight most weeks (HSR descent); a weak lifter's same lift (or any light lift)
+   climbs reps until a plate fits — automatically, no per-lift tiers. Returns {1..12:{kg,reps}}. */
 function ladderFor(tested, inc){
   if(tested==null) return null;
   inc = inc || 2.5;
-  var orm = tested / pct(15), plan = {}, prevW = tested, prevR = repForWeek(1);
+  var orm = tested / pct(15), CEIL = 20, plan = {}, prevW = tested, prevR = repForWeek(1);
   plan[1] = {kg: roundTo(tested, 0.25), reps: repForWeek(1)};
   for(var w=2; w<=TOTAL_WEEKS; w++){
-    var ideal = orm * Math.pow(1+WEEKLY_GAIN, w-1) * pct(repForWeek(w));   // where the curve wants to be this week
-    var steps = Math.max(0, Math.floor((ideal - tested) / inc + 1e-9));    // whole increments climbed since the start
-    var newW = tested + steps * inc;
-    if(newW > prevW + 1e-9){ prevW = newW; prevR = repForWeek(w); }        // weight stepped up → adopt this week's reps
-    plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR};                     // else hold both (no easier week)
+    var e1 = orm * Math.pow(1+WEEKLY_GAIN, w-1);                                  // estimated 1RM this week
+    var steps = Math.max(0, Math.floor((e1 * pct(repForWeek(w)) - tested) / inc + 1e-9));
+    var curveW = tested + steps * inc;                                            // plate weight the curve has earned at the planned reps
+    if(curveW > prevW + 1e-9){ prevW = curveW; prevR = repForWeek(w); }           // earned a plate → HSR step (weight up, reps to the ladder)
+    else if(prevR >= CEIL){ prevW += inc; prevR = Math.max(6, Math.min(15, invpct(prevW / e1))); }  // reps earned the plate → bump + reset to equally-hard reps
+    else { prevR += 1; }                                                          // add one rep (double progression while a plate won't fit)
+    plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR};
   }
   return plan;
 }

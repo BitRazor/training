@@ -201,8 +201,13 @@ details.how[open]>summary::before{content:"▾ "}
 .ptL{display:flex; align-items:center; gap:9px; min-width:0}
 .exTick{flex:none; width:26px; height:26px; border-radius:8px; border:1.5px solid var(--line); background:transparent; color:var(--dim); font-size:14px; line-height:1; padding:0; cursor:pointer}
 .exTick.on{background:var(--acc); border-color:var(--acc); color:#06281c}
-.planCard.done{opacity:.55}
+/* a done lift smoothly collapses to just its name + ✓ to cut clutter */
+.planBody{overflow:hidden; max-height:800px; opacity:1; transition:max-height .35s ease, opacity .3s ease}
+.planCard{transition:opacity .3s ease}
+.planCard.done{opacity:.72}
+.planCard.done .planBody{max-height:0; opacity:0}
 .planCard.done .exName{text-decoration:line-through; text-decoration-color:var(--dim)}
+@media(prefers-reduced-motion:reduce){.planBody,.planCard{transition:none}}
 .phaseName .doneCt{color:var(--acc)}
 /* note records + delete */
 .noteRec{font-size:12px; color:var(--acc); font-weight:650; margin:1px 0 3px}

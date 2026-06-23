@@ -124,7 +124,14 @@ document.addEventListener("click",function(e){
   if(act==="setw"){ onSetWeight(t); return; }
   if(act==="note"){ onNote(t); return; }
   if(act==="delnote"){ onDelNote(t); return; }
-  if(act==="donetick"){ toggleDone(t.getAttribute("data-prog"), +t.getAttribute("data-week"), t.getAttribute("data-item")); renderPlan(); return; }
+  if(act==="donetick"){
+    var dp=t.getAttribute("data-prog"), dw=+t.getAttribute("data-week"), di=t.getAttribute("data-item");
+    toggleDone(dp,dw,di);
+    var on=isDone(dp,dw,di), c=t.closest(".planCard")||t.closest(".wuCard");
+    if(c){ c.classList.toggle("done", on); t.classList.toggle("on", on); }   /* in-place so the card animates its collapse */
+    updateDoneCounts(dp,dw);
+    return;
+  }
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }
   if(act==="export"){ doExport(); return; }
   if(act==="import"){ $("#importFile").click(); return; }

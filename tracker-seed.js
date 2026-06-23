@@ -59,24 +59,47 @@ function deriveTested(actualWeight, w){
 function gapWeight(tested, w){ return tested==null?null:roundTo(tested*Math.pow(1+WEEKLY_GAIN,(w||1)-1), loadStep(tested)); }
 function deriveGap(actualWeight, w){ return actualWeight/Math.pow(1+WEEKLY_GAIN,(w||1)-1); }
 
+/* GATED 12-week plan for one lift (the fix for "easier" weeks):
+   the strength curve (1RM × +gain/wk × rep-max%) is computed continuously, but the WEIGHT only
+   steps up by the lift's real increment `inc` once that curve has climbed a full step — and reps
+   only drop on a week the weight actually steps up. Between steps, weight AND reps are HELD
+   ("waiting"), so no week is ever easier than the one before. Returns {1..12:{kg,reps}}. */
+function ladderFor(tested, inc){
+  if(tested==null) return null;
+  inc = inc || 2.5;
+  var orm = tested / pct(15), plan = {}, prevW = tested, prevR = repForWeek(1);
+  plan[1] = {kg: roundTo(tested, 0.25), reps: repForWeek(1)};
+  for(var w=2; w<=TOTAL_WEEKS; w++){
+    var ideal = orm * Math.pow(1+WEEKLY_GAIN, w-1) * pct(repForWeek(w));   // where the curve wants to be this week
+    var steps = Math.max(0, Math.floor((ideal - tested) / inc + 1e-9));    // whole increments climbed since the start
+    var newW = tested + steps * inc;
+    if(newW > prevW + 1e-9){ prevW = newW; prevR = repForWeek(w); }        // weight stepped up → adopt this week's reps
+    plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR};                     // else hold both (no easier week)
+  }
+  return plan;
+}
+function incFor(id){ var e = (typeof exById==="function") && exById(id); return (e && e.inc) || 2.5; }
+
 /* ---- exercise library (pattern incl. isolation; loadType incl. timed/carry) ---- */
+/* `inc` = smallest real-world weight jump for that lift: 2.5 kg two-handed (1.25 plate per side),
+   1.25 kg one-handed / single-implement. Drives the gated progression below. Tunable per gym. */
 var SEED_EXERCISES = [
-  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg"},
-  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg"},
-  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg"},
-  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg"},
-  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg"},
-  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg"},
-  {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s"},
-  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg"},
-  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg"},
-  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg"},
-  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg"},
-  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm"},
-  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg"},
-  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg"},
-  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg"},
-  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm"}
+  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", inc:1.25},
+  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:1.25},
+  {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s",      inc:2.5},
+  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     inc:1.25},
+  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:1.25},
+  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25},
+  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", inc:1.25}
 ];
 
 /* ---- programs (block: heavy = laddered by the algorithm · gap = steady working weight · timed = hold/carry) ---- */
@@ -93,9 +116,8 @@ var SEED_PROGRAMS = {
     {exerciseId:"calf-raise",       block:"heavy", sets:3, restSec:150},
     {exerciseId:"tibialis-raise",   block:"gap",   sets:3, restSec:90, reps:15},
     {exerciseId:"hip-flexion",      block:"gap",   sets:3, restSec:90, reps:10},
-    {exerciseId:"copenhagen-plank", block:"gap",   sets:3, restSec:90, timed:true},
-    {exerciseId:"suitcase-carry",   block:"finisher", sets:3, restSec:90, timed:true},
-    {exerciseId:"reverse-wrist-curl",block:"gap",  sets:3, restSec:60, reps:15}
+    {exerciseId:"suitcase-carry",   block:"finisher", sets:3, restSec:90, timed:true}
+    /* Copenhagen plank + reverse wrist curls moved to Day 2 (2026-06-20) to balance session length. */
   ]},
   "strength-b": { id:"strength-b", name:"HSR Upper (Day 2)", entries:[
     {exerciseId:"cable-pulldown",   block:"heavy", sets:3, restSec:150},
@@ -103,9 +125,11 @@ var SEED_PROGRAMS = {
     {exerciseId:"cable-row",        block:"heavy", sets:3, restSec:150},
     {exerciseId:"triceps-overhead", block:"heavy", sets:3, restSec:150},
     {exerciseId:"face-pulls",       block:"gap",   sets:3, restSec:90, reps:15},
-    {exerciseId:"lateral-raise",    block:"gap",   sets:3, restSec:90, reps:15}
-    /* Towel-Roll Internal Rotation removed from the logged plan 2026-06-20 — it's a warm-up
-       cuff primer per exercise-guide.md, not a working set (exercise + desc kept in the library). */
+    {exerciseId:"lateral-raise",    block:"gap",   sets:3, restSec:90, reps:15},
+    {exerciseId:"copenhagen-plank", block:"gap",   sets:3, restSec:90, timed:true},
+    {exerciseId:"reverse-wrist-curl",block:"gap",  sets:3, restSec:60, reps:15}
+    /* Copenhagen plank + reverse wrist curls moved here from Day 1 (2026-06-20) to balance session
+       length. Towel-Roll Internal Rotation stays out (warm-up cuff primer per exercise-guide.md). */
   ]}
 };
 var STRENGTH_DAYS = ["strength-a","strength-b"];

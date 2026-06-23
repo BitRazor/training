@@ -76,16 +76,18 @@ function doExport(){
 
 /* ---------- plan actions ---------- */
 function onSetWeight(t){
-  var exId=t.getAttribute("data-ex"), kind=t.getAttribute("data-kind"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
-  if(kind==="gap"){
-    var v=prompt("Working weight you used at week "+w+" for "+ex.name+" (kg) — it creeps up each week:", cur==null?"":gapWeight(cur,w));
-    if(v!=null&&String(v).trim()!==""&&num(v)!=null){ db.tested[exId]=Math.round(deriveGap(num(v),w)*2)/2; save(); renderPlan(); }
-  } else if(cur==null){
+  var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
+  if(cur==null){
     var v2=prompt("Your tested 15RM for "+ex.name+" — the weight you fail at ~15 slow reps (kg):","");
-    if(v2!=null&&String(v2).trim()!==""&&num(v2)!=null){ db.tested[exId]=num(v2); save(); renderPlan(); }
-  } else {
-    var v3=prompt("Weight you ACTUALLY used this week (week "+w+") for "+ex.name+" (kg).\nThe whole 12-week block recomputes from this:", String(calcWeight(cur,w)));
-    if(v3!=null&&String(v3).trim()!==""&&num(v3)!=null){ db.tested[exId]=Math.round(deriveTested(num(v3),w)*2)/2; save(); renderPlan(); }
+    if(v2!=null&&String(v2).trim()!==""&&num(v2)!=null){ db.tested[exId]=Math.round(num(v2)*4)/4; save(); renderPlan(); }
+    return;
+  }
+  /* rescale the anchor from what you ACTUALLY lifted this week, then the whole block re-derives from
+     the SAME formula (ladderFor) — at week 1 this just sets the tested weight directly. Round to 0.25 kg. */
+  var planW=(ladderFor(cur, ex.inc)[w]||{}).kg;
+  var v3=prompt("Weight you ACTUALLY used at week "+w+" for "+ex.name+" (kg).\nThe whole 12-week block recalculates from this:", String(planW));
+  if(v3!=null&&String(v3).trim()!==""&&num(v3)!=null&&planW){
+    db.tested[exId]=Math.round((cur*num(v3)/planW)*4)/4; save(); renderPlan();
   }
 }
 function onNote(t){

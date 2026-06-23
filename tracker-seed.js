@@ -73,44 +73,50 @@ function invpct(frac){ var best=6, bd=9; for(var r=6; r<=15; r++){ var d=Math.ab
    - else → not strong enough for a plate yet, so add ONE rep (progress via reps; never flat, never easier).
    A strong lifter's heavy lift steps weight most weeks (HSR descent); a weak lifter's same lift (or any light lift)
    climbs reps until a plate fits — automatically, no per-lift tiers. Returns {1..12:{kg,reps}}. */
-function ladderFor(tested, inc){
+/* the next REAL achievable weight above w for this exercise's equipment:
+   dumbbells → +1 kg under 10, +2.5 kg at/over 10 (1,2,…,10,12.5,15,17.5…); else → +inc (fixed plate jump). */
+function nextWeight(ex, w){
+  if(ex && ex.equip === "db") return w < 9.999 ? Math.floor(w + 1e-9) + 1 : (Math.floor(w/2.5 + 1e-9) + 1) * 2.5;
+  return w + ((ex && ex.inc) || 2.5);
+}
+function ladderFor(tested, ex){
   if(tested==null) return null;
-  inc = inc || 2.5;
   var orm = tested / pct(15), CEIL = 20, plan = {}, prevW = tested, prevR = repForWeek(1);
   plan[1] = {kg: roundTo(tested, 0.25), reps: repForWeek(1)};
   for(var w=2; w<=TOTAL_WEEKS; w++){
-    var e1 = orm * Math.pow(1+WEEKLY_GAIN, w-1);                                  // estimated 1RM this week
-    var steps = Math.max(0, Math.floor((e1 * pct(repForWeek(w)) - tested) / inc + 1e-9));
-    var curveW = tested + steps * inc;                                            // plate weight the curve has earned at the planned reps
-    if(curveW > prevW + 1e-9){ prevW = curveW; prevR = repForWeek(w); }           // earned a plate → HSR step (weight up, reps to the ladder)
-    else if(prevR >= CEIL){ prevW += inc; prevR = Math.max(6, Math.min(15, invpct(prevW / e1))); }  // reps earned the plate → bump + reset to equally-hard reps
-    else { prevR += 1; }                                                          // add one rep (double progression while a plate won't fit)
+    var e1 = orm * Math.pow(1+WEEKLY_GAIN, w-1);                       // estimated 1RM this week
+    var idealW = e1 * pct(repForWeek(w));                              // weight the curve wants at this week's planned reps
+    var cand = prevW, stepped = false, g = 0;                         // walk the real-weight grid up toward the curve
+    while(g++ < 60){ var nx = nextWeight(ex, cand); if(nx <= idealW + 1e-9){ cand = nx; stepped = true; } else break; }
+    if(stepped){ prevW = cand; prevR = repForWeek(w); }               // curve earned ≥1 real step → step weight, reps to the ladder
+    else if(prevR >= CEIL){ prevW = nextWeight(ex, prevW); prevR = Math.max(6, Math.min(15, invpct(prevW / e1))); }  // reps earned the next weight
+    else { prevR += 1; }                                              // add one rep (double progression while a step won't fit)
     plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR};
   }
   return plan;
 }
-function incFor(id){ var e = (typeof exById==="function") && exById(id); return (e && e.inc) || 2.5; }
 
 /* ---- exercise library (pattern incl. isolation; loadType incl. timed/carry) ---- */
-/* `inc` = smallest real-world weight jump for that lift: 2.5 kg two-handed (1.25 plate per side),
-   1.25 kg one-handed / single-implement. Drives the gated progression below. Tunable per gym. */
+/* Weight progression matches the real equipment, per exercise:
+   - equip:"db"  → DUMBBELLS: <10 kg steps 1 kg (1,2,…,9,10), ≥10 kg steps 2.5 kg (10,12.5,15,17.5…)
+   - else inc:N  → fixed jump (barbell/cable/machine; 2.5 kg = a 1.25 plate per side).  (see nextWeight) */
 var SEED_EXERCISES = [
-  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", inc:1.25},
+  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db"},
   {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
   {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
   {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:1.25},
+  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db"},
+  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5},
   {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s",      inc:2.5},
-  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     inc:1.25},
-  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db"},
+  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db"},
   {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5},
   {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:1.25},
+  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5},
   {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5},
   {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25},
-  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", inc:1.25}
+  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db"},
+  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db"}
 ];
 
 /* ---- programs (block: heavy = laddered by the algorithm · gap = steady working weight · timed = hold/carry) ---- */

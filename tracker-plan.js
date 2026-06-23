@@ -21,13 +21,13 @@ function prescFor(en, week){
   // (reps×3 s/arm), then drop when the weight steps up. Same double-progression, shown as time.
   if(en.exerciseId === "suitcase-carry"){
     if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "heavy", weight: null };
-    var cp = ladderFor(tested, ex.inc)[week];
+    var cp = ladderFor(tested, ex)[week];
     return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × " + (cp.reps * 3) + " s/arm", tested: true, kind: "heavy", weight: cp.kg };
   }
   // every other loaded lift — gated rep-ladder: reps only drop on a week the weight steps up a full
   // increment, so nothing ever gets easier than the week before (fixes light-lift "easier week 2/3").
   if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
-  var p = ladderFor(tested, ex.inc)[week];
+  var p = ladderFor(tested, ex)[week];
   return { text: "<b>" + p.kg + " kg</b> · " + en.sets + " × " + p.reps + side, tested: true, kind: "heavy", weight: p.kg };
 }
 function renderPlan(){

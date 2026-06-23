@@ -84,7 +84,7 @@ function onSetWeight(t){
   }
   /* rescale the anchor from what you ACTUALLY lifted this week, then the whole block re-derives from
      the SAME formula (ladderFor) — at week 1 this just sets the tested weight directly. Round to 0.25 kg. */
-  var planW=(ladderFor(cur, ex.inc)[w]||{}).kg;
+  var planW=(ladderFor(cur, ex)[w]||{}).kg;
   var v3=prompt("Weight you ACTUALLY used at week "+w+" for "+ex.name+" (kg).\nThe whole 12-week block recalculates from this:", String(planW));
   if(v3!=null&&String(v3).trim()!==""&&num(v3)!=null&&planW){
     db.tested[exId]=Math.round((cur*num(v3)/planW)*4)/4; save(); renderPlan();

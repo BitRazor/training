@@ -71,6 +71,30 @@ function renderNutrition(){
   $("#view-nutrition").innerHTML = h;
 }
 
+/* ---------- PROGRAMS (the library + switcher) ---------- */
+function renderLibrary(){
+  var h = '<div class="viewH">Programs</div><div class="viewSub">Your training programs. The active one drives Today and the Plan. Switching is safe — each program keeps its own progress.</div>';
+  h += '<div class="card">' + PROGRAM_ORDER.map(function(pid){
+    var P = db.programLib[pid]; if(!P) return "";
+    var ps = db.programState[pid] || {progress:{}};
+    var active = pid === db.activeProgram;
+    var totalWk = P.days.length * P.weeks;
+    var doneWk = P.days.reduce(function(s,d){ return s + ((((ps.progress||{})[d]||{}).weeksDone||[]).length); }, 0);
+    var pctDone = totalWk ? Math.round(doneWk/totalWk*100) : 0;
+    var dirBadge = P.direction === "reverse" ? "Reverse · reps 6→15" : "Forward · reps 15→6";
+    return '<div class="progItem' + (active ? " active" : "") + '">' +
+      '<div class="progNm">' + esc(P.name) + (active ? ' <span class="progActive">ACTIVE</span>' : '') + (ps.completedAt ? ' <span class="progDoneB">✓ done</span>' : '') + '</div>' +
+      '<div class="progDesc">' + esc(P.desc) + '</div>' +
+      '<div class="progMeta">' + P.weeks + ' weeks · ' + esc(dirBadge) + ' · ' + doneWk + '/' + totalWk + ' day-weeks done (' + pctDone + '%)</div>' +
+      '<div class="progBarWrap"><div class="progBar" style="width:' + pctDone + '%"></div></div>' +
+      (active ? '<div class="note dim" style="margin-top:8px">Active — open it on the <b>Plan</b> tab.</div>'
+              : '<button class="btn block sm" data-act="switchprogram" data-prog="' + esc(pid) + '" style="margin-top:8px">Switch to ' + esc(P.name) + '</button>') +
+      '</div>';
+  }).join("") + '</div>';
+  h += '<div class="note dim" style="margin:8px 2px">More programs as you build them. Your strength carries across — finishing a program banks your gains so the next starts heavier.</div>';
+  $("#view-library").innerHTML = h;
+}
+
 /* ---------- SETTINGS ---------- */
 function field(label, type, path, val, hint){
   return '<div class="field"><label>' + label + '</label><input type="' + type + '"' + (type === "number" ? ' inputmode="decimal" step="any"' : "") + ' data-path="' + path + '" value="' + esc(val == null ? "" : val) + '">' + (hint ? '<div class="note dim" style="margin-top:3px">' + hint + '</div>' : "") + '</div>';

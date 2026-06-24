@@ -2,7 +2,7 @@
 /* training-tracker — embedded seed + the 12-week load algorithm.
    Mirrors Documents/Claude/Projects/Training (profile, programs/strength, week1-calibration, nutrition). */
 
-var SCHEMA_VERSION = 2;
+var SCHEMA_VERSION = 3;   /* v3 = program platform: program library + per-program progress + reverse-direction engine */
 var STORE_KEY = "training-tracker:v1";
 var TOTAL_WEEKS = 12;
 
@@ -79,16 +79,43 @@ function nextWeight(ex, w){
   if(ex && ex.equip === "db") return w < 9.999 ? Math.floor(w + 1e-9) + 1 : (Math.floor(w/2.5 + 1e-9) + 1) * 2.5;
   return w + ((ex && ex.inc) || 2.5);
 }
-function ladderFor(tested, ex){
+/* largest REAL achievable weight <= target on this exercise's grid (db grid or fixed inc).
+   Used by the REVERSE direction so a back-off week never prescribes a weight the gear can't make. */
+function snapDown(target, ex){
+  if(target==null) return null;
+  if(ex && ex.equip === "db"){
+    if(target < 10) return Math.max(1, Math.floor(target + 1e-9));    // 1 kg steps under 10
+    return Math.floor(target/2.5 + 1e-9) * 2.5;                       // 2.5 kg steps at/over 10
+  }
+  var inc = (ex && ex.inc) || 2.5;
+  return Math.floor(target/inc + 1e-9) * inc;
+}
+/* DIRECTION-AWARE block for one lift, driven by a PROGRAM (its repLadder + direction + weeks).
+   Defaults to the base (forward) program so legacy 2-arg callers behave exactly as before. */
+function ladderFor(tested, ex, program){
   if(tested==null) return null;
-  var orm = tested / pct(15), CEIL = 20, plan = {}, prevW = tested, prevR = repForWeek(1);
-  plan[1] = {kg: roundTo(tested, 0.25), reps: repForWeek(1)};
-  for(var w=2; w<=TOTAL_WEEKS; w++){
+  program = program || getProgram(DEFAULT_PROGRAM_ID);
+  var ladder = program.repLadder || REP_LADDER, weeks = program.weeks || TOTAL_WEEKS;
+  var orm = tested / pct(15), plan = {};
+  if(program.direction === "reverse"){
+    /* BACK-OFF WAVE: weight rides the SAME rising 1RM curve, but reps climb (e.g. 6 -> 15) so the
+       weight EASES across the block (more reps = lighter). No never-easier gate — easing is the
+       point; every rep-level still lands heavier than the previous block because the bank is higher. */
+    for(var rw=1; rw<=weeks; rw++){
+      var re1 = orm * Math.pow(1+WEEKLY_GAIN, rw-1);
+      plan[rw] = {kg: snapDown(re1 * pct(ladder[rw-1]), ex), reps: ladder[rw-1]};
+    }
+    return plan;
+  }
+  /* FORWARD (default): universal gated double-progression — never easier than the week before. */
+  var CEIL = 20, prevW = tested, prevR = ladder[0];
+  plan[1] = {kg: roundTo(tested, 0.25), reps: ladder[0]};
+  for(var w=2; w<=weeks; w++){
     var e1 = orm * Math.pow(1+WEEKLY_GAIN, w-1);                       // estimated 1RM this week
-    var idealW = e1 * pct(repForWeek(w));                              // weight the curve wants at this week's planned reps
+    var idealW = e1 * pct(ladder[w-1]);                               // weight the curve wants at this week's planned reps
     var cand = prevW, stepped = false, g = 0;                         // walk the real-weight grid up toward the curve
     while(g++ < 60){ var nx = nextWeight(ex, cand); if(nx <= idealW + 1e-9){ cand = nx; stepped = true; } else break; }
-    if(stepped){ prevW = cand; prevR = repForWeek(w); }               // curve earned ≥1 real step → step weight, reps to the ladder
+    if(stepped){ prevW = cand; prevR = ladder[w-1]; }                 // curve earned ≥1 real step → step weight, reps to the ladder
     else if(prevR >= CEIL){ prevW = nextWeight(ex, prevW); prevR = Math.max(6, Math.min(15, invpct(prevW / e1))); }  // reps earned the next weight
     else { prevR += 1; }                                              // add one rep (double progression while a step won't fit)
     plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR};
@@ -119,8 +146,9 @@ var SEED_EXERCISES = [
   {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db"}
 ];
 
-/* ---- programs (block: heavy = laddered by the algorithm · gap = steady working weight · timed = hold/carry) ---- */
-var SEED_PROGRAMS = {
+/* ---- DAYS (the training-day tracks a program points at; reused across programs).
+   block: heavy = laddered by the algorithm · gap = steady working weight · timed = hold/carry ---- */
+var SEED_DAYS = {
   "strength-a": { id:"strength-a", name:"HSR Lower (Day 1)", entries:[
     /* Heavy order = PRE-EXHAUST the weak / problematic hamstrings (reordered 2026-06-19):
        isolation Leg Curl FIRST (hamstrings hit with full energy, zero spine load), then the
@@ -150,6 +178,25 @@ var SEED_PROGRAMS = {
   ]}
 };
 var STRENGTH_DAYS = ["strength-a","strength-b"];
+
+/* ---- PROGRAM LIBRARY — the named packages. A *program* is the whole training package; the
+   day-tracks above (Lower/Upper) are its reusable building blocks. `direction` "forward" = the
+   gated never-easier descent (15->6); "reverse" = a back-off wave (6->15) that eases within the
+   block while the strength bank keeps climbing across blocks. `rule` = which progression rate
+   (only "default" = +1%/wk today; tiered/tapered templates come later per the evidence review). */
+var SEED_PROGRAM_LIB = {
+  "hsr-base-12": { id:"hsr-base-12", name:"HSR Base 12", desc:"Hypertrophy → strength. Reps fall 15 → 6 as the weight climbs.",
+    days:["strength-a","strength-b"], weeks:12, repLadder:[15,14,13,12,11,10,9,8,8,7,6,6], direction:"forward", rule:"default" },
+  "hsr-wave-12": { id:"hsr-wave-12", name:"HSR Wave 12", desc:"Strength → hypertrophy back-off wave. Reps climb 6 → 15 on your higher banked strength; weight eases within the block.",
+    days:["strength-a","strength-b"], weeks:12, repLadder:[6,6,7,8,8,9,10,11,12,13,14,15], direction:"reverse", rule:"default" }
+};
+var PROGRAM_ORDER = ["hsr-base-12","hsr-wave-12"];   // display order + the forward<->wave cycle
+var DEFAULT_PROGRAM_ID = "hsr-base-12";
+function getProgram(id){ return SEED_PROGRAM_LIB[id] || SEED_PROGRAM_LIB[DEFAULT_PROGRAM_ID]; }
+function repForWeekIn(program, w){ var L=(program&&program.repLadder)||REP_LADDER; return L[(w||1)-1] || L[0]; }
+/* KEEP-CLIMBING: finishing a program banks its gain into the strength anchor so the next program
+   starts heavier. Default rule = +WEEKLY_GAIN/wk compounded over the program's weeks (1.01^12 ~= 1.127). */
+function advanceBank(tested, program){ if(tested==null) return null; var wk=(program&&program.weeks)||TOTAL_WEEKS; return roundTo(tested*Math.pow(1+WEEKLY_GAIN, wk), 0.25); }
 
 /* warm-up sequences per strength day — gifs in gifs/wu_*.gif (a missing one hides gracefully) */
 var WARMUP_BY_PROG = {

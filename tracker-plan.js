@@ -6,9 +6,12 @@
 
 function shortName(prog){ return prog === "strength-a" ? "Lower" : "Upper"; }
 function todayProgram(){ var t = CURRENT_WEEK[weekdayIdx()]; return (t && t.type === "strength") ? t.ref : null; }
+function activeProg(){ return getProgram(db.activeProgram); }
+/* read-only weeksDone for a day-track WITHIN the active program (per-program progress) */
+function progWeeksDone(prog){ var ps = db.programState && db.programState[db.activeProgram]; var d = ps && ps.progress && ps.progress[prog]; return (d && d.weeksDone) || []; }
 function currentWeek(prog){
-  var wd = (db.progress[prog] && db.progress[prog].weeksDone) || [];
-  return wd.length ? Math.min(Math.max.apply(null, wd) + 1, TOTAL_WEEKS) : 1;
+  var wd = progWeeksDone(prog);
+  return wd.length ? Math.min(Math.max.apply(null, wd) + 1, activeProg().weeks) : 1;
 }
 function progEntry(prog, exId){ var P = db.programs[prog]; if(!P) return null; for(var i = 0; i < P.entries.length; i++) if(P.entries[i].exerciseId === exId) return P.entries[i]; return null; }
 /* prescription for one entry at a given week. `weight` = the raw prescribed kg (or null for
@@ -21,29 +24,30 @@ function prescFor(en, week){
   // (reps×3 s/arm), then drop when the weight steps up. Same double-progression, shown as time.
   if(en.exerciseId === "suitcase-carry"){
     if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "heavy", weight: null };
-    var cp = ladderFor(tested, ex)[week];
+    var cp = ladderFor(tested, ex, activeProg())[week];
     return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × " + (cp.reps * 3) + " s/arm", tested: true, kind: "heavy", weight: cp.kg };
   }
   // every other loaded lift — gated rep-ladder: reps only drop on a week the weight steps up a full
   // increment, so nothing ever gets easier than the week before (fixes light-lift "easier week 2/3").
   if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
-  var p = ladderFor(tested, ex)[week];
+  var p = ladderFor(tested, ex, activeProg())[week];
   return { text: "<b>" + p.kg + " kg</b> · " + en.sets + " × " + p.reps + side, tested: true, kind: "heavy", weight: p.kg };
 }
 function renderPlan(){
   if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";
   var existingWarm = document.querySelector(".warmSec"); if(existingWarm) ui.warmOpen = existingWarm.open;   /* keep warm-up open across re-renders */
-  var prog = ui.planProg, P = db.programs[prog], cur = currentWeek(prog), done = (db.progress[prog].weeksDone) || [];
+  var prog = ui.planProg, P = db.programs[prog], cur = currentWeek(prog), done = progWeeksDone(prog);
   if(!ui.planWeek || ui.planLastProg !== prog){ ui.planWeek = cur; ui.planLastProg = prog; }
   var w = ui.planWeek;
-  var h = '<div class="viewH">12-week plan</div>';
+  var h = '<div class="viewH">' + esc(activeProg().name) + ' · ' + activeProg().weeks + '-week plan</div>';
   h += '<div class="progTabs">' + STRENGTH_DAYS.map(function(id){ return '<button class="progTab' + (id === prog ? " sel" : "") + '" data-act="prog" data-prog="' + id + '">' + esc(db.programs[id].name) + '</button>'; }).join("") + '</div>';
   h += '<div class="weekPick">';
-  for(var k = 1; k <= TOTAL_WEEKS; k++){ var dn = done.indexOf(k) >= 0; h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '">' + k + (dn ? '<span class="wtick">✓</span>' : "") + '</button>'; }
+  for(var k = 1, KW = activeProg().weeks; k <= KW; k++){ var dn = done.indexOf(k) >= 0; h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '">' + k + (dn ? '<span class="wtick">✓</span>' : "") + '</button>'; }
   h += '</div>';
   var liftIds = P.entries.map(function(en){ return en.exerciseId; }), liftDone = doneCount(prog, w, liftIds);
-  h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseForWeek(w) + ' · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
-       '<div class="phaseReps">Target ' + repForWeek(w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM</div></div>';
+  var phaseLbl = activeProg().direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
+  h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseLbl + ' · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
+       '<div class="phaseReps">Target ' + repForWeekIn(activeProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM</div></div>';
   /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
   h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~8–10 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +

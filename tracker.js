@@ -19,7 +19,9 @@ var db=null, ui={view:"today", planProg:null, planWeek:null, planLastProg:null, 
 
 function seedDb(){
   return {schemaVersion:SCHEMA_VERSION, app:"training-tracker", exportedAt:null,
-    profile:clone(SEED_PROFILE), exercises:clone(SEED_EXERCISES), programs:clone(SEED_PROGRAMS),
+    profile:clone(SEED_PROFILE), exercises:clone(SEED_EXERCISES), programs:clone(SEED_DAYS),
+    programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
+    programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
     notes:[], done:{}, settings:clone(SEED_SETTINGS)};
 }
@@ -33,10 +35,29 @@ function migrate(){
   if(!db.progress) db.progress={};
   STRENGTH_DAYS.forEach(function(p){ if(!db.progress[p]) db.progress[p]={weeksDone:[]}; if(!db.progress[p].weeksDone) db.progress[p].weeksDone=[]; });
   if(!db.notes) db.notes=[];
-  if(!db.done) db.done={};   /* per-exercise + warm-up done-ticks, keyed prog:week:item */
+  if(!db.done) db.done={};   /* per-exercise + warm-up done-ticks, keyed activeProgram:day:week:item */
   if(db.profile && db.profile.targetBodyweightKg==null && db.profile.bodyweightKg!=null) db.profile.targetBodyweightKg=db.profile.bodyweightKg;
+  /* ---- v2 -> v3: PROGRAM PLATFORM ----
+     Library + active program are reseeded every load (static design). One-time (guarded by
+     platformMigrated): wrap the existing single-program progress + done-ticks under "hsr-base-12"
+     so nothing the user has logged is lost. */
+  db.programLib=clone(SEED_PROGRAM_LIB);
+  if(!db.activeProgram || !db.programLib[db.activeProgram]) db.activeProgram=DEFAULT_PROGRAM_ID;
+  if(!db.programState) db.programState={};
+  if(db.settings.platformMigrated!=="2026-06-24"){
+    if(!db.programState[DEFAULT_PROGRAM_ID]) db.programState[DEFAULT_PROGRAM_ID]={startedAt:null,completedAt:null,progress:clone(db.progress)};
+    var migrated={};   /* prefix every legacy done-key with the base program id (idempotent: skip keys already program-scoped) */
+    for(var dk in db.done){ if(PROGRAM_ORDER.indexOf(dk.split(":")[0])>=0) migrated[dk]=db.done[dk]; else migrated[DEFAULT_PROGRAM_ID+":"+dk]=db.done[dk]; }
+    db.done=migrated;
+    db.settings.platformMigrated="2026-06-24";
+  }
+  /* every program in the library gets a state slot with both day-tracks */
+  PROGRAM_ORDER.forEach(function(pid){
+    if(!db.programState[pid]) db.programState[pid]={startedAt:null,completedAt:null,progress:{}};
+    STRENGTH_DAYS.forEach(function(d){ if(!db.programState[pid].progress[d]) db.programState[pid].progress[d]={weeksDone:[]}; if(!db.programState[pid].progress[d].weeksDone) db.programState[pid].progress[d].weeksDone=[]; });
+  });
   /* embedded design always refreshed to the current seed */
-  db.exercises=clone(SEED_EXERCISES); db.programs=clone(SEED_PROGRAMS);
+  db.exercises=clone(SEED_EXERCISES); db.programs=clone(SEED_DAYS);
   db.schemaVersion=SCHEMA_VERSION;
 }
 function load(){
@@ -52,18 +73,30 @@ function save(){clearTimeout(saveT);saveT=setTimeout(function(){try{localStorage
 function exById(id){for(var i=0;i<db.exercises.length;i++)if(db.exercises[i].id===id)return db.exercises[i];return null;}
 
 /* ---------- done-ticks (per-exercise + per warm-up move), keyed prog:week:item so each week starts fresh ---------- */
-function doneKey(prog,week,item){return prog+":"+(week||1)+":"+item;}
+function doneKey(prog,week,item){return (db&&db.activeProgram?db.activeProgram:"hsr-base-12")+":"+prog+":"+(week||1)+":"+item;}
 function isDone(prog,week,item){return !!db.done[doneKey(prog,week,item)];}
 function toggleDone(prog,week,item){var k=doneKey(prog,week,item);if(db.done[k])delete db.done[k];else db.done[k]=true;save();}
 function doneCount(prog,week,items){var n=0;for(var i=0;i<items.length;i++)if(isDone(prog,week,items[i]))n++;return n;}
 
+/* ---------- per-program progress (programState) + keep-climbing on completion ---------- */
+function progStateFor(pid){ if(!db.programState[pid]) db.programState[pid]={startedAt:null,completedAt:null,progress:{}}; return db.programState[pid]; }
+function progDoneArr(prog){ var ps=progStateFor(db.activeProgram); if(!ps.progress[prog]) ps.progress[prog]={weeksDone:[]}; if(!ps.progress[prog].weeksDone) ps.progress[prog].weeksDone=[]; return ps.progress[prog].weeksDone; }
+/* when every day-track of the active program has all its weeks done, BANK the gains once
+   (keep-climbing): the strength anchor rises so the next program starts heavier. Guarded by
+   completedAt so it never double-advances. The tap-to-log override remains the correction path. */
+function maybeCompleteActive(){
+  var P=getProgram(db.activeProgram), ps=progStateFor(db.activeProgram); if(ps.completedAt) return;
+  var allDone=P.days.every(function(d){ var wd=progDoneArr(d); for(var ww=1; ww<=P.weeks; ww++) if(wd.indexOf(ww)<0) return false; return true; });
+  if(allDone){ ps.completedAt=nowISO(); for(var id in db.tested){ if(db.tested[id]!=null) db.tested[id]=advanceBank(db.tested[id], P); } }
+}
+
 /* ---------- router (5 views; Plan renders into #view-programs) ---------- */
-var VIEWS=["today","programs","log","nutrition","settings"];
+var VIEWS=["today","programs","library","log","nutrition","settings"];
 function showView(name){
   ui.view=name;
   VIEWS.forEach(function(v){var el=$("#view-"+v); if(el)el.hidden=(v!==name);});
   $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===name);});
-  ({today:renderToday, programs:renderPlan, log:renderLog, nutrition:renderNutrition, settings:renderSettings}[name])();
+  ({today:renderToday, programs:renderPlan, library:renderLibrary, log:renderLog, nutrition:renderNutrition, settings:renderSettings}[name])();
   window.scrollTo(0,0);
 }
 
@@ -84,7 +117,7 @@ function onSetWeight(t){
   }
   /* rescale the anchor from what you ACTUALLY lifted this week, then the whole block re-derives from
      the SAME formula (ladderFor) — at week 1 this just sets the tested weight directly. Round to 0.25 kg. */
-  var planW=(ladderFor(cur, ex)[w]||{}).kg;
+  var planW=(ladderFor(cur, ex, getProgram(db.activeProgram))[w]||{}).kg;
   var v3=prompt("Weight you ACTUALLY used at week "+w+" for "+ex.name+" (kg).\nThe whole 12-week block recalculates from this:", String(planW));
   if(v3!=null&&String(v3).trim()!==""&&num(v3)!=null&&planW){
     db.tested[exId]=Math.round((cur*num(v3)/planW)*4)/4; save(); renderPlan();
@@ -121,8 +154,9 @@ document.addEventListener("click",function(e){
   if(t.hasAttribute("data-view")){ showView(t.getAttribute("data-view")); return; }
   var act=t.getAttribute("data-act");
   if(act==="gotoplan"||act==="prog"){ ui.planProg=t.getAttribute("data-prog"); ui.planWeek=currentWeek(ui.planProg); ui.planLastProg=ui.planProg; act==="gotoplan"?showView("programs"):renderPlan(); return; }
+  if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ db.activeProgram=pid; var ps=db.programState[pid]; if(ps&&!ps.startedAt) ps.startedAt=nowISO(); ui.planWeek=null; ui.planLastProg=null; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); renderPlan(); return; }
-  if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=db.progress[pr].weeksDone, ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,TOTAL_WEEKS); } save(); renderPlan(); return; }
+  if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=progDoneArr(pr), ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,getProgram(db.activeProgram).weeks); maybeCompleteActive(); } save(); renderPlan(); return; }
   if(act==="setw"){ onSetWeight(t); return; }
   if(act==="note"){ onNote(t); return; }
   if(act==="delnote"){ onDelNote(t); return; }

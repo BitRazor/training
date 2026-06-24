@@ -104,7 +104,7 @@ var SEED_EXERCISES = [
   {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db"},
   {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
   {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5},
+  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25},  /* single plate */
   {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db"},
   {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5},
   {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s",      inc:2.5},

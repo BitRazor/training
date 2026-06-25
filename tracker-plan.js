@@ -25,13 +25,13 @@ function prescFor(en, week){
   if(en.exerciseId === "suitcase-carry"){
     if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "heavy", weight: null };
     var cp = ladderFor(tested, ex, activeProg())[week];
-    return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × " + (cp.reps * 3) + " s/arm", tested: true, kind: "heavy", weight: cp.kg };
+    return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × " + (cp.reps * 3) + " s/arm", tested: true, kind: "heavy", weight: cp.kg, rate: cp.rate };
   }
   // every other loaded lift — gated rep-ladder: reps only drop on a week the weight steps up a full
   // increment, so nothing ever gets easier than the week before (fixes light-lift "easier week 2/3").
   if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
   var p = ladderFor(tested, ex, activeProg())[week];
-  return { text: "<b>" + p.kg + " kg</b> · " + en.sets + " × " + p.reps + side, tested: true, kind: "heavy", weight: p.kg };
+  return { text: "<b>" + p.kg + " kg</b> · " + en.sets + " × " + p.reps + side, tested: true, kind: "heavy", weight: p.kg, rate: p.rate };
 }
 function renderPlan(){
   if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";
@@ -61,7 +61,7 @@ function renderPlan(){
   P.entries.forEach(function(en){
     var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold"), exd = isDone(prog, w, en.exerciseId);
     h += '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (exd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="mark done">✓</button><div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
-         '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
+         '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (pr.rate === "push" ? ' <span class="rateTag" style="color:var(--acc);font-size:11px" title="pushing harder — stuck adding reps">↑</span>' : pr.rate === "ease" ? ' <span class="rateTag" style="color:var(--dim);font-size:11px" title="easing — paying back the push">↓</span>' : '') + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
          gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
          '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button>' +
          (pr.kind !== "hold" ? '<button class="stepBtn" data-act="setstep" data-ex="' + en.exerciseId + '" title="smallest weight jump for this lift">⚙ ' + esc(stepLabel(ex)) + '</button>' : '') +

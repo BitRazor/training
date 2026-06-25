@@ -30,7 +30,12 @@ var SEED_TESTED = {
 /* ---- the 12-week algorithm ----
    est 1RM from a tested 15RM, add a weekly strength bump, then weight = 1RM × rep-max% for that week's reps. */
 var REP_LADDER = [15,14,13,12,11,10,9,8,8,7,6,6];   // weeks 1..12 (most reps → 6)
-var WEEKLY_GAIN = 0.01;                              // +1%/week predicted strength gain (novice, conservative)
+var WEEKLY_GAIN = 0.01;                              // +1%/week baseline strength gain (novice, conservative)
+/* plateau-breaker dynamic rate: the curve flexes BASE±0.5%/wk and self-balances; the dynamic 1RM
+   may run at most LEAD_CAP above the flat BASE reference before it must pay the lead back. */
+var GAIN_HIGH = WEEKLY_GAIN + 0.005;                 // push while a lift is stuck adding reps
+var GAIN_LOW  = WEEKLY_GAIN - 0.005;                 // ease the week after a push (pay it back)
+var LEAD_CAP  = 0.03;                                // max the dynamic 1RM may lead the flat reference
 var PCT_1RM = {1:1.00,2:0.95,3:0.93,4:0.90,5:0.87,6:0.85,7:0.83,8:0.80,9:0.77,10:0.75,11:0.72,12:0.70,13:0.67,14:0.66,15:0.65};
 function pct(reps){ return PCT_1RM[reps] || PCT_1RM[15]; }
 function repForWeek(w){ return REP_LADDER[(w||1)-1] || REP_LADDER[0]; }
@@ -130,18 +135,29 @@ function ladderFor(tested, ex, program){
     }
     return plan;
   }
-  /* FORWARD (default): universal gated double-progression — never easier than the week before. */
+  /* FORWARD: universal gated double-progression + PLATEAU-BREAKER dynamic rate.
+     The curve's weekly gain flexes BASE±0.5%: it PUSHES (HIGH) while a lift is stuck adding reps
+     (to earn the next plate sooner) and EASES (LOW) the week after a push to pay it back —
+     self-balancing to ~BASE, with a bounded `lead` over the flat reference. Never easier. */
   var CEIL = 20, prevW = tested, prevR = ladder[0];
-  plan[1] = {kg: roundTo(tested, 0.25), reps: ladder[0]};
+  var dynE1 = orm, steppedLast = true, boostedLast = false;           // dynamic 1RM + per-lift state
+  plan[1] = {kg: roundTo(tested, 0.25), reps: ladder[0], rate: "hold"};
   for(var w=2; w<=weeks; w++){
-    var e1 = orm * Math.pow(1+WEEKLY_GAIN, w-1);                       // estimated 1RM this week
-    var idealW = e1 * pct(ladder[w-1]);                               // weight the curve wants at this week's planned reps
+    var refE1 = orm * Math.pow(1+WEEKLY_GAIN, w-1);                    // flat-BASE reference for the leash
+    var rate, reason;
+    if(boostedLast){ rate = GAIN_LOW; reason = "ease"; boostedLast = false; }                               // pay back the push
+    else if(!steppedLast && dynE1 < refE1 * (1+LEAD_CAP)){ rate = GAIN_HIGH; reason = "push"; boostedLast = true; }  // stuck + leash allows → push
+    else if(steppedLast && dynE1 > refE1 + 1e-9){ rate = GAIN_LOW; reason = "ease"; }                       // stepped but still ahead → drift back
+    else { rate = WEEKLY_GAIN; reason = "hold"; }
+    dynE1 = dynE1 * (1 + rate);                                        // estimated 1RM this week (accumulating)
+    var idealW = dynE1 * pct(ladder[w-1]);                            // weight the curve wants at this week's planned reps
     var cand = prevW, stepped = false, g = 0;                         // walk the real-weight grid up toward the curve
     while(g++ < 60){ var nx = nextWeight(ex, cand); if(nx <= idealW + 1e-9){ cand = nx; stepped = true; } else break; }
     if(stepped){ prevW = cand; prevR = ladder[w-1]; }                 // curve earned ≥1 real step → step weight, reps to the ladder
-    else if(prevR >= CEIL){ prevW = nextWeight(ex, prevW); prevR = Math.max(6, Math.min(15, invpct(prevW / e1))); }  // reps earned the next weight
+    else if(prevR >= CEIL){ prevW = nextWeight(ex, prevW); prevR = Math.max(6, Math.min(15, invpct(prevW / dynE1))); }  // reps earned the next weight
     else { prevR += 1; }                                              // add one rep (double progression while a step won't fit)
-    plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR};
+    steppedLast = stepped;
+    plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR, rate: reason};
   }
   return plan;
 }

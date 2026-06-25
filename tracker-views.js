@@ -111,6 +111,15 @@ function renderSettings(){
   h += '<div class="card"><div class="sectH" style="margin-top:0">Data</div><div class="btnRow"><button class="btn" data-act="export">Export JSON</button><button class="btn" data-act="import">Import JSON</button></div>' +
     '<div class="note dim" style="margin-top:8px">Schema v' + db.schemaVersion + ' · last export ' + (db.settings.lastExportAt ? db.settings.lastExportAt.slice(0, 10) : "never") + '</div>' +
     '<button class="btn ghost block sm" data-act="reset" style="margin-top:10px;color:var(--bad)">Reset all data</button></div>';
+  /* weight steps grouped by equipment category — only categories actually used (e.g. kettlebell stays hidden until a program adds one) */
+  var catsUsed = {}; STRENGTH_DAYS.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat) catsUsed[x.cat]=true; }); });
+  h += '<div class="card"><div class="sectH" style="margin-top:0">Weight steps</div>' +
+    '<div class="note dim" style="margin-bottom:4px">Smallest jump per equipment type — set it to match your gym. On the Plan, tap a lift\'s <b>⚙</b> chip to override just that one.</div>' +
+    EQUIP_CAT_ORDER.filter(function(c){ return catsUsed[c]; }).map(function(cat){
+      var c=EQUIP_CATS[cat], o=db.gearByCat[cat]||c, lbl=(o.equip==="db")?"DB grid":((o.inc||c.inc)+" kg"), lifts=[];
+      STRENGTH_DAYS.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat===cat) lifts.push(x.name); }); });
+      return '<div class="catRow" data-act="setcatstep" data-cat="'+esc(cat)+'"><div class="catTop"><span class="catName">'+esc(c.label)+'</span><span class="catStep">'+esc(lbl)+' ✎</span></div><div class="catLifts">'+esc(lifts.join(" · "))+'</div></div>';
+    }).join("") + '</div>';
   h += '<div class="note dim" style="margin:8px 2px">Tested weights live on the <b>Plan</b> (tap a lift to enter/adjust). Rest time + reps are per-exercise. Barbell = 20 kg standard.</div>';
   $("#view-settings").innerHTML = h;
 }

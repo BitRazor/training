@@ -23,7 +23,7 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    notes:[], done:{}, settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, notes:[], done:{}, settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -36,6 +36,8 @@ function migrate(){
   STRENGTH_DAYS.forEach(function(p){ if(!db.progress[p]) db.progress[p]={weeksDone:[]}; if(!db.progress[p].weeksDone) db.progress[p].weeksDone=[]; });
   if(!db.notes) db.notes=[];
   if(!db.done) db.done={};   /* per-exercise + warm-up done-ticks, keyed activeProgram:day:week:item */
+  if(!db.gear) db.gear={};         /* per-exercise weight-step overrides (gym-fact, shared across programs) */
+  if(!db.gearByCat) db.gearByCat={}; /* per-equipment-category weight-step overrides */
   if(db.profile && db.profile.targetBodyweightKg==null && db.profile.bodyweightKg!=null) db.profile.targetBodyweightKg=db.profile.bodyweightKg;
   /* ---- v2 -> v3: PROGRAM PLATFORM ----
      Library + active program are reseeded every load (static design). One-time (guarded by
@@ -123,6 +125,31 @@ function onSetWeight(t){
     db.tested[exId]=Math.round((cur*num(v3)/planW)*4)/4; save(); renderPlan();
   }
 }
+/* edit ONE lift's weight step (the card chip). number = fixed kg · "db" = dumbbell grid · blank = reset */
+function onSetStep(t){
+  var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId}, g=gearFor(ex);
+  var cur = g.equip==="db" ? "db" : String(g.inc||2.5);
+  var v=prompt("Smallest weight jump for "+ex.name+" (kg).\nA number (e.g. 5 for a 5 kg stack, 1.25 single plate), \"db\" for the dumbbell grid, or blank to reset to default.", cur);
+  if(v===null) return;
+  v=String(v).trim().toLowerCase();
+  if(v==="") delete db.gear[exId];
+  else if(v==="db") db.gear[exId]={equip:"db"};
+  else { var n=num(v); if(n==null||n<=0) return; db.gear[exId]={inc:Math.round(n*100)/100}; }
+  save(); renderPlan();
+}
+/* edit a whole CATEGORY's step (Settings). Applies to every lift in the category unless that lift
+   has its own per-card override. */
+function onSetCatStep(t){
+  var cat=t.getAttribute("data-cat"), c=EQUIP_CATS[cat]; if(!c) return;
+  var o=db.gearByCat[cat]||c, cur = o.equip==="db" ? "db" : String(o.inc||c.inc||2.5);
+  var v=prompt("Smallest weight jump for ALL "+c.label+" lifts (kg).\nA number, \"db\" for the dumbbell grid, or blank to reset to default.\n(A lift you've set on its own card keeps its own value.)", cur);
+  if(v===null) return;
+  v=String(v).trim().toLowerCase();
+  if(v==="") delete db.gearByCat[cat];
+  else if(v==="db") db.gearByCat[cat]={equip:"db"};
+  else { var n=num(v); if(n==null||n<=0) return; db.gearByCat[cat]={inc:Math.round(n*100)/100}; }
+  save(); renderSettings();
+}
 function onNote(t){
   var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId};
   var txt=prompt("Note for "+ex.name+" (pain, machine quirks, how it felt):","");
@@ -158,6 +185,8 @@ document.addEventListener("click",function(e){
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); renderPlan(); return; }
   if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=progDoneArr(pr), ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,getProgram(db.activeProgram).weeks); maybeCompleteActive(); } save(); renderPlan(); return; }
   if(act==="setw"){ onSetWeight(t); return; }
+  if(act==="setstep"){ onSetStep(t); return; }
+  if(act==="setcatstep"){ onSetCatStep(t); return; }
   if(act==="note"){ onNote(t); return; }
   if(act==="delnote"){ onDelNote(t); return; }
   if(act==="donetick"){

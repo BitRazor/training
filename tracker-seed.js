@@ -73,21 +73,44 @@ function invpct(frac){ var best=6, bd=9; for(var r=6; r<=15; r++){ var d=Math.ab
    - else → not strong enough for a plate yet, so add ONE rep (progress via reps; never flat, never easier).
    A strong lifter's heavy lift steps weight most weeks (HSR descent); a weak lifter's same lift (or any light lift)
    climbs reps until a plate fits — automatically, no per-lift tiers. Returns {1..12:{kg,reps}}. */
-/* the next REAL achievable weight above w for this exercise's equipment:
-   dumbbells → +1 kg under 10, +2.5 kg at/over 10 (1,2,…,10,12.5,15,17.5…); else → +inc (fixed plate jump). */
-function nextWeight(ex, w){
-  if(ex && ex.equip === "db") return w < 9.999 ? Math.floor(w + 1e-9) + 1 : (Math.floor(w/2.5 + 1e-9) + 1) * 2.5;
-  return w + ((ex && ex.inc) || 2.5);
+/* ---- EQUIPMENT CATEGORIES (data-driven; add one entry + tag exercises with `cat` to extend) ----
+   A lift's weight STEP comes from its category default, overridable per-category (Settings) or
+   per-exercise (the card chip). model:"grid" = the dumbbell 1/2.5 grid; "fixed" = +inc.
+   `future:true` cats stay hidden in Settings until a program actually uses one (no clutter). */
+var EQUIP_CATS = {
+  db:     { id:"db",     label:"Dumbbells",                equip:"db", model:"grid",  hint:"1 kg under 10, 2.5 kg over" },
+  single: { id:"single", label:"Single-plate machine",     inc:1.25,   model:"fixed", hint:"one plate added" },
+  cable:  { id:"cable",  label:"Cable / stack machine",    inc:2.5,    model:"fixed", hint:"selectorized stack (often 5)" },
+  bar:    { id:"bar",    label:"Barbell (plate per side)", inc:2.5,    model:"fixed", hint:"1.25 kg per side" },
+  kb:     { id:"kb",     label:"Kettlebell",               inc:4,      model:"fixed", hint:"fixed bells (4/8/12…)", future:true }
+};
+var EQUIP_CAT_ORDER = ["db","single","cable","bar","kb"];
+/* resolve a lift's gear: per-exercise override (db.gear) → per-category override (db.gearByCat)
+   → its category default (EQUIP_CATS) → the exercise's own seed field. Works with no db (harness). */
+function gearFor(ex){
+  var D = (typeof db !== "undefined") ? db : null;
+  if(D && D.gear && D.gear[ex.id]) return D.gear[ex.id];
+  if(D && D.gearByCat && ex.cat && D.gearByCat[ex.cat]) return D.gearByCat[ex.cat];
+  var c = ex.cat && EQUIP_CATS[ex.cat];
+  if(c) return c.equip ? {equip:c.equip} : {inc:c.inc};
+  return ex.equip ? {equip:ex.equip} : {inc:ex.inc || 2.5};
 }
-/* largest REAL achievable weight <= target on this exercise's grid (db grid or fixed inc).
-   Used by the REVERSE direction so a back-off week never prescribes a weight the gear can't make. */
+function stepLabel(ex){ var g = gearFor(ex); return g.equip === "db" ? "DB grid" : ((g.inc||2.5) + " kg"); }
+/* the next REAL achievable weight above w for this lift's (resolved) gear */
+function nextWeight(ex, w){
+  var g = gearFor(ex);
+  if(g.equip === "db") return w < 9.999 ? Math.floor(w + 1e-9) + 1 : (Math.floor(w/2.5 + 1e-9) + 1) * 2.5;
+  return w + (g.inc || 2.5);
+}
+/* largest REAL achievable weight <= target on this lift's grid (used by the REVERSE direction) */
 function snapDown(target, ex){
   if(target==null) return null;
-  if(ex && ex.equip === "db"){
-    if(target < 10) return Math.max(1, Math.floor(target + 1e-9));    // 1 kg steps under 10
-    return Math.floor(target/2.5 + 1e-9) * 2.5;                       // 2.5 kg steps at/over 10
+  var g = gearFor(ex);
+  if(g.equip === "db"){
+    if(target < 10) return Math.max(1, Math.floor(target + 1e-9));
+    return Math.floor(target/2.5 + 1e-9) * 2.5;
   }
-  var inc = (ex && ex.inc) || 2.5;
+  var inc = g.inc || 2.5;
   return Math.floor(target/inc + 1e-9) * inc;
 }
 /* DIRECTION-AWARE block for one lift, driven by a PROGRAM (its repLadder + direction + weeks).
@@ -128,21 +151,21 @@ function ladderFor(tested, ex, program){
    - equip:"db"  → DUMBBELLS: <10 kg steps 1 kg (1,2,…,9,10), ≥10 kg steps 2.5 kg (10,12.5,15,17.5…)
    - else inc:N  → fixed jump (barbell/cable/machine; 2.5 kg = a 1.25 plate per side).  (see nextWeight) */
 var SEED_EXERCISES = [
-  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db"},
-  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25},  /* single plate */
-  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db"},
-  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5},
+  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db", cat:"db"},
+  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"bar"},
+  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25, cat:"single"},  /* single plate */
+  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
+  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5, cat:"cable"},
   {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s",      inc:2.5},
-  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db"},
-  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db"},
-  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5},
-  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5},
-  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db"},
+  {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db", cat:"db"},
+  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
+  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable"},
+  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
   {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db"}
 ];
 

@@ -109,58 +109,79 @@ function doExport(){
   a.download="training-export-"+todayISO()+".json"; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
 }
 
+/* ---------- in-app modal (replaces the browser's native prompt / confirm / alert) ---------- */
+var modalState = null;
+function openModal(o){
+  modalState = { onSubmit: o.onSubmit };
+  var body = "";
+  if(o.mode === "chips"){
+    body = '<div class="mChips">' + (o.chips||[]).map(function(c){ return '<button class="mChip" data-act="modalchip" data-val="' + esc(String(c.value)) + '">' + esc(c.label) + '</button>'; }).join("") +
+      '<button class="mChip alt" data-act="modalcustom">Custom…</button></div>' +
+      '<div class="mCustom" hidden><input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" placeholder="kg"><button class="btn primary sm" data-act="modalok">Set</button></div>';
+  } else if(o.mode === "text"){
+    body = '<textarea class="mInput mArea" id="mText" placeholder="' + esc(o.placeholder||"") + '">' + esc(o.value||"") + '</textarea>';
+  } else if(o.mode === "number"){
+    body = '<input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" value="' + esc(o.value==null?"":o.value) + '" placeholder="' + esc(o.placeholder||"kg") + '">';
+  }
+  var ok = (o.mode === "chips") ? "" : '<button class="btn primary" data-act="modalok">' + esc(o.okLabel||"Save") + '</button>';
+  $("#modal").innerHTML = '<div class="mBack" data-act="modalcancel"></div><div class="mCard">' +
+    '<div class="mTitle">' + esc(o.title||"") + '</div>' + (o.message ? '<div class="mMsg">' + esc(o.message) + '</div>' : "") +
+    body + '<div class="mActions"><button class="btn ghost" data-act="modalcancel">Cancel</button>' + ok + '</div></div>';
+  $("#modal").classList.add("open");
+  setTimeout(function(){ var f = $("#mText") || (o.mode==="number" ? $("#mNum") : null); if(f && f.focus) f.focus(); }, 60);
+}
+function closeModal(){ var m=$("#modal"); if(m){ m.classList.remove("open"); m.innerHTML=""; } modalState=null; }
+function modalSubmit(v){ var fn = modalState && modalState.onSubmit; closeModal(); if(fn) fn(v); }
+function confirmModal(title, message, onYes){ openModal({ title:title, message:message, okLabel:"Yes, do it", onSubmit:function(){ onYes(); } }); }
+function toast(msg){ var d=document.createElement("div"); d.className="toast"; d.textContent=msg; document.body.appendChild(d);
+  setTimeout(function(){ d.classList.add("show"); }, 10);
+  setTimeout(function(){ d.classList.remove("show"); setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 300); }, 1800); }
+
 /* ---------- plan actions ---------- */
 function onSetWeight(t){
   var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
   if(cur==null){
-    var v2=prompt("Your tested 15RM for "+ex.name+" — the weight you fail at ~15 slow reps (kg):","");
-    if(v2!=null&&String(v2).trim()!==""&&num(v2)!=null){ db.tested[exId]=Math.round(num(v2)*4)/4; save(); renderPlan(); }
+    openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at ~15 slow reps (kg).", mode:"number", placeholder:"kg",
+      onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)!=null){ db.tested[exId]=Math.round(num(v)*4)/4; save(); renderPlan(); } } });
     return;
   }
-  /* rescale the anchor from what you ACTUALLY lifted this week, then the whole block re-derives from
-     the SAME formula (ladderFor) — at week 1 this just sets the tested weight directly. Round to 0.25 kg. */
+  /* rescale the anchor from what you ACTUALLY lifted this week — the whole block re-derives from the
+     SAME formula (ladderFor). Round to 0.25 kg. */
   var planW=(ladderFor(cur, ex, getProgram(db.activeProgram))[w]||{}).kg;
-  var v3=prompt("Weight you ACTUALLY used at week "+w+" for "+ex.name+" (kg).\nThe whole 12-week block recalculates from this:", String(planW));
-  if(v3!=null&&String(v3).trim()!==""&&num(v3)!=null&&planW){
-    db.tested[exId]=Math.round((cur*num(v3)/planW)*4)/4; save(); renderPlan();
-  }
+  openModal({ title:"Actual weight · "+ex.name+" · wk "+w, message:"What you really lifted (kg). The whole block recalculates from this.", mode:"number", value:String(planW), placeholder:"kg",
+    onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)!=null&&planW){ db.tested[exId]=Math.round((cur*num(v)/planW)*4)/4; save(); renderPlan(); } } });
 }
 /* edit ONE lift's weight step (the card chip). number = fixed kg · "db" = dumbbell grid · blank = reset */
 function onSetStep(t){
-  var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId}, g=gearFor(ex);
-  var cur = g.equip==="db" ? "db" : String(g.inc||2.5);
-  var v=prompt("Smallest weight jump for "+ex.name+" (kg).\nA number (e.g. 5 for a 5 kg stack, 1.25 single plate), \"db\" for the dumbbell grid, or blank to reset to default.", cur);
-  if(v===null) return;
-  v=String(v).trim().toLowerCase();
-  if(v==="") delete db.gear[exId];
-  else if(v==="db") db.gear[exId]={equip:"db"};
-  else { var n=num(v); if(n==null||n<=0) return; db.gear[exId]={inc:Math.round(n*100)/100}; }
-  save(); renderPlan();
+  var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId};
+  openModal({ title:"Weight step · "+ex.name, message:"Smallest jump your gear allows — tap one, or Custom.", mode:"chips",
+    chips:[{label:"1.25 kg",value:"1.25"},{label:"2.5 kg",value:"2.5"},{label:"5 kg",value:"5"},{label:"10 kg",value:"10"},{label:"DB grid",value:"db"},{label:"Reset",value:""}],
+    onSubmit:function(v){ v=String(v==null?"":v).trim().toLowerCase();
+      if(v===""){ delete db.gear[exId]; } else if(v==="db"){ db.gear[exId]={equip:"db"}; }
+      else { var n=num(v); if(n==null||n<=0) return; db.gear[exId]={inc:Math.round(n*100)/100}; }
+      save(); renderPlan(); } });
 }
 /* edit a whole CATEGORY's step (Settings). Applies to every lift in the category unless that lift
    has its own per-card override. */
 function onSetCatStep(t){
   var cat=t.getAttribute("data-cat"), c=EQUIP_CATS[cat]; if(!c) return;
-  var o=db.gearByCat[cat]||c, cur = o.equip==="db" ? "db" : String(o.inc||c.inc||2.5);
-  var v=prompt("Smallest weight jump for ALL "+c.label+" lifts (kg).\nA number, \"db\" for the dumbbell grid, or blank to reset to default.\n(A lift you've set on its own card keeps its own value.)", cur);
-  if(v===null) return;
-  v=String(v).trim().toLowerCase();
-  if(v==="") delete db.gearByCat[cat];
-  else if(v==="db") db.gearByCat[cat]={equip:"db"};
-  else { var n=num(v); if(n==null||n<=0) return; db.gearByCat[cat]={inc:Math.round(n*100)/100}; }
-  save(); renderSettings();
+  openModal({ title:"Weight step · "+c.label, message:"Applies to every "+c.label+" lift. (A lift set on its own card keeps its value.)", mode:"chips",
+    chips:[{label:"1.25 kg",value:"1.25"},{label:"2.5 kg",value:"2.5"},{label:"5 kg",value:"5"},{label:"10 kg",value:"10"},{label:"DB grid",value:"db"},{label:"Reset",value:""}],
+    onSubmit:function(v){ v=String(v==null?"":v).trim().toLowerCase();
+      if(v===""){ delete db.gearByCat[cat]; } else if(v==="db"){ db.gearByCat[cat]={equip:"db"}; }
+      else { var n=num(v); if(n==null||n<=0) return; db.gearByCat[cat]={inc:Math.round(n*100)/100}; }
+      save(); renderSettings(); } });
 }
 function onNote(t){
   var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId};
-  var txt=prompt("Note for "+ex.name+" (pain, machine quirks, how it felt):","");
-  if(txt!=null&&txt.trim()!==""){
-    /* auto-stamp the week + the prescribed weight at the moment of the note, as its own record */
-    var prog=ui.planProg||todayProgram()||"strength-a", week=ui.planWeek||1;
-    var en=progEntry(prog,exId), pr=en?prescFor(en,week):null;
-    var weight=(pr&&pr.weight!=null)?(pr.weight+" kg"):((pr&&pr.kind==="timed")?"timed":"");
-    db.notes.push({date:todayISO(), week:week, exerciseId:exId, weight:weight, text:txt.trim()});
-    save(); alert("Note saved — see the Notes tab.");
-  }
+  openModal({ title:"Note · "+ex.name, message:"Pain, machine quirks, how it felt — saved with the week & weight.", mode:"text", placeholder:"e.g. left knee niggle on set 3, gone next morning",
+    onSubmit:function(txt){ if(txt==null||txt.trim()==="") return;
+      /* auto-stamp the week + the prescribed weight at the moment of the note, as its own record */
+      var prog=ui.planProg||todayProgram()||"strength-a", week=ui.planWeek||1;
+      var en=progEntry(prog,exId), pr=en?prescFor(en,week):null;
+      var weight=(pr&&pr.weight!=null)?(pr.weight+" kg"):((pr&&pr.kind==="timed")?"timed":"");
+      db.notes.push({date:todayISO(), week:week, exerciseId:exId, weight:weight, text:txt.trim()});
+      save(); toast("Note saved ✓"); } });
 }
 function onDelNote(t){
   var idx=+t.getAttribute("data-idx");
@@ -180,6 +201,10 @@ document.addEventListener("click",function(e){
   var t=e.target.closest("[data-act],[data-view]"); if(!t)return;
   if(t.hasAttribute("data-view")){ showView(t.getAttribute("data-view")); return; }
   var act=t.getAttribute("data-act");
+  if(act==="modalchip"){ modalSubmit(t.getAttribute("data-val")); return; }
+  if(act==="modalcustom"){ var cu=$(".mCustom"); if(cu){ cu.hidden=false; var ni=$("#mNum"); if(ni&&ni.focus) ni.focus(); } return; }
+  if(act==="modalok"){ var mi=$("#mText")||$("#mNum"); modalSubmit(mi?mi.value:undefined); return; }
+  if(act==="modalcancel"){ closeModal(); return; }
   if(act==="gotoplan"||act==="prog"){ ui.planProg=t.getAttribute("data-prog"); ui.planWeek=currentWeek(ui.planProg); ui.planLastProg=ui.planProg; act==="gotoplan"?showView("programs"):renderPlan(); return; }
   if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ db.activeProgram=pid; var ps=db.programState[pid]; if(ps&&!ps.startedAt) ps.startedAt=nowISO(); ui.planWeek=null; ui.planLastProg=null; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); renderPlan(); return; }
@@ -200,11 +225,11 @@ document.addEventListener("click",function(e){
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }
   if(act==="export"){ doExport(); return; }
   if(act==="import"){ $("#importFile").click(); return; }
-  if(act==="reset"){ if(confirm("Erase ALL tracker data on this device?")){ localStorage.removeItem(STORE_KEY); location.reload(); } return; }
+  if(act==="reset"){ confirmModal("Erase all data?", "This wipes everything saved on this device. Export first if you want a backup.", function(){ localStorage.removeItem(STORE_KEY); location.reload(); }); return; }
 });
 $("#importFile").addEventListener("change",function(ev){
   var f=ev.target.files&&ev.target.files[0]; if(!f)return;
-  var rd=new FileReader(); rd.onload=function(){ try{ var d=JSON.parse(rd.result); if(d.app!=="training-tracker")throw 0; if(!confirm("Import REPLACES current data with the file. Continue?"))return; db=d; migrate(); save(); alert("Imported ✓"); location.reload(); }catch(e){ alert("Not a valid training-tracker export."); } };
+  var rd=new FileReader(); rd.onload=function(){ var d; try{ d=JSON.parse(rd.result); if(d.app!=="training-tracker")throw 0; }catch(e){ toast("Not a valid training-tracker export."); return; } confirmModal("Replace all data?", "Importing overwrites what's on this device with the file's contents.", function(){ db=d; migrate(); save(); location.reload(); }); };
   rd.readAsText(f);
 });
 

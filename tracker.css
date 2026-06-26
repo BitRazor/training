@@ -42,6 +42,13 @@ button{font-family:inherit}
 .progMeta{font-size:11.5px; color:var(--dim); margin:4px 0}
 .progBarWrap{height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-top:6px}
 .progBar{height:100%; background:var(--acc); transition:width .3s}
+/* per-program climb-rate (pace) picker chips on the Programs cards */
+.paceRow{margin-top:10px}
+.paceLbl{font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em; margin-bottom:6px}
+.paceChips{display:flex; flex-wrap:wrap; gap:6px}
+.paceChip{font-size:12.5px; font-weight:650; padding:7px 11px; border-radius:9px; border:1px solid var(--line); background:var(--card2); color:var(--mut); cursor:pointer}
+.paceChip.sel{border-color:var(--acc); color:var(--acc); background:var(--accD)}
+.paceHint{font-size:11.5px; margin-top:6px}
 /* Settings demoted to a compact ⋯ (the 5 real tabs stay flex:1; this is a narrow extra) */
 .tab.more{flex:0 0 40px}
 .tab.more .ti{font-size:21px; line-height:.6}

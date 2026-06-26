@@ -82,11 +82,18 @@ function renderLibrary(){
     var doneWk = P.days.reduce(function(s,d){ return s + ((((ps.progress||{})[d]||{}).weeksDone||[]).length); }, 0);
     var pctDone = totalWk ? Math.round(doneWk/totalWk*100) : 0;
     var dirBadge = P.direction === "reverse" ? "Reverse · reps 6→15" : "Forward · reps 15→6";
+    var isFwd = P.direction !== "reverse", curMode = ps.rateMode || "plateau";
+    var paceHtml = isFwd
+      ? '<div class="paceRow"><div class="paceLbl">Climb rate</div><div class="paceChips">' +
+          PROGRESSION_MODE_ORDER.map(function(m){ var M = PROGRESSION_MODES[m]; return '<button class="paceChip' + (m === curMode ? " sel" : "") + '" data-act="setpace" data-prog="' + esc(pid) + '" data-mode="' + m + '" title="' + esc(M.hint) + '">' + esc(M.label) + '</button>'; }).join("") +
+          '</div><div class="paceHint dim">' + esc((PROGRESSION_MODES[curMode] || PROGRESSION_MODES.plateau).hint) + '</div></div>'
+      : '<div class="note dim" style="margin-top:8px">Wave programs ease by design — the climb-rate picker applies to forward programs.</div>';
     return '<div class="progItem' + (active ? " active" : "") + '">' +
       '<div class="progNm">' + esc(P.name) + (active ? ' <span class="progActive">ACTIVE</span>' : '') + (ps.completedAt ? ' <span class="progDoneB">✓ done</span>' : '') + '</div>' +
       '<div class="progDesc">' + esc(P.desc) + '</div>' +
       '<div class="progMeta">' + P.weeks + ' weeks · ' + esc(dirBadge) + ' · ' + doneWk + '/' + totalWk + ' day-weeks done (' + pctDone + '%)</div>' +
       '<div class="progBarWrap"><div class="progBar" style="width:' + pctDone + '%"></div></div>' +
+      paceHtml +
       (active ? '<div class="note dim" style="margin-top:8px">Active — open it on the <b>Plan</b> tab.</div>'
               : '<button class="btn block sm" data-act="switchprogram" data-prog="' + esc(pid) + '" style="margin-top:8px">Switch to ' + esc(P.name) + '</button>') +
       '</div>';

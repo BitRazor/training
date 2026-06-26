@@ -7,6 +7,8 @@
 function shortName(prog){ return prog === "strength-a" ? "Lower" : "Upper"; }
 function todayProgram(){ var t = CURRENT_WEEK[weekdayIdx()]; return (t && t.type === "strength") ? t.ref : null; }
 function activeProg(){ return getProgram(db.activeProgram); }
+/* the active program's chosen climb-rate mode (forward only); defaults to plateau (= current behavior) */
+function activeRateMode(){ var ps = db.programState && db.programState[db.activeProgram]; return (ps && ps.rateMode) || DEFAULT_RATE_MODE; }
 /* read-only weeksDone for a day-track WITHIN the active program (per-program progress) */
 function progWeeksDone(prog){ var ps = db.programState && db.programState[db.activeProgram]; var d = ps && ps.progress && ps.progress[prog]; return (d && d.weeksDone) || []; }
 function currentWeek(prog){
@@ -24,13 +26,13 @@ function prescFor(en, week){
   // (reps×3 s/arm), then drop when the weight steps up. Same double-progression, shown as time.
   if(en.exerciseId === "suitcase-carry"){
     if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "heavy", weight: null };
-    var cp = ladderFor(tested, ex, activeProg())[week];
+    var cp = ladderFor(tested, ex, activeProg(), activeRateMode())[week];
     return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × " + (cp.reps * 3) + " s/arm", tested: true, kind: "heavy", weight: cp.kg, rate: cp.rate };
   }
   // every other loaded lift — gated rep-ladder: reps only drop on a week the weight steps up a full
   // increment, so nothing ever gets easier than the week before (fixes light-lift "easier week 2/3").
   if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
-  var p = ladderFor(tested, ex, activeProg())[week];
+  var p = ladderFor(tested, ex, activeProg(), activeRateMode())[week];
   return { text: "<b>" + p.kg + " kg</b> · " + en.sets + " × " + p.reps + side, tested: true, kind: "heavy", weight: p.kg, rate: p.rate };
 }
 function renderPlan(){
@@ -46,8 +48,11 @@ function renderPlan(){
   h += '</div>';
   var liftIds = P.entries.map(function(en){ return en.exerciseId; }), liftDone = doneCount(prog, w, liftIds);
   var phaseLbl = activeProg().direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
+  /* show which non-default climb-rate is driving the numbers (plateau = default, so no badge — keeps the Plan calm) */
+  var rmA = activeRateMode(), rmM = PROGRESSION_MODES[rmA];
+  var paceNote = (activeProg().direction !== "reverse" && rmA !== "plateau" && rmM) ? ' · <span style="color:var(--acc)">' + esc(rmM.label) + ' pace</span>' : '';
   h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseLbl + ' · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
-       '<div class="phaseReps">Target ' + repForWeekIn(activeProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM</div></div>';
+       '<div class="phaseReps">Target ' + repForWeekIn(activeProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM' + paceNote + '</div></div>';
   /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
   h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~8–10 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +

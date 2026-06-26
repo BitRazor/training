@@ -147,7 +147,7 @@ function onSetWeight(t){
   }
   /* rescale the anchor from what you ACTUALLY lifted this week — the whole block re-derives from the
      SAME formula (ladderFor). Round to 0.25 kg. */
-  var planW=(ladderFor(cur, ex, getProgram(db.activeProgram))[w]||{}).kg;
+  var planW=(ladderFor(cur, ex, getProgram(db.activeProgram), activeRateMode())[w]||{}).kg;
   openModal({ title:"Actual weight · "+ex.name+" · wk "+w, message:"What you really lifted (kg). The whole block recalculates from this.", mode:"number", value:String(planW), placeholder:"kg",
     onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)!=null&&planW){ db.tested[exId]=Math.round((cur*num(v)/planW)*4)/4; save(); renderPlan(); } } });
 }
@@ -207,6 +207,7 @@ document.addEventListener("click",function(e){
   if(act==="modalcancel"){ closeModal(); return; }
   if(act==="gotoplan"||act==="prog"){ ui.planProg=t.getAttribute("data-prog"); ui.planWeek=currentWeek(ui.planProg); ui.planLastProg=ui.planProg; act==="gotoplan"?showView("programs"):renderPlan(); return; }
   if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ db.activeProgram=pid; var ps=db.programState[pid]; if(ps&&!ps.startedAt) ps.startedAt=nowISO(); ui.planWeek=null; ui.planLastProg=null; save(); renderLibrary(); } return; }
+  if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); renderPlan(); return; }
   if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=progDoneArr(pr), ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,getProgram(db.activeProgram).weeks); maybeCompleteActive(); } save(); renderPlan(); return; }
   if(act==="setw"){ onSetWeight(t); return; }

@@ -89,12 +89,53 @@ function progDoneArr(prog){ var ps=progStateFor(db.activeProgram); if(!ps.progre
 function maybeCompleteActive(){
   var P=getProgram(db.activeProgram), ps=progStateFor(db.activeProgram); if(ps.completedAt) return;
   var allDone=P.days.every(function(d){ var wd=progDoneArr(d); for(var ww=1; ww<=P.weeks; ww++) if(wd.indexOf(ww)<0) return false; return true; });
-  if(allDone){ ps.completedAt=nowISO(); for(var id in db.tested){ if(db.tested[id]!=null) db.tested[id]=advanceBank(db.tested[id], P); } }
+  if(allDone){ ps.completedAt=nowISO(); }   /* gains now carry when you START the next program (carryFromActive) — no separate auto-bank */
+}
+
+/* ---------- program switch: preview ("just looking") vs commit ("start training" + carry strength) ---------- */
+/* which strength day-track a lift lives in (each lift is in exactly one) */
+function dayOf(exId){ for(var i=0;i<STRENGTH_DAYS.length;i++){ var d=STRENGTH_DAYS[i], P=db.programs[d]; if(P){ for(var j=0;j<P.entries.length;j++) if(P.entries[j].exerciseId===exId) return d; } } return null; }
+/* highest completed week of a day-track in a program (0 = none) */
+function lastCompletedWeek(pid, day){ var ps=db.programState&&db.programState[pid], wd=ps&&ps.progress&&ps.progress[day]&&ps.progress[day].weeksDone; return (wd&&wd.length)?Math.max.apply(null,wd):0; }
+/* the carried 15RM anchors a NEW program would start from: each lift's strength at the CURRENT active
+   program's (last completed week in its day-track + 1 step). Pure read — used by BOTH preview and start. */
+function carryFromActive(){
+  var out={}, src=getProgram(db.activeProgram), srcMode=activeRateMode();
+  for(var i=0;i<db.exercises.length;i++){ var ex=db.exercises[i], t=db.tested[ex.id];
+    if(t==null){ out[ex.id]=null; continue; }
+    var day=dayOf(ex.id), N=day?lastCompletedWeek(db.activeProgram, day):0;
+    out[ex.id]=carriedAnchor(t, ex, src, srcMode, N);
+  }
+  return out;
+}
+/* tap a different program → choose: just looking (transient preview) or start training (commit + carry) */
+function openSwitchModal(pid){
+  var P=getProgram(pid);
+  openModal({ title:P.name, message:"Just peeking, or making this your program now? Looking changes nothing.", mode:"chips", noCustom:true,
+    chips:[{label:"👀 Just looking", value:"look"},{label:"🏋 Start training", value:"train"}],
+    onSubmit:function(v){ if(v==="look") startPreview(pid); else if(v==="train") startTraining(pid); } });
+}
+function startPreview(pid){ ui.preview={program:pid, anchor:carryFromActive()}; ui.planWeek=1; ui.planLastProg=null; showView("programs"); }
+function clearPreview(){ ui.preview=null; }
+/* commit: carry current strength into the new program, make it active, start it FRESH (week 1) */
+function startTraining(pid){
+  var carried=carryFromActive();
+  var hasProg=STRENGTH_DAYS.some(function(d){ return lastCompletedWeek(pid,d)>0; });
+  var go=function(){
+    for(var id in carried){ if(carried[id]!=null) db.tested[id]=carried[id]; }
+    db.activeProgram=pid;
+    var ps=progStateFor(pid); if(!ps.startedAt) ps.startedAt=nowISO(); ps.completedAt=null;
+    STRENGTH_DAYS.forEach(function(d){ if(!ps.progress[d]) ps.progress[d]={weeksDone:[]}; else ps.progress[d].weeksDone=[]; });
+    clearPreview(); ui.planWeek=null; ui.planLastProg=null; save(); showView("programs");
+  };
+  if(hasProg) confirmModal("Restart "+getProgram(pid).name+"?", getProgram(pid).name+" already has logged weeks. Start a fresh cycle from your current strength? Its old weeks will be cleared.", go);
+  else go();
 }
 
 /* ---------- router (5 views; Plan renders into #view-programs) ---------- */
 var VIEWS=["today","programs","library","log","nutrition","settings"];
 function showView(name){
+  if(name !== "programs") clearPreview();   /* leaving the Plan auto-reverts a just-looking preview */
   ui.view=name;
   VIEWS.forEach(function(v){var el=$("#view-"+v); if(el)el.hidden=(v!==name);});
   $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===name);});
@@ -116,8 +157,8 @@ function openModal(o){
   var body = "";
   if(o.mode === "chips"){
     body = '<div class="mChips">' + (o.chips||[]).map(function(c){ return '<button class="mChip" data-act="modalchip" data-val="' + esc(String(c.value)) + '">' + esc(c.label) + '</button>'; }).join("") +
-      '<button class="mChip alt" data-act="modalcustom">Custom…</button></div>' +
-      '<div class="mCustom" hidden><input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" placeholder="kg"><button class="btn primary sm" data-act="modalok">Set</button></div>';
+      (o.noCustom ? '' : '<button class="mChip alt" data-act="modalcustom">Custom…</button>') + '</div>' +
+      (o.noCustom ? '' : '<div class="mCustom" hidden><input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" placeholder="kg"><button class="btn primary sm" data-act="modalok">Set</button></div>');
   } else if(o.mode === "text"){
     body = '<textarea class="mInput mArea" id="mText" placeholder="' + esc(o.placeholder||"") + '">' + esc(o.value||"") + '</textarea>';
   } else if(o.mode === "number"){
@@ -205,8 +246,11 @@ document.addEventListener("click",function(e){
   if(act==="modalcustom"){ var cu=$(".mCustom"); if(cu){ cu.hidden=false; var ni=$("#mNum"); if(ni&&ni.focus) ni.focus(); } return; }
   if(act==="modalok"){ var mi=$("#mText")||$("#mNum"); modalSubmit(mi?mi.value:undefined); return; }
   if(act==="modalcancel"){ closeModal(); return; }
-  if(act==="gotoplan"||act==="prog"){ ui.planProg=t.getAttribute("data-prog"); ui.planWeek=currentWeek(ui.planProg); ui.planLastProg=ui.planProg; act==="gotoplan"?showView("programs"):renderPlan(); return; }
-  if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ db.activeProgram=pid; var ps=db.programState[pid]; if(ps&&!ps.startedAt) ps.startedAt=nowISO(); ui.planWeek=null; ui.planLastProg=null; save(); renderLibrary(); } return; }
+  if(act==="gotoplan"||act==="prog"){ ui.planProg=t.getAttribute("data-prog"); ui.planWeek=shownCurrentWeek(ui.planProg); ui.planLastProg=ui.planProg; act==="gotoplan"?showView("programs"):renderPlan(); return; }
+  if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ if(pid===db.activeProgram) showView("programs"); else openSwitchModal(pid); } return; }
+  if(act==="previewstart"){ startTraining(t.getAttribute("data-prog")); return; }
+  if(act==="previewreturn"){ clearPreview(); ui.planWeek=null; ui.planLastProg=null; renderPlan(); return; }
+  if(previewing() && /^(weekdone|setw|setstep|note|donetick)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
   if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); renderPlan(); return; }
   if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=progDoneArr(pr), ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,getProgram(db.activeProgram).weeks); maybeCompleteActive(); } save(); renderPlan(); return; }

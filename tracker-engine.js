@@ -128,13 +128,17 @@ function ladderFor(tested, ex, program, rateMode){
   program = program || getProgram(DEFAULT_PROGRAM_ID);
   var ladder = program.repLadder || REP_LADDER, weeks = program.weeks || TOTAL_WEEKS;
   var orm = tested / pct(15), plan = {};
+  var mode = PROGRESSION_MODES[rateMode] || PROGRESSION_MODES[DEFAULT_RATE_MODE], dynamic = !!mode.dynamic;
   if(program.direction === "reverse"){
-    /* BACK-OFF WAVE: weight rides the SAME rising 1RM curve, but reps climb (e.g. 6 -> 15) so the
-       weight EASES across the block (more reps = lighter). No never-easier gate — easing is the
-       point; every rep-level still lands heavier than the previous block because the bank is higher. */
+    /* BACK-OFF WAVE: weight rides the rising 1RM curve, reps climb (e.g. 6 -> 15) so the weight EASES
+       across the block (more reps = lighter). The MODE sets how fast the bank rises: plateau/default =
+       flat WEEKLY_GAIN (byte-identical to the pre-pace wave); a front-loaded tier makes the WHOLE wave
+       ride a faster (steep, heavier) / slower (lighter) bank. Reps stay the program ladder's, mode-independent. */
+    var rcum = 1;   // strength multiplier at week rw (1 at wk1; accumulates the front-loaded rate for tiers)
     for(var rw=1; rw<=weeks; rw++){
-      var re1 = orm * Math.pow(1+WEEKLY_GAIN, rw-1);
-      plan[rw] = {kg: snapDown(re1 * pct(ladder[rw-1]), ex), reps: ladder[rw-1]};
+      var rmult = dynamic ? Math.pow(1+WEEKLY_GAIN, rw-1) : rcum;
+      plan[rw] = {kg: snapDown(orm * rmult * pct(ladder[rw-1]), ex), reps: ladder[rw-1], rate: "hold", e1: orm * rmult};
+      if(!dynamic && rw < weeks) rcum *= (1 + frontLoadRate(mode, rw+1, weeks));
     }
     return plan;
   }
@@ -143,10 +147,9 @@ function ladderFor(tested, ex, program, rateMode){
        lift is stuck adding reps, EASES (LOW) the week after to pay it back, bounded by LEAD_CAP.
      - a fixed tier (slower/standard/steep): a deterministic FRONT-LOADED rate (fast early, decaying
        to its end value by the final week), no push/ease. Both share the never-easier grid-walk below. */
-  var mode = PROGRESSION_MODES[rateMode] || PROGRESSION_MODES[DEFAULT_RATE_MODE], dynamic = !!mode.dynamic;
   var CEIL = 20, prevW = tested, prevR = ladder[0];
   var dynE1 = orm, steppedLast = true, boostedLast = false;           // dynamic 1RM + per-lift state
-  plan[1] = {kg: roundTo(tested, 0.25), reps: ladder[0], rate: "hold"};
+  plan[1] = {kg: roundTo(tested, 0.25), reps: ladder[0], rate: "hold", e1: orm};
   for(var w=2; w<=weeks; w++){
     var rate, reason;
     if(dynamic){
@@ -166,7 +169,7 @@ function ladderFor(tested, ex, program, rateMode){
     else if(prevR >= CEIL){ prevW = nextWeight(ex, prevW); prevR = Math.max(6, Math.min(15, invpct(prevW / dynE1))); }  // reps earned the next weight
     else { prevR += 1; }                                              // add one rep (double progression while a step won't fit)
     steppedLast = stepped;
-    plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR, rate: reason};
+    plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR, rate: reason, e1: dynE1};
   }
   return plan;
 }
@@ -178,3 +181,16 @@ function repForWeekIn(program, w){ var L=(program&&program.repLadder)||REP_LADDE
 /* KEEP-CLIMBING: finishing a program banks its gain into the strength anchor so the next program
    starts heavier. Default rule = +WEEKLY_GAIN/wk compounded over the program's weeks (1.01^12 ~= 1.127). */
 function advanceBank(tested, program){ if(tested==null) return null; var wk=(program&&program.weeks)||TOTAL_WEEKS; return roundTo(tested*Math.pow(1+WEEKLY_GAIN, wk), 0.25); }
+
+/* TRANSFER (program switch): the 15RM anchor to START a new program with, carrying the strength
+   reached in the SOURCE program through its (last completed week + 1 step). Strength-domain — reads
+   the estimated 1RM (e1), NOT the displayed weight — so it's correct across directions (a reverse
+   wave's light top set still carries its true high bank). lastCompletedWeek 0 → no change. */
+function carriedAnchor(sourceAnchor, ex, sourceProgram, sourceMode, lastCompletedWeek){
+  if(sourceAnchor==null) return null;
+  sourceProgram = sourceProgram || getProgram(DEFAULT_PROGRAM_ID);
+  var weeks = sourceProgram.weeks || TOTAL_WEEKS;
+  var w = Math.max(1, Math.min((lastCompletedWeek||0) + 1, weeks));   // last completed + 1 step, capped at the block end
+  var p = ladderFor(sourceAnchor, ex, sourceProgram, sourceMode);
+  return roundTo(p[w].e1 * pct(15), 0.25);                            // estimated 1RM → 15RM anchor
+}

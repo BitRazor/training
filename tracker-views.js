@@ -73,7 +73,7 @@ function renderNutrition(){
 
 /* ---------- PROGRAMS (the library + switcher) ---------- */
 function renderLibrary(){
-  var h = '<div class="viewH">Programs</div><div class="viewSub">Your training programs. The active one drives Today and the Plan. Switching is safe — each program keeps its own progress.</div>';
+  var h = '<div class="viewH">Programs</div><div class="viewSub">Your training programs. The active one drives Today and the Plan. Tap one to preview it or start training — your strength carries forward.</div>';
   h += '<div class="card">' + PROGRAM_ORDER.map(function(pid){
     var P = db.programLib[pid]; if(!P) return "";
     var ps = db.programState[pid] || {progress:{}};
@@ -82,12 +82,11 @@ function renderLibrary(){
     var doneWk = P.days.reduce(function(s,d){ return s + ((((ps.progress||{})[d]||{}).weeksDone||[]).length); }, 0);
     var pctDone = totalWk ? Math.round(doneWk/totalWk*100) : 0;
     var dirBadge = P.direction === "reverse" ? "Reverse · reps 6→15" : "Forward · reps 15→6";
-    var isFwd = P.direction !== "reverse", curMode = ps.rateMode || "plateau";
-    var paceHtml = isFwd
-      ? '<div class="paceRow"><div class="paceLbl">Climb rate</div><div class="paceChips">' +
-          PROGRESSION_MODE_ORDER.map(function(m){ var M = PROGRESSION_MODES[m]; return '<button class="paceChip' + (m === curMode ? " sel" : "") + '" data-act="setpace" data-prog="' + esc(pid) + '" data-mode="' + m + '" title="' + esc(M.hint) + '">' + esc(M.label) + '</button>'; }).join("") +
-          '</div><div class="paceHint dim">' + esc((PROGRESSION_MODES[curMode] || PROGRESSION_MODES.plateau).hint) + '</div></div>'
-      : '<div class="note dim" style="margin-top:8px">Wave programs ease by design — the climb-rate picker applies to forward programs.</div>';
+    var curMode = ps.rateMode || "plateau";
+    /* climb-rate picker on EVERY program — forward steps the weight up faster, reverse rides a higher/lower bank */
+    var paceHtml = '<div class="paceRow"><div class="paceLbl">Climb rate</div><div class="paceChips">' +
+        PROGRESSION_MODE_ORDER.map(function(m){ var M = PROGRESSION_MODES[m]; return '<button class="paceChip' + (m === curMode ? " sel" : "") + '" data-act="setpace" data-prog="' + esc(pid) + '" data-mode="' + m + '" title="' + esc(M.hint) + '">' + esc(M.label) + '</button>'; }).join("") +
+        '</div><div class="paceHint dim">' + esc((PROGRESSION_MODES[curMode] || PROGRESSION_MODES.plateau).hint) + '</div></div>';
     return '<div class="progItem' + (active ? " active" : "") + '">' +
       '<div class="progNm">' + esc(P.name) + (active ? ' <span class="progActive">ACTIVE</span>' : '') + (ps.completedAt ? ' <span class="progDoneB">✓ done</span>' : '') + '</div>' +
       '<div class="progDesc">' + esc(P.desc) + '</div>' +
@@ -98,7 +97,7 @@ function renderLibrary(){
               : '<button class="btn block sm" data-act="switchprogram" data-prog="' + esc(pid) + '" style="margin-top:8px">Switch to ' + esc(P.name) + '</button>') +
       '</div>';
   }).join("") + '</div>';
-  h += '<div class="note dim" style="margin:8px 2px">More programs as you build them. Your strength carries across — finishing a program banks your gains so the next starts heavier.</div>';
+  h += '<div class="note dim" style="margin:8px 2px">More programs as you build them. Your strength carries forward — starting a new program picks up from your last completed week (+ one step).</div>';
   $("#view-library").innerHTML = h;
 }
 

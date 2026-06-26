@@ -9,6 +9,16 @@ function todayProgram(){ var t = CURRENT_WEEK[weekdayIdx()]; return (t && t.type
 function activeProg(){ return getProgram(db.activeProgram); }
 /* the active program's chosen climb-rate mode (forward only); defaults to plateau (= current behavior) */
 function activeRateMode(){ var ps = db.programState && db.programState[db.activeProgram]; return (ps && ps.rateMode) || DEFAULT_RATE_MODE; }
+/* ---- what the Plan currently SHOWS: the committed active program, OR a transient "just looking" PREVIEW.
+   While previewing, the Plan renders the previewed program from its CARRIED anchor as a FRESH start
+   (week 1, nothing done) — Today + db are untouched, and it auto-reverts on leaving the Plan. ---- */
+function previewing(){ return !!(ui.preview && ui.preview.program); }
+function shownProgramId(){ return previewing() ? ui.preview.program : db.activeProgram; }
+function shownProg(){ return getProgram(shownProgramId()); }
+function shownRateMode(){ var ps = db.programState && db.programState[shownProgramId()]; return (ps && ps.rateMode) || DEFAULT_RATE_MODE; }
+function shownAnchor(exId){ return (previewing() && ui.preview.anchor) ? ui.preview.anchor[exId] : db.tested[exId]; }
+function shownWeeksDone(prog){ return previewing() ? [] : progWeeksDone(prog); }
+function shownCurrentWeek(prog){ return previewing() ? 1 : currentWeek(prog); }
 /* read-only weeksDone for a day-track WITHIN the active program (per-program progress) */
 function progWeeksDone(prog){ var ps = db.programState && db.programState[db.activeProgram]; var d = ps && ps.progress && ps.progress[prog]; return (d && d.weeksDone) || []; }
 function currentWeek(prog){
@@ -19,40 +29,40 @@ function progEntry(prog, exId){ var P = db.programs[prog]; if(!P) return null; f
 /* prescription for one entry at a given week. `weight` = the raw prescribed kg (or null for
    untested / timed) — the single source the note-stamp + UI both read, so they can't diverge. */
 function prescFor(en, week){
-  var ex = exById(en.exerciseId) || {}, tested = db.tested[en.exerciseId], side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
+  var ex = exById(en.exerciseId) || {}, tested = shownAnchor(en.exerciseId), side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
   // Copenhagen plank: bodyweight hold → progress the HOLD TIME (seconds), no load
   if(en.exerciseId === "copenhagen-plank") return { text: en.sets + " × " + holdSec(week) + " s/side", tested: true, kind: "hold", weight: null };
   // Suitcase carry: a timed carry — its "reps" dimension is TIME, so the seconds climb each week
   // (reps×3 s/arm), then drop when the weight steps up. Same double-progression, shown as time.
   if(en.exerciseId === "suitcase-carry"){
     if(tested == null) return { text: "tap to enter carry weight · " + en.sets + " × ~40 s/arm", tested: false, kind: "heavy", weight: null };
-    var cp = ladderFor(tested, ex, activeProg(), activeRateMode())[week];
+    var cp = ladderFor(tested, ex, shownProg(), shownRateMode())[week];
     return { text: "<b>" + cp.kg + " kg</b> · " + en.sets + " × " + (cp.reps * 3) + " s/arm", tested: true, kind: "heavy", weight: cp.kg, rate: cp.rate };
   }
   // every other loaded lift — gated rep-ladder: reps only drop on a week the weight steps up a full
   // increment, so nothing ever gets easier than the week before (fixes light-lift "easier week 2/3").
   if(tested == null) return { text: "tap to enter your tested 15RM", tested: false, kind: "heavy", weight: null };
-  var p = ladderFor(tested, ex, activeProg(), activeRateMode())[week];
+  var p = ladderFor(tested, ex, shownProg(), shownRateMode())[week];
   return { text: "<b>" + p.kg + " kg</b> · " + en.sets + " × " + p.reps + side, tested: true, kind: "heavy", weight: p.kg, rate: p.rate };
 }
 function renderPlan(){
   if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";
   var existingWarm = document.querySelector(".warmSec"); if(existingWarm) ui.warmOpen = existingWarm.open;   /* keep warm-up open across re-renders */
-  var prog = ui.planProg, P = db.programs[prog], cur = currentWeek(prog), done = progWeeksDone(prog);
+  var prog = ui.planProg, P = db.programs[prog], cur = shownCurrentWeek(prog), done = shownWeeksDone(prog);
   if(!ui.planWeek || ui.planLastProg !== prog){ ui.planWeek = cur; ui.planLastProg = prog; }
   var w = ui.planWeek;
-  var h = '<div class="viewH">' + esc(activeProg().name) + ' · ' + activeProg().weeks + '-week plan</div>';
+  var h = '<div class="viewH">' + esc(shownProg().name) + ' · ' + shownProg().weeks + '-week plan</div>';
   h += '<div class="progTabs">' + STRENGTH_DAYS.map(function(id){ return '<button class="progTab' + (id === prog ? " sel" : "") + '" data-act="prog" data-prog="' + id + '">' + esc(db.programs[id].name) + '</button>'; }).join("") + '</div>';
   h += '<div class="weekPick">';
-  for(var k = 1, KW = activeProg().weeks; k <= KW; k++){ var dn = done.indexOf(k) >= 0; h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '">' + k + (dn ? '<span class="wtick">✓</span>' : "") + '</button>'; }
+  for(var k = 1, KW = shownProg().weeks; k <= KW; k++){ var dn = done.indexOf(k) >= 0; h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '">' + k + (dn ? '<span class="wtick">✓</span>' : "") + '</button>'; }
   h += '</div>';
   var liftIds = P.entries.map(function(en){ return en.exerciseId; }), liftDone = doneCount(prog, w, liftIds);
-  var phaseLbl = activeProg().direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
+  var phaseLbl = shownProg().direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
   /* show which non-default climb-rate is driving the numbers (plateau = default, so no badge — keeps the Plan calm) */
-  var rmA = activeRateMode(), rmM = PROGRESSION_MODES[rmA];
-  var paceNote = (activeProg().direction !== "reverse" && rmA !== "plateau" && rmM) ? ' · <span style="color:var(--acc)">' + esc(rmM.label) + ' pace</span>' : '';
+  var rmA = shownRateMode(), rmM = PROGRESSION_MODES[rmA];
+  var paceNote = (rmA !== "plateau" && rmM) ? ' · <span style="color:var(--acc)">' + esc(rmM.label) + ' pace</span>' : '';
   h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseLbl + ' · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
-       '<div class="phaseReps">Target ' + repForWeekIn(activeProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM' + paceNote + '</div></div>';
+       '<div class="phaseReps">Target ' + repForWeekIn(shownProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM' + paceNote + '</div></div>';
   /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
   h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~8–10 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
@@ -76,6 +86,11 @@ function renderPlan(){
   h += '<div class="btnRow" style="margin:14px 0 6px"><button class="btn primary block" data-act="weekdone" data-prog="' + prog + '" data-week="' + w + '">' +
        (weekIsDone ? "✓ Week " + w + " " + shortName(prog) + " done — tap to undo" : "✓ Mark Week " + w + " " + shortName(prog) + " done") + '</button></div>';
   h += '<div class="note dim" style="margin:4px 2px">Tick each lift as you finish it (top-left ✓) — it collapses to save space and the day count updates. Heavy lifts auto-calculate; tap a weight (✎) to log what you actually lifted. "+ note" logs go to the Notes tab.</div>';
+  if(previewing()){
+    h = '<div class="previewBar">👀 Previewing <b>' + esc(shownProg().name) + '</b> from your current strength — not your active program yet.' +
+        '<div class="btnRow" style="margin-top:8px"><button class="btn sm" data-act="previewreturn">↩ Return</button>' +
+        '<button class="btn primary sm" data-act="previewstart" data-prog="' + esc(shownProgramId()) + '">🏋 Start training</button></div></div>' + h;
+  }
   $("#view-programs").innerHTML = h;
 }
 /* update the done counts in place (no full re-render) so a tick can animate the card collapse */

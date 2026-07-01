@@ -1,7 +1,8 @@
 "use strict";
-/* training-tracker — core: state (schema v2), router, events, init.
-   Loads SEED_* (tracker-seed.js), EX_DESC/EX_GIF (tracker-desc.js), views (tracker-views.js),
-   the Plan (tracker-plan.js) — all BEFORE this file. Storage: localStorage `training-tracker:v1`. */
+/* training-tracker — core: state (schema v3), router, events, init.
+   Loads SEED_* (tracker-seed.js), the engine (tracker-engine.js), EX_DESC/EX_GIF (tracker-desc.js),
+   views (tracker-views.js), the Plan (tracker-plan.js), and the actions layer (tracker-actions.js —
+   modal + program switch + plan edits + export) — all BEFORE this file. Storage: localStorage `training-tracker:v1`. */
 
 /* ---------- helpers ---------- */
 function $(s,e){return (e||document).querySelector(s);}
@@ -92,47 +93,7 @@ function maybeCompleteActive(){
   if(allDone){ ps.completedAt=nowISO(); }   /* gains now carry when you START the next program (carryFromActive) — no separate auto-bank */
 }
 
-/* ---------- program switch: preview ("just looking") vs commit ("start training" + carry strength) ---------- */
-/* which strength day-track a lift lives in (each lift is in exactly one) */
-function dayOf(exId){ for(var i=0;i<STRENGTH_DAYS.length;i++){ var d=STRENGTH_DAYS[i], P=db.programs[d]; if(P){ for(var j=0;j<P.entries.length;j++) if(P.entries[j].exerciseId===exId) return d; } } return null; }
-/* highest completed week of a day-track in a program (0 = none) */
-function lastCompletedWeek(pid, day){ var ps=db.programState&&db.programState[pid], wd=ps&&ps.progress&&ps.progress[day]&&ps.progress[day].weeksDone; return (wd&&wd.length)?Math.max.apply(null,wd):0; }
-/* the carried 15RM anchors a NEW program would start from: each lift's strength at the CURRENT active
-   program's (last completed week in its day-track + 1 step). Pure read — used by BOTH preview and start. */
-function carryFromActive(){
-  var out={}, src=getProgram(db.activeProgram), srcMode=activeRateMode();
-  for(var i=0;i<db.exercises.length;i++){ var ex=db.exercises[i], t=db.tested[ex.id];
-    if(t==null){ out[ex.id]=null; continue; }
-    var day=dayOf(ex.id), N=day?lastCompletedWeek(db.activeProgram, day):0;
-    out[ex.id]=carriedAnchor(t, ex, src, srcMode, N);
-  }
-  return out;
-}
-/* tap a different program → choose: just looking (transient preview) or start training (commit + carry) */
-function openSwitchModal(pid){
-  var P=getProgram(pid);
-  openModal({ title:P.name, message:"Just peeking, or making this your program now? Looking changes nothing.", mode:"chips", noCustom:true,
-    chips:[{label:"👀 Just looking", value:"look"},{label:"🏋 Start training", value:"train"}],
-    onSubmit:function(v){ if(v==="look") startPreview(pid); else if(v==="train") startTraining(pid); } });
-}
-function startPreview(pid){ ui.preview={program:pid, anchor:carryFromActive()}; ui.planWeek=1; ui.planLastProg=null; showView("programs"); }
-function clearPreview(){ ui.preview=null; }
-/* commit: carry current strength into the new program, make it active, start it FRESH (week 1) */
-function startTraining(pid){
-  var carried=carryFromActive();
-  var hasProg=STRENGTH_DAYS.some(function(d){ return lastCompletedWeek(pid,d)>0; });
-  var go=function(){
-    for(var id in carried){ if(carried[id]!=null) db.tested[id]=carried[id]; }
-    db.activeProgram=pid;
-    var ps=progStateFor(pid); if(!ps.startedAt) ps.startedAt=nowISO(); ps.completedAt=null;
-    STRENGTH_DAYS.forEach(function(d){ if(!ps.progress[d]) ps.progress[d]={weeksDone:[]}; else ps.progress[d].weeksDone=[]; });
-    clearPreview(); ui.planWeek=null; ui.planLastProg=null; save(); showView("programs");
-  };
-  if(hasProg) confirmModal("Restart "+getProgram(pid).name+"?", getProgram(pid).name+" already has logged weeks. Start a fresh cycle from your current strength? Its old weeks will be cleared.", go);
-  else go();
-}
-
-/* ---------- router (5 views; Plan renders into #view-programs) ---------- */
+/* ---------- router (6 views; Plan renders into #view-programs) ---------- */
 var VIEWS=["today","programs","library","log","nutrition","settings"];
 function showView(name){
   if(name !== "programs") clearPreview();   /* leaving the Plan auto-reverts a just-looking preview */
@@ -141,92 +102,6 @@ function showView(name){
   $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===name);});
   ({today:renderToday, programs:renderPlan, library:renderLibrary, log:renderLog, nutrition:renderNutrition, settings:renderSettings}[name])();
   window.scrollTo(0,0);
-}
-
-/* ---------- export / import ---------- */
-function doExport(){
-  db.exportedAt=nowISO(); db.settings.lastExportAt=db.exportedAt; save();
-  var a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));
-  a.download="training-export-"+todayISO()+".json"; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
-}
-
-/* ---------- in-app modal (replaces the browser's native prompt / confirm / alert) ---------- */
-var modalState = null;
-function openModal(o){
-  modalState = { onSubmit: o.onSubmit };
-  var body = "";
-  if(o.mode === "chips"){
-    body = '<div class="mChips">' + (o.chips||[]).map(function(c){ return '<button class="mChip" data-act="modalchip" data-val="' + esc(String(c.value)) + '">' + esc(c.label) + '</button>'; }).join("") +
-      (o.noCustom ? '' : '<button class="mChip alt" data-act="modalcustom">Custom…</button>') + '</div>' +
-      (o.noCustom ? '' : '<div class="mCustom" hidden><input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" placeholder="kg"><button class="btn primary sm" data-act="modalok">Set</button></div>');
-  } else if(o.mode === "text"){
-    body = '<textarea class="mInput mArea" id="mText" placeholder="' + esc(o.placeholder||"") + '">' + esc(o.value||"") + '</textarea>';
-  } else if(o.mode === "number"){
-    body = '<input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" value="' + esc(o.value==null?"":o.value) + '" placeholder="' + esc(o.placeholder||"kg") + '">';
-  }
-  var ok = (o.mode === "chips") ? "" : '<button class="btn primary" data-act="modalok">' + esc(o.okLabel||"Save") + '</button>';
-  $("#modal").innerHTML = '<div class="mBack" data-act="modalcancel"></div><div class="mCard">' +
-    '<div class="mTitle">' + esc(o.title||"") + '</div>' + (o.message ? '<div class="mMsg">' + esc(o.message) + '</div>' : "") +
-    body + '<div class="mActions"><button class="btn ghost" data-act="modalcancel">Cancel</button>' + ok + '</div></div>';
-  $("#modal").classList.add("open");
-  setTimeout(function(){ var f = $("#mText") || (o.mode==="number" ? $("#mNum") : null); if(f && f.focus) f.focus(); }, 60);
-}
-function closeModal(){ var m=$("#modal"); if(m){ m.classList.remove("open"); m.innerHTML=""; } modalState=null; }
-function modalSubmit(v){ var fn = modalState && modalState.onSubmit; closeModal(); if(fn) fn(v); }
-function confirmModal(title, message, onYes){ openModal({ title:title, message:message, okLabel:"Yes, do it", onSubmit:function(){ onYes(); } }); }
-function toast(msg){ var d=document.createElement("div"); d.className="toast"; d.textContent=msg; document.body.appendChild(d);
-  setTimeout(function(){ d.classList.add("show"); }, 10);
-  setTimeout(function(){ d.classList.remove("show"); setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 300); }, 1800); }
-
-/* ---------- plan actions ---------- */
-function onSetWeight(t){
-  var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
-  if(cur==null){
-    openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at ~15 slow reps (kg).", mode:"number", placeholder:"kg",
-      onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)!=null){ db.tested[exId]=Math.round(num(v)*4)/4; save(); renderPlan(); } } });
-    return;
-  }
-  /* rescale the anchor from what you ACTUALLY lifted this week — the whole block re-derives from the
-     SAME formula (ladderFor). Round to 0.25 kg. */
-  var planW=(ladderFor(cur, ex, getProgram(db.activeProgram), activeRateMode())[w]||{}).kg;
-  openModal({ title:"Actual weight · "+ex.name+" · wk "+w, message:"What you really lifted (kg). The whole block recalculates from this.", mode:"number", value:String(planW), placeholder:"kg",
-    onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)!=null&&planW){ db.tested[exId]=Math.round((cur*num(v)/planW)*4)/4; save(); renderPlan(); } } });
-}
-/* edit ONE lift's weight step (the card chip). number = fixed kg · "db" = dumbbell grid · blank = reset */
-function onSetStep(t){
-  var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId};
-  openModal({ title:"Weight step · "+ex.name, message:"Smallest jump your gear allows — tap one, or Custom.", mode:"chips",
-    chips:[{label:"1.25 kg",value:"1.25"},{label:"2.5 kg",value:"2.5"},{label:"5 kg",value:"5"},{label:"10 kg",value:"10"},{label:"DB grid",value:"db"},{label:"Reset",value:""}],
-    onSubmit:function(v){ v=String(v==null?"":v).trim().toLowerCase();
-      if(v===""){ delete db.gear[exId]; } else if(v==="db"){ db.gear[exId]={equip:"db"}; }
-      else { var n=num(v); if(n==null||n<=0) return; db.gear[exId]={inc:Math.round(n*100)/100}; }
-      save(); renderPlan(); } });
-}
-/* edit a whole CATEGORY's step (Settings). Applies to every lift in the category unless that lift
-   has its own per-card override. */
-function onSetCatStep(t){
-  var cat=t.getAttribute("data-cat"), c=EQUIP_CATS[cat]; if(!c) return;
-  openModal({ title:"Weight step · "+c.label, message:"Applies to every "+c.label+" lift. (A lift set on its own card keeps its value.)", mode:"chips",
-    chips:[{label:"1.25 kg",value:"1.25"},{label:"2.5 kg",value:"2.5"},{label:"5 kg",value:"5"},{label:"10 kg",value:"10"},{label:"DB grid",value:"db"},{label:"Reset",value:""}],
-    onSubmit:function(v){ v=String(v==null?"":v).trim().toLowerCase();
-      if(v===""){ delete db.gearByCat[cat]; } else if(v==="db"){ db.gearByCat[cat]={equip:"db"}; }
-      else { var n=num(v); if(n==null||n<=0) return; db.gearByCat[cat]={inc:Math.round(n*100)/100}; }
-      save(); renderSettings(); } });
-}
-function onNote(t){
-  var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId};
-  openModal({ title:"Note · "+ex.name, message:"Pain, machine quirks, how it felt — saved with the week & weight.", mode:"text", placeholder:"e.g. left knee niggle on set 3, gone next morning",
-    onSubmit:function(txt){ if(txt==null||txt.trim()==="") return;
-      /* auto-stamp the week + the prescribed weight at the moment of the note, as its own record */
-      var prog=ui.planProg||todayProgram()||"strength-a", week=ui.planWeek||1;
-      var en=progEntry(prog,exId), pr=en?prescFor(en,week):null;
-      var weight=(pr&&pr.weight!=null)?(pr.weight+" kg"):((pr&&pr.kind==="timed")?"timed":"");
-      db.notes.push({date:todayISO(), week:week, exerciseId:exId, weight:weight, text:txt.trim()});
-      save(); toast("Note saved ✓"); } });
-}
-function onDelNote(t){
-  var idx=+t.getAttribute("data-idx");
-  if(!isNaN(idx)&&idx>=0&&idx<db.notes.length){ db.notes.splice(idx,1); save(); renderLog(); }
 }
 
 /* ---------- events ---------- */

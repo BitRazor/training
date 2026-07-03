@@ -1,6 +1,7 @@
 # Internal Claude / cowork artifacts — kept on the PC, NOT published to this public app repo.
 docs/
 .claude/
+kontor/
 
 # Scratch / OS
 *.log

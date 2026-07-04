@@ -78,14 +78,14 @@ function onSetWeight(t){
   var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
   if(cur==null){
     openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at ~15 slow reps (kg).", mode:"number", placeholder:"kg",
-      onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)!=null){ db.tested[exId]=Math.round(num(v)*4)/4; save(); renderPlan(); } } });
+      onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0){ db.tested[exId]=Math.round(num(v)*4)/4; save(); renderPlan(); } } });
     return;
   }
   /* rescale the anchor from what you ACTUALLY lifted this week — the whole block re-derives from the
      SAME formula (ladderFor). Round to 0.25 kg. */
   var planW=(ladderFor(cur, ex, getProgram(db.activeProgram), activeRateMode())[w]||{}).kg;
   openModal({ title:"Actual weight · "+ex.name+" · wk "+w, message:"What you really lifted (kg). The whole block recalculates from this.", mode:"number", value:String(planW), placeholder:"kg",
-    onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)!=null&&planW){ db.tested[exId]=Math.round((cur*num(v)/planW)*4)/4; save(); renderPlan(); } } });
+    onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0&&planW){ db.tested[exId]=Math.round((cur*num(v)/planW)*4)/4; save(); renderPlan(); } } });
 }
 /* edit ONE lift's weight step (the card chip). number = fixed kg · "db" = dumbbell grid · blank = reset */
 function onSetStep(t){
@@ -94,7 +94,7 @@ function onSetStep(t){
     chips:[{label:"1.25 kg",value:"1.25"},{label:"2.5 kg",value:"2.5"},{label:"5 kg",value:"5"},{label:"10 kg",value:"10"},{label:"DB grid",value:"db"},{label:"Reset",value:""}],
     onSubmit:function(v){ v=String(v==null?"":v).trim().toLowerCase();
       if(v===""){ delete db.gear[exId]; } else if(v==="db"){ db.gear[exId]={equip:"db"}; }
-      else { var n=num(v); if(n==null||n<=0) return; db.gear[exId]={inc:Math.round(n*100)/100}; }
+      else { var n=num(v); if(n==null||n<=0){ toast("Enter a weight step above 0"); return; } db.gear[exId]={inc:Math.round(n*100)/100}; }
       save(); renderPlan(); } });
 }
 /* edit a whole CATEGORY's step (Settings). Applies to every lift in the category unless that lift
@@ -105,7 +105,7 @@ function onSetCatStep(t){
     chips:[{label:"1.25 kg",value:"1.25"},{label:"2.5 kg",value:"2.5"},{label:"5 kg",value:"5"},{label:"10 kg",value:"10"},{label:"DB grid",value:"db"},{label:"Reset",value:""}],
     onSubmit:function(v){ v=String(v==null?"":v).trim().toLowerCase();
       if(v===""){ delete db.gearByCat[cat]; } else if(v==="db"){ db.gearByCat[cat]={equip:"db"}; }
-      else { var n=num(v); if(n==null||n<=0) return; db.gearByCat[cat]={inc:Math.round(n*100)/100}; }
+      else { var n=num(v); if(n==null||n<=0){ toast("Enter a weight step above 0"); return; } db.gearByCat[cat]={inc:Math.round(n*100)/100}; }
       save(); renderSettings(); } });
 }
 function onNote(t){

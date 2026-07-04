@@ -40,13 +40,8 @@ function calcWeight(tested15, w){
 }
 /* bodyweight holds (Copenhagen plank): no load, so progress the HOLD TIME instead — 20 s → 40 s across the block */
 function holdSec(w){ return 20 + Math.round(((w||1)-1) * 20 / (TOTAL_WEEKS-1)); }
-/* re-anchor: from an actual weight lifted at week w, back out the equivalent tested 15RM */
-function deriveTested(actualWeight, w){
-  return actualWeight * pct(15) / (Math.pow(1+WEEKLY_GAIN, (w||1)-1) * pct(repForWeek(w)));
-}
 /* gap/prehab lifts: reps stay fixed (prehab dose), but the working weight still creeps +1%/week */
 function gapWeight(tested, w){ return tested==null?null:roundTo(tested*Math.pow(1+WEEKLY_GAIN,(w||1)-1), loadStep(tested)); }
-function deriveGap(actualWeight, w){ return actualWeight/Math.pow(1+WEEKLY_GAIN,(w||1)-1); }
 
 /* GATED 12-week plan for one lift (the fix for "easier" weeks):
    the strength curve (1RM × +gain/wk × rep-max%) is computed continuously, but the WEIGHT only

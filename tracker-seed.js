@@ -4,7 +4,7 @@
    logic — the 12-week load algorithm + equipment/progression engine live in tracker-engine.js
    (loaded alongside this file). Mirrors Documents/Claude/Projects/Training. */
 
-var SCHEMA_VERSION = 3;   /* v3 = program platform: program library + per-program progress + reverse-direction engine */
+var SCHEMA_VERSION = 4;   /* v4 = frozen lift diary (db.history) + full/partial done ticks; v3 = program platform (library + per-program progress + reverse engine) */
 var STORE_KEY = "training-tracker:v1";
 
 /* ---- profile (bodyweight = TARGET lean bodyweight, ~10–15% body fat — drives protein) ---- */

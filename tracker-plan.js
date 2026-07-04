@@ -74,10 +74,12 @@ function renderPlan(){
        '</div></details>';
   h += '<div class="liftsHead">Main lifts · ' + liftDone + '/' + P.entries.length + ' done</div>';
   P.entries.forEach(function(en){
-    var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold"), exd = isDone(prog, w, en.exerciseId);
-    h += '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (exd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="mark done">✓</button><div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
+    var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold"), st = doneState(prog, w, en.exerciseId), exd = !!st, hist = historyFor(en.exerciseId), lt = hist.length ? hist[hist.length - 1] : null;
+    h += '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — full">✓</button><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — partial" title="did it, but not fully">◐</button><div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
          '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (pr.rate === "push" ? ' <span class="rateTag" style="color:var(--acc);font-size:11px" title="pushing harder — stuck adding reps">↑</span>' : pr.rate === "ease" ? ' <span class="rateTag" style="color:var(--dim);font-size:11px" title="easing — paying back the push">↓</span>' : '') + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
+         (lt ? '<div class="lastTime">last time: <b>' + lt.kg + ' kg</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
          gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
+         (hist.length >= 2 ? '<details class="prog"><summary>📈 Progress · ' + hist.length + ' sessions</summary><div class="progBody">' + progHtml(hist) + '</div></details>' : '') +
          '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button>' +
          (pr.kind !== "hold" ? '<button class="stepBtn" data-act="setstep" data-ex="' + en.exerciseId + '" title="smallest weight jump for this lift">⚙ ' + esc(stepLabel(ex)) + '</button>' : '') +
          '</div></div>';
@@ -92,6 +94,7 @@ function renderPlan(){
         '<button class="btn primary sm" data-act="previewstart" data-prog="' + esc(shownProgramId()) + '">🏋 Start training</button></div></div>' + h;
   }
   $("#view-programs").innerHTML = h;
+  updateNextBar(prog, w);
 }
 /* update the done counts in place (no full re-render) so a tick can animate the card collapse */
 function updateDoneCounts(prog, week){
@@ -101,4 +104,50 @@ function updateDoneCounts(prog, week){
   var lh = document.querySelector("#view-programs .liftsHead"); if(lh) lh.textContent = "Main lifts · " + n + "/" + total + " done";
   var wu = WARMUP_BY_PROG[prog] || [], wn = doneCount(prog, week, wu.map(function(m){ return "wu:" + m.gif; }));
   var ws = document.querySelector("#view-programs .warmSec > summary"); if(ws) ws.textContent = "🔥 Warm-up · ~8–10 min · " + wn + "/" + wu.length;
+}
+
+/* ---------- "next exercise" jump bar (the floating #nextBar above the tab bar) ---------- */
+/* first main lift (program order) not yet ticked done this week; null once every lift is done */
+function nextUndoneLift(prog, week){
+  var P = db.programs[prog]; if(!P) return null;
+  for(var i = 0; i < P.entries.length; i++){ var id = P.entries[i].exerciseId; if(!isDone(prog, week, id)) return id; }
+  return null;
+}
+/* refresh the floating jump bar for the shown day-track; hidden while previewing (can't log) */
+function updateNextBar(prog, week){
+  var bar = $("#nextBar"); if(!bar) return;
+  if(previewing()){ bar.hidden = true; bar.innerHTML = ""; return; }
+  var nextId = nextUndoneLift(prog, week);
+  if(nextId){
+    var ex = exById(nextId) || { name: nextId };
+    bar.innerHTML = '<button class="nextBtn" data-act="nextex" data-ex="' + esc(nextId) + '"><span class="nextLbl">Next</span><span class="nextNm">' + esc(ex.name) + '</span><span class="nextArrow">↓</span></button>';
+  } else {
+    bar.innerHTML = '<button class="nextBtn done" data-act="nextex" data-ex=""><span class="nextLbl">✓ All lifts done</span><span class="nextNm">Finish the week</span><span class="nextArrow">↓</span></button>';
+  }
+  bar.hidden = false;
+}
+/* scroll the next lift (or the week-finish button) into view + flash it */
+function flashCard(el){
+  if(!el) return;
+  el.classList.remove("flash"); void el.offsetWidth;   /* restart the animation on repeat taps */
+  el.classList.add("flash");
+  setTimeout(function(){ el.classList.remove("flash"); }, 1100);
+}
+function jumpToNext(exId){
+  var target;
+  if(exId){ var tk = $('.exTick[data-item="' + exId + '"]'); target = tk ? tk.closest(".planCard") : null; }
+  else { target = $('[data-act="weekdone"]'); }
+  if(!target) return;
+  if(target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "center" });
+  flashCard(target);
+}
+/* per-lift progress: a tiny inline-SVG sparkline of kg over the diary — amber point = partial, ringed = best */
+function progHtml(hist){
+  if(hist.length < 2) return "";
+  var kgs = hist.map(function(h){ return h.kg; }), min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs), span = (max - min) || 1;
+  var W = 280, H = 54, pad = 9, n = hist.length, X = function(i){ return pad + i * (W - 2 * pad) / (n - 1); }, Y = function(kg){ return H - pad - (kg - min) / span * (H - 2 * pad); };
+  var pts = hist.map(function(h, i){ return X(i).toFixed(1) + "," + Y(h.kg).toFixed(1); }).join(" ");
+  var dots = hist.map(function(h, i){ var b = h.kg === max; return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(h.kg).toFixed(1) + '" r="' + (b ? 4 : 3) + '" fill="' + (h.quality === "partial" ? "var(--warn)" : "var(--acc)") + '"' + (b ? ' stroke="var(--tx)" stroke-width="1"' : '') + '></circle>'; }).join("");
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="spark"><polyline points="' + pts + '" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linejoin="round"></polyline>' + dots + '</svg>' +
+    '<div class="progSum">' + hist[0].kg + ' kg <span class="progArrow">→</span> <b class="accT">' + hist[n - 1].kg + ' kg</b><span class="progDim"> · ⭐ best ' + max + ' kg</span></div>';
 }

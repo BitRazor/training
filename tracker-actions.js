@@ -127,6 +127,15 @@ function onDelNote(t){
 /* ---------- export ---------- */
 function doExport(){
   db.exportedAt=nowISO(); db.settings.lastExportAt=db.exportedAt; save();
-  var a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));
-  a.download="training-export-"+todayISO()+".json"; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
+  var name="training-export-"+todayISO()+".json", json=JSON.stringify(db,null,2);
+  /* iPhone-safe: an installed PWA can't reliably auto-download (WebKit bug), but the share sheet
+     works — share a file when supported (save to Files / mail it), else a normal download. */
+  try{
+    if(navigator.share && navigator.canShare){
+      var file=new File([json],name,{type:"application/json"});
+      if(navigator.canShare({files:[file]})){ navigator.share({files:[file],title:"Training backup"}).catch(function(){}); return; }
+    }
+  }catch(e){}
+  var a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([json],{type:"application/json"}));
+  a.download=name; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},2000);
 }

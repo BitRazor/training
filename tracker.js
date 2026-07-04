@@ -11,6 +11,8 @@ function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return
 function num(v){var n=parseFloat(v);return isFinite(n)?n:null;}
 function todayISO(){var d=new Date();function p(n){n=String(n);return n.length<2?"0"+n:n;}return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate());}
 function nowISO(){return new Date().toISOString();}
+/* "today" / "yesterday" / "6 days ago" / "2 wk ago" from a YYYY-MM-DD diary date */
+function timeAgo(iso){var a=new Date(iso+"T00:00:00"),b=new Date(todayISO()+"T00:00:00"),d=Math.round((b-a)/86400000);return d<=0?"today":d===1?"yesterday":d<7?d+" days ago":d<14?"1 wk ago":d<70?Math.round(d/7)+" wk ago":Math.round(d/30)+" mo ago";}
 function clone(o){return JSON.parse(JSON.stringify(o));}
 function weekdayIdx(){var w=new Date().getDay();return w===0?6:w-1;}
 function zoneRange(z){var zz=db.profile.hrZones[z];return zz?zz[0]+"–"+zz[1]+" bpm":"";}
@@ -24,7 +26,7 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    gear:{}, gearByCat:{}, notes:[], done:{}, settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, notes:[], history:[], done:{}, settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -61,6 +63,9 @@ function migrate(){
   });
   /* embedded design always refreshed to the current seed */
   db.exercises=clone(SEED_EXERCISES); db.programs=clone(SEED_DAYS);
+  /* v3 -> v4: the frozen lift diary + done ticks became "full"/"partial" (were boolean true) */
+  if(!Array.isArray(db.history)) db.history=[];
+  for(var dkq in db.done){ if(db.done[dkq]===true) db.done[dkq]="full"; }
   db.schemaVersion=SCHEMA_VERSION;
 }
 function load(){
@@ -81,6 +86,33 @@ function isDone(prog,week,item){return !!db.done[doneKey(prog,week,item)];}
 function toggleDone(prog,week,item){var k=doneKey(prog,week,item);if(db.done[k])delete db.done[k];else db.done[k]=true;save();}
 function doneCount(prog,week,items){var n=0;for(var i=0;i<items.length;i++)if(isDone(prog,week,items[i]))n++;return n;}
 
+/* ---------- the frozen lift diary (schema v4): what you ACTUALLY did, by date ---------- */
+/* full | partial | null for a lift or warm-up item in a given week */
+function doneState(prog,week,item){var v=db.done[doneKey(prog,week,item)];return (v==="full"||v==="partial")?v:(v?"full":null);}
+/* record / refresh today's diary entry for a completed MAIN lift — kg+reps FROZEN at mark time.
+   skips warm-up items and lifts with no numeric prescription (untested / hold / timed). */
+function recordHistory(prog,week,exId,quality){
+  if(!exId||exId.indexOf("wu:")===0) return;
+  if(!progEntry(prog,exId)) return;
+  var ex=exById(exId)||{}, tested=db.tested[exId]; if(tested==null) return;
+  var p=ladderFor(tested,ex,getProgram(db.activeProgram),activeRateMode())[week]; if(!p||p.kg==null) return;
+  var ts=todayISO();
+  for(var i=0;i<db.history.length;i++){ var h=db.history[i];
+    if(h.program===db.activeProgram&&h.day===prog&&h.week===week&&h.exId===exId){ h.ts=ts; h.kg=p.kg; h.reps=p.reps; h.quality=quality; save(); return; } }
+  db.history.push({ts:ts,program:db.activeProgram,day:prog,week:week,exId:exId,kg:p.kg,reps:p.reps,quality:quality}); save();
+}
+function removeHistory(prog,week,exId){ db.history=db.history.filter(function(h){ return !(h.program===db.activeProgram&&h.day===prog&&h.week===week&&h.exId===exId); }); save(); }
+/* set/clear a lift's state; full<->partial are mutually exclusive; keep the diary in sync */
+function applyMark(prog,week,item,mark){
+  var key=doneKey(prog,week,item);
+  if(doneState(prog,week,item)===mark){ delete db.done[key]; removeHistory(prog,week,item); }
+  else { db.done[key]=mark; recordHistory(prog,week,item,mark); }
+  save();
+}
+/* diary reads for a lift: all entries oldest-first + the most recent */
+function historyFor(exId){ return db.history.filter(function(h){ return h.exId===exId; }).slice().sort(function(a,b){ return a.ts<b.ts?-1:(a.ts>b.ts?1:0); }); }
+function lastHistoryFor(exId){ var a=historyFor(exId); return a.length?a[a.length-1]:null; }
+
 /* ---------- per-program progress (programState) + keep-climbing on completion ---------- */
 function progStateFor(pid){ if(!db.programState[pid]) db.programState[pid]={startedAt:null,completedAt:null,progress:{}}; return db.programState[pid]; }
 function progDoneArr(prog){ var ps=progStateFor(db.activeProgram); if(!ps.progress[prog]) ps.progress[prog]={weeksDone:[]}; if(!ps.progress[prog].weeksDone) ps.progress[prog].weeksDone=[]; return ps.progress[prog].weeksDone; }
@@ -100,6 +132,7 @@ function showView(name){
   ui.view=name;
   VIEWS.forEach(function(v){var el=$("#view-"+v); if(el)el.hidden=(v!==name);});
   $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===name);});
+  if(name!=="programs"){ var nb=$("#nextBar"); if(nb){ nb.hidden=true; nb.innerHTML=""; } }   /* the jump bar lives only on the Plan */
   ({today:renderToday, programs:renderPlan, library:renderLibrary, log:renderLog, nutrition:renderNutrition, settings:renderSettings}[name])();
   window.scrollTo(0,0);
 }
@@ -125,7 +158,7 @@ document.addEventListener("click",function(e){
   if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ if(pid===db.activeProgram) showView("programs"); else openSwitchModal(pid); } return; }
   if(act==="previewstart"){ startTraining(t.getAttribute("data-prog")); return; }
   if(act==="previewreturn"){ clearPreview(); ui.planWeek=null; ui.planLastProg=null; renderPlan(); return; }
-  if(previewing() && /^(weekdone|setw|setstep|note|donetick)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
+  if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
   if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); renderPlan(); return; }
   if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=progDoneArr(pr), ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,getProgram(db.activeProgram).weeks); maybeCompleteActive(); } save(); renderPlan(); return; }
@@ -134,14 +167,20 @@ document.addEventListener("click",function(e){
   if(act==="setcatstep"){ onSetCatStep(t); return; }
   if(act==="note"){ onNote(t); return; }
   if(act==="delnote"){ onDelNote(t); return; }
-  if(act==="donetick"){
+  if(act==="donetick"||act==="partialtick"){
     var dp=t.getAttribute("data-prog"), dw=+t.getAttribute("data-week"), di=t.getAttribute("data-item");
-    toggleDone(dp,dw,di);
-    var on=isDone(dp,dw,di), c=t.closest(".planCard")||t.closest(".wuCard");
-    if(c){ c.classList.toggle("done", on); t.classList.toggle("on", on); }   /* in-place so the card animates its collapse */
+    applyMark(dp,dw,di, act==="partialtick" ? "partial" : "full");
+    var st=doneState(dp,dw,di), c=t.closest(".planCard")||t.closest(".wuCard");
+    if(c){   /* in-place so the card animates its collapse */
+      c.classList.toggle("done", !!st); c.classList.toggle("partial", st==="partial");
+      var fb=c.querySelector('[data-act="donetick"]'), pb=c.querySelector('[data-act="partialtick"]');
+      if(fb) fb.classList.toggle("on", st==="full"); if(pb) pb.classList.toggle("on", st==="partial");
+    }
     updateDoneCounts(dp,dw);
+    updateNextBar(dp,dw);   /* advance the jump bar to the next undone lift */
     return;
   }
+  if(act==="nextex"){ jumpToNext(t.getAttribute("data-ex")); return; }
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }
   if(act==="export"){ doExport(); return; }
   if(act==="import"){ $("#importFile").click(); return; }

@@ -3,7 +3,7 @@
    immediately when online (cache is only the offline fallback); CACHE-FIRST for images
    /manifest (rarely change → fast, saves data). Bump CACHE on each release. */
 "use strict";
-var CACHE = "training-2026-07-04c";   /* bump on every release so returning phones evict the old shell */
+var CACHE = "training-2026-10-01";   /* bump on every release so returning phones evict the old shell */
 var CORE = [
   "./", "./index.html", "./tracker.css",
   "./tracker-seed.js", "./tracker-engine.js", "./tracker-desc.js", "./tracker-views.js", "./tracker-plan.js", "./tracker-actions.js", "./tracker.js",
@@ -18,7 +18,8 @@ self.addEventListener("install", function (e) {
 self.addEventListener("activate", function (e) {
   e.waitUntil(
     caches.keys().then(function (keys) {
-      return Promise.all(keys.map(function (k) { return k === CACHE ? null : caches.delete(k); }));
+      /* only THIS app's old caches: other apps on bitrazor.github.io (meal-week) keep their offline copies */
+      return Promise.all(keys.map(function (k) { return (k !== CACHE && k.indexOf("training-") === 0) ? caches.delete(k) : null; }));
     }).then(function () { return self.clients.claim(); })
   );
 });

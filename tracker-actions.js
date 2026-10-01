@@ -41,11 +41,12 @@ function lastCompletedWeek(pid, day){ var ps=db.programState&&db.programState[pi
 /* the carried 15RM anchors a NEW program would start from: each lift's strength at the CURRENT active
    program's (last completed week in its day-track + 1 step). Pure read — used by BOTH preview and start. */
 function carryFromActive(){
-  var out={}, src=getProgram(db.activeProgram), srcMode=activeRateMode();
+  var out={load:{}, bank:{}}, src=getProgram(db.activeProgram), srcMode=activeRateMode();
   for(var i=0;i<db.exercises.length;i++){ var ex=db.exercises[i], t=db.tested[ex.id];
-    if(t==null){ out[ex.id]=null; continue; }
+    if(t==null){ out.load[ex.id]=null; out.bank[ex.id]=null; continue; }
     var day=dayOf(ex.id), N=day?lastCompletedWeek(db.activeProgram, day):0;
-    out[ex.id]=carriedAnchor(t, ex, src, srcMode, N);
+    var c=carryLift(t, db.bank[ex.id], ex, src, srcMode, N);   /* load = on the lift's real grid; bank = exact strength */
+    out.load[ex.id]=c.load; out.bank[ex.id]=c.bank;
   }
   return out;
 }
@@ -56,20 +57,23 @@ function openSwitchModal(pid){
     chips:[{label:"👀 Just looking", value:"look"},{label:"🏋 Start training", value:"train"}],
     onSubmit:function(v){ if(v==="look") startPreview(pid); else if(v==="train") startTraining(pid); } });
 }
-function startPreview(pid){ ui.preview={program:pid, anchor:carryFromActive()}; ui.planWeek=1; ui.planLastProg=null; showView("programs"); }
+function startPreview(pid){ ui.preview={program:pid, anchor:carryFromActive().load}; ui.planWeek=1; ui.planLastProg=null; showView("programs"); }
 function clearPreview(){ ui.preview=null; }
 /* commit: carry current strength into the new program, make it active, start it FRESH (week 1) */
 function startTraining(pid){
   var carried=carryFromActive();
-  var hasProg=STRENGTH_DAYS.some(function(d){ return lastCompletedWeek(pid,d)>0; });
+  var hasProg=programTrained(pid);   /* weeks, ticks or diary entries in its current run — starting it again clears the ticks */
   var go=function(){
-    for(var id in carried){ if(carried[id]!=null) db.tested[id]=carried[id]; }
+    for(var id in carried.load){ if(carried.load[id]!=null){ db.tested[id]=carried.load[id]; db.bank[id]=carried.bank[id]; } }
+    var ps=progStateFor(pid);
+    if(programTrained(pid)) ps.cycle=cycleOf(pid)+1;   /* a new run: its own diary cycle … */
+    clearTicks(pid);                                    /* … and no ticks left over from the last run */
     db.activeProgram=pid;
-    var ps=progStateFor(pid); if(!ps.startedAt) ps.startedAt=nowISO(); ps.completedAt=null;
+    if(!ps.startedAt) ps.startedAt=nowISO(); ps.completedAt=null;
     STRENGTH_DAYS.forEach(function(d){ if(!ps.progress[d]) ps.progress[d]={weeksDone:[]}; else ps.progress[d].weeksDone=[]; });
     clearPreview(); ui.planWeek=null; ui.planLastProg=null; save(); showView("programs");
   };
-  if(hasProg) confirmModal("Restart "+getProgram(pid).name+"?", getProgram(pid).name+" already has logged weeks. Start a fresh cycle from your current strength? Its old weeks will be cleared.", go);
+  if(hasProg) confirmModal("Restart "+getProgram(pid).name+"?", getProgram(pid).name+" already has training logged. Start a fresh cycle from your current strength? Its ticks and finished weeks will be cleared — your diary keeps every lift.", go);
   else go();
 }
 
@@ -78,14 +82,17 @@ function onSetWeight(t){
   var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
   if(cur==null){
     openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at ~15 slow reps (kg).", mode:"number", placeholder:"kg",
-      onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0){ db.tested[exId]=Math.round(num(v)*4)/4; save(); renderPlan(); } } });
+      onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0){ db.tested[exId]=Math.round(num(v)*4)/4; delete db.bank[exId]; save(); renderPlan(); } } });
     return;
   }
-  /* rescale the anchor from what you ACTUALLY lifted this week — the whole block re-derives from the
-     SAME formula (ladderFor). Round to 0.25 kg. */
+  /* re-anchor from what you ACTUALLY lifted this week: the whole block re-derives (ladderFor) so THIS
+     week shows exactly the typed weight and every week stays a real weight (engine: anchorForLogged) */
   var planW=(ladderFor(cur, ex, getProgram(db.activeProgram), activeRateMode())[w]||{}).kg;
   openModal({ title:"Actual weight · "+ex.name+" · wk "+w, message:"What you really lifted (kg). The whole block recalculates from this.", mode:"number", value:String(planW), placeholder:"kg",
-    onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0&&planW){ db.tested[exId]=Math.round((cur*num(v)/planW)*4)/4; save(); renderPlan(); } } });
+    onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0&&planW){
+      var r=anchorForLogged(ex, getProgram(db.activeProgram), activeRateMode(), w, num(v), cur, db.bank[exId]);
+      db.tested[exId]=r.anchor; db.bank[exId]=r.bank; save(); renderPlan();
+      if(!r.exact) toast("Set to "+r.kg+" kg — the closest your weight steps allow (⚙ to change)"); } } });
 }
 /* edit ONE lift's weight step (the card chip). number = fixed kg · "db" = dumbbell grid · blank = reset */
 function onSetStep(t){

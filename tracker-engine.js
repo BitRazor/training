@@ -80,11 +80,15 @@ function gearFor(ex){
   return ex.equip ? {equip:ex.equip} : {inc:ex.inc || 2.5};
 }
 function stepLabel(ex){ var g = gearFor(ex); return g.equip === "db" ? "DB grid" : ((g.inc||2.5) + " kg"); }
-/* the next REAL achievable weight above w for this lift's (resolved) gear */
+/* the next REAL achievable weight above w for this lift's (resolved) gear. The grid is ABSOLUTE —
+   multiples of the step (or the dumbbell set), the same grid snapDown and the reverse wave use — so a
+   block walks on loadable weights even from an anchor that isn't on the grid; from such an anchor the
+   first step is at least half an increment (never a 0.25 kg nudge that drops the reps). */
 function nextWeight(ex, w){
   var g = gearFor(ex);
   if(g.equip === "db") return w < 9.999 ? Math.floor(w + 1e-9) + 1 : (Math.floor(w/2.5 + 1e-9) + 1) * 2.5;
-  return w + (g.inc || 2.5);
+  var inc = g.inc || 2.5;
+  return Math.ceil((w + inc/2) / inc - 1e-9) * inc;
 }
 /* largest REAL achievable weight <= target on this lift's grid (used by the REVERSE direction) */
 function snapDown(target, ex){
@@ -188,4 +192,65 @@ function carriedAnchor(sourceAnchor, ex, sourceProgram, sourceMode, lastComplete
   var w = Math.max(1, Math.min((lastCompletedWeek||0) + 1, weeks));   // last completed + 1 step, capped at the block end
   var p = ladderFor(sourceAnchor, ex, sourceProgram, sourceMode);
   return roundTo(p[w].e1 * pct(15), 0.25);                            // estimated 1RM → 15RM anchor
+}
+/* (carriedAnchor above is the STRENGTH number; the app starts a program from carriedLoad below.) */
+
+/* nearest REAL weight to target on this lift's grid (a tie goes to the lighter one) */
+function snapNearest(target, ex){
+  if(target==null) return null;
+  var lo = snapDown(target, ex), hi = nextWeight(ex, lo);
+  return (target - lo) <= (hi - target) + 1e-9 ? lo : hi;
+}
+/* a program switch for ONE lift. bank = the EXACT carried strength, kept for the next switch so nothing
+   is lost to rounding (light lifts would stall, frequent restarts would ratchet); load = the weight the new
+   program starts from — the bank placed on the lift's real grid, never below the current load.
+   Zero completed weeks = no change at all. (bank null = the load is the strength, e.g. a typed weight.) */
+function carryLift(load, bank, ex, sourceProgram, sourceMode, lastCompletedWeek){
+  if(load==null) return {load: null, bank: null};
+  var b = (bank==null) ? load : bank;
+  if(!lastCompletedWeek) return {load: load, bank: b};
+  var raw = carriedAnchor(b, ex, sourceProgram, sourceMode, lastCompletedWeek);
+  return {load: Math.max(load, snapNearest(raw, ex)), bank: raw};
+}
+function carriedLoad(sourceAnchor, ex, sourceProgram, sourceMode, lastCompletedWeek){ return carryLift(sourceAnchor, null, ex, sourceProgram, sourceMode, lastCompletedWeek).load; }
+/* OVERRIDE at ANY week ("what I really lifted"): the new anchor whose block prescribes exactly the
+   lifted weight at that week, searched outward from the proportional estimate. Forward programs try
+   real weights first (their anchor IS week 1), then 0.25 kg anchors — those can only leave an odd
+   number in the PAST weeks before the first step; the logged week and every later week stay real.
+   The reverse wave uses 0.25 kg anchors (its weights are always snapped to the grid). A forward
+   week-1 entry is the anchor itself, kept as typed. If nothing reproduces the lifted weight (it isn't
+   on this lift's grid), the anchor showing the heaviest weight below it wins and exact=false, so the
+   UI can say so. bank = the exact strength the log implies (curBank rescaled), kept for the next
+   program switch. Logging exactly the planned weight changes nothing. Returns {anchor, kg, exact, bank}. */
+function anchorForLogged(ex, program, rateMode, week, liftedKg, curAnchor, curBank){
+  var lifted = roundTo(liftedKg, 0.25), fwd = program.direction !== "reverse";
+  if(curAnchor==null || (fwd && week <= 1)) return {anchor: lifted, kg: lifted, exact: true, bank: lifted};
+  var kgAt = function(a){ return ladderFor(a, ex, program, rateMode)[week].kg; };
+  var planned = kgAt(curAnchor), b = (curBank==null) ? curAnchor : curBank;
+  if(Math.abs(planned - lifted) < 1e-9) return {anchor: curAnchor, kg: lifted, exact: true, bank: b};
+  var bank = roundTo(b * lifted / planned, 0.25);
+  var est = curAnchor * lifted / planned, best = null;
+  var hit = function(a){
+    if(!(a > 0) || a > lifted + 1e-9) return false;
+    var kg = kgAt(a);
+    if(Math.abs(kg - lifted) < 1e-9) return true;
+    if(kg < lifted && (!best || kg > best.kg + 1e-9)) best = {anchor: a, kg: kg};
+    return false;
+  };
+  var search = function(start, down, up){                              // closest to the estimate first, lighter side first
+    if(hit(start)) return start;
+    var lo = start, hi = start;
+    for(var i = 0; i < 60; i++){                                        // bounded: a realistic entry matches within a few steps
+      var moved = false, d = down(lo), u = up(hi);
+      if(d > 0 && d < lo - 1e-9){ lo = d; moved = true; if(hit(d)) return d; }
+      if(u <= lifted + 1e-9 && u > hi + 1e-9){ hi = u; moved = true; if(hit(u)) return u; }
+      if(!moved) break;
+    }
+    return null;
+  };
+  var a = fwd ? search(Math.min(snapNearest(est, ex), snapDown(lifted, ex)), function(x){ return snapDown(x - 1e-6, ex); }, function(x){ return nextWeight(ex, x); }) : null;
+  if(a == null) a = search(Math.min(roundTo(est, 0.25), lifted), function(x){ return x - 0.25; }, function(x){ return x + 0.25; });
+  if(a != null) return {anchor: a, kg: lifted, exact: true, bank: bank};
+  if(best) return {anchor: best.anchor, kg: best.kg, exact: false, bank: bank};
+  return {anchor: curAnchor, kg: planned, exact: false, bank: b};
 }

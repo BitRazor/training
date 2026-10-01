@@ -26,14 +26,15 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    gear:{}, gearByCat:{}, notes:[], history:[], done:{}, settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
   if(!db.tested) db.tested={};
+  if(!db.bank) db.bank={};   /* exact carried strength per lift where it differs from the shown anchor (2026-10-01) */
   /* one-time: load the 2026-06-16 calibration-export weights, overwriting old placeholders once,
      then on later loads only fill gaps so the user's own overrides are preserved */
-  if(db.settings.testedSeed!=="2026-06-16"){ for(var k in SEED_TESTED) db.tested[k]=SEED_TESTED[k]; db.settings.testedSeed="2026-06-16"; }
+  if(db.settings.testedSeed!=="2026-06-16"){ for(var k in SEED_TESTED) db.tested[k]=SEED_TESTED[k]; db.bank={}; db.settings.testedSeed="2026-06-16"; }
   else { for(var k2 in SEED_TESTED){ if(db.tested[k2]===undefined) db.tested[k2]=SEED_TESTED[k2]; } }
   if(!db.progress) db.progress={};
   STRENGTH_DAYS.forEach(function(p){ if(!db.progress[p]) db.progress[p]={weeksDone:[]}; if(!db.progress[p].weeksDone) db.progress[p].weeksDone=[]; });
@@ -68,27 +69,46 @@ function migrate(){
   for(var dkq in db.done){ if(db.done[dkq]===true) db.done[dkq]="full"; }
   db.schemaVersion=SCHEMA_VERSION;
 }
-function load(){
-  try{var raw=localStorage.getItem(STORE_KEY); db=raw?JSON.parse(raw):seedDb();}catch(e){db=seedDb();}
-  if(!db||db.app!=="training-tracker") db=seedDb();
+/* fill defaults + bring the current `db` (stored or imported) up to the schema; throws if it can't */
+function normalize(){
   if(!db.profile) db.profile=clone(SEED_PROFILE);
   if(!db.settings) db.settings=clone(SEED_SETTINGS);
   for(var k in SEED_PROFILE){ if(db.profile[k]===undefined) db.profile[k]=clone(SEED_PROFILE[k]); }
+  if(!Array.isArray(db.notes)) db.notes=[];                                  /* odd-but-readable files must not break a screen */
+  if(!db.profile.hrZones||!db.profile.hrZones.z1) regenZones();
   migrate();
 }
-var saveT=null;
-function save(){clearTimeout(saveT);saveT=setTimeout(function(){try{localStorage.setItem(STORE_KEY,JSON.stringify(db));}catch(e){}},150);}
+function load(){
+  try{var raw=localStorage.getItem(STORE_KEY); db=raw?JSON.parse(raw):seedDb();}catch(e){db=seedDb();}
+  if(!db||db.app!=="training-tracker") db=seedDb();
+  normalize();
+}
+/* write-through: every change is stored the moment it happens. (A 150 ms debounce lost the last tick
+   when the phone locked, and lost a whole restore — the reload killed the timer.) */
+function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(db)); }catch(e){} }
 function exById(id){for(var i=0;i<db.exercises.length;i++)if(db.exercises[i].id===id)return db.exercises[i];return null;}
 
 /* ---------- done-ticks (per-exercise + per warm-up move), keyed prog:week:item so each week starts fresh ---------- */
 function doneKey(prog,week,item){return (db&&db.activeProgram?db.activeProgram:"hsr-base-12")+":"+prog+":"+(week||1)+":"+item;}
-function isDone(prog,week,item){return !!db.done[doneKey(prog,week,item)];}
+/* while just LOOKING at another program nothing shows as done (the ticks belong to the active one) */
+function isDone(prog,week,item){return !previewing()&&!!db.done[doneKey(prog,week,item)];}
 function toggleDone(prog,week,item){var k=doneKey(prog,week,item);if(db.done[k])delete db.done[k];else db.done[k]=true;save();}
 function doneCount(prog,week,items){var n=0;for(var i=0;i<items.length;i++)if(isDone(prog,week,items[i]))n++;return n;}
 
+/* ---------- program cycles: a program that has been trained starts its next run as a NEW cycle ---------- */
+function cycleOf(pid){ var ps=db.programState&&db.programState[pid]; return (ps&&ps.cycle)||1; }
+/* has this program been used in its current cycle — weeks marked done, ticks, or diary entries? */
+function programTrained(pid){
+  var ps=db.programState&&db.programState[pid], pr=(ps&&ps.progress)||{}, cyc=cycleOf(pid);
+  if(STRENGTH_DAYS.some(function(d){ return ((pr[d]||{}).weeksDone||[]).length>0; })) return true;
+  for(var k in db.done){ if(k.indexOf(pid+":")===0) return true; }
+  return db.history.some(function(h){ return h.program===pid&&(h.cycle||1)===cyc; });
+}
+function clearTicks(pid){ for(var k in db.done){ if(k.indexOf(pid+":")===0) delete db.done[k]; } }
+
 /* ---------- the frozen lift diary (schema v4): what you ACTUALLY did, by date ---------- */
 /* full | partial | null for a lift or warm-up item in a given week */
-function doneState(prog,week,item){var v=db.done[doneKey(prog,week,item)];return (v==="full"||v==="partial")?v:(v?"full":null);}
+function doneState(prog,week,item){if(previewing())return null;var v=db.done[doneKey(prog,week,item)];return (v==="full"||v==="partial")?v:(v?"full":null);}
 /* record / refresh today's diary entry for a completed MAIN lift — kg+reps FROZEN at mark time.
    skips warm-up items and lifts with no numeric prescription (untested / hold / timed). */
 function recordHistory(prog,week,exId,quality){
@@ -96,12 +116,13 @@ function recordHistory(prog,week,exId,quality){
   if(!progEntry(prog,exId)) return;
   var ex=exById(exId)||{}, tested=db.tested[exId]; if(tested==null) return;
   var p=ladderFor(tested,ex,getProgram(db.activeProgram),activeRateMode())[week]; if(!p||p.kg==null) return;
-  var ts=todayISO();
+  var ts=todayISO(), cyc=cycleOf(db.activeProgram);
   for(var i=0;i<db.history.length;i++){ var h=db.history[i];
-    if(h.program===db.activeProgram&&h.day===prog&&h.week===week&&h.exId===exId){ h.ts=ts; h.kg=p.kg; h.reps=p.reps; h.quality=quality; save(); return; } }
-  db.history.push({ts:ts,program:db.activeProgram,day:prog,week:week,exId:exId,kg:p.kg,reps:p.reps,quality:quality}); save();
+    if(h.program===db.activeProgram&&(h.cycle||1)===cyc&&h.day===prog&&h.week===week&&h.exId===exId){ h.ts=ts; h.kg=p.kg; h.reps=p.reps; h.quality=quality; save(); return; } }
+  db.history.push({ts:ts,program:db.activeProgram,cycle:cyc,day:prog,week:week,exId:exId,kg:p.kg,reps:p.reps,quality:quality}); save();
 }
-function removeHistory(prog,week,exId){ db.history=db.history.filter(function(h){ return !(h.program===db.activeProgram&&h.day===prog&&h.week===week&&h.exId===exId); }); save(); }
+/* entries carry their program CYCLE (missing = 1), so a restarted program's week never touches the last run's */
+function removeHistory(prog,week,exId){ var cyc=cycleOf(db.activeProgram); db.history=db.history.filter(function(h){ return !(h.program===db.activeProgram&&(h.cycle||1)===cyc&&h.day===prog&&h.week===week&&h.exId===exId); }); save(); }
 /* set/clear a lift's state; full<->partial are mutually exclusive; keep the diary in sync */
 function applyMark(prog,week,item,mark){
   var key=doneKey(prog,week,item);
@@ -188,7 +209,10 @@ document.addEventListener("click",function(e){
 });
 $("#importFile").addEventListener("change",function(ev){
   var f=ev.target.files&&ev.target.files[0]; if(!f)return;
-  var rd=new FileReader(); rd.onload=function(){ var d; try{ d=JSON.parse(rd.result); if(d.app!=="training-tracker")throw 0; }catch(e){ toast("Not a valid training-tracker export."); return; } confirmModal("Replace all data?", "Importing overwrites what's on this device with the file's contents.", function(){ db=d; migrate(); save(); location.reload(); }); };
+  var rd=new FileReader(); rd.onload=function(){ var d; try{ d=JSON.parse(rd.result); if(d.app!=="training-tracker")throw 0; }catch(e){ toast("Not a valid training-tracker export."); return; } confirmModal("Replace all data?", "Importing overwrites what's on this device with the file's contents.", function(){
+      var prev=db;   /* bring the file up to date IN MEMORY first — a file the app can't use changes nothing */
+      try{ db=d; normalize(); }catch(err){ db=prev; toast("That backup can't be read — nothing was changed."); return; }
+      save(); location.reload(); }); };
   rd.readAsText(f);
 });
 

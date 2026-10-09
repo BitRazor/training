@@ -104,6 +104,18 @@ var EX_DESC = {
     cue: "Lead with the elbows to shoulder height only.",
     feel: "The side delt (shoulder cap) doing all of it — not the traps."
   },
+  "db-chest-press": {
+    setup: "Lie on a flat bench, a dumbbell in each hand above your chest, feet planted, shoulder blades pulled back and down. The weight shown is ONE dumbbell.",
+    move: "Lower the dumbbells for 3 s, elbows angled about 45° from your body, until your hands are level with your chest or a little below. Press back up for 3 s to just short of lockout.",
+    cue: "Full depth every rep, a little deeper each week rather than all at once. Last set: when the reps slow right down, stop one rep short rather than failing with the weights over your chest.",
+    feel: "Pecs and the front of the shoulder; a strong stretch across the chest at the bottom."
+  },
+  "lu-raise": {
+    setup: "Stand tall, feet shoulder-width, light dumbbells in front of your thighs, elbows only slightly bent, stomach tight.",
+    move: "Raise the arms out to the sides and a little forward, past shoulder height, all the way until your hands are overhead; lower slowly along the same path. 2 s up / 2 s down.",
+    cue: "Keep it light: the long arc makes small weights hard. Don't lean back to get the arms up; if a point of the arc pinches, stop just below it.",
+    feel: "The shoulder caps working the whole way up; above shoulder height the upper back joins in, which is normal."
+  },
   "internal-rotation": {
     setup: "Lie on your back (or stand with a cable), a rolled towel under the working upper arm, elbow bent 90° tucked at your side.",
     move: "Rotate the forearm across the body toward the belly (internal rotation), control back out. 2×15/arm, light — leave 3–4 reps in the tank.",

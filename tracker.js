@@ -64,6 +64,15 @@ function migrate(){
   });
   /* embedded design always refreshed to the current seed */
   db.exercises=clone(SEED_EXERCISES); db.programs=clone(SEED_DAYS);
+  /* 2026-10-09 Upper-day swap (owner): the dumbbell press replaces the machine press, Lu raises replace the
+     lateral raises. One time only: each done-tick (full or partial) is copied to the new lift so finished
+     weeks keep their count; weights and diary stay with the old lifts (different exercise, different numbers). */
+  if(db.settings.upperSwap!=="2026-10-09"){
+    var swapTo={"chest-press":"db-chest-press","lateral-raise":"lu-raise"};
+    for(var sk in db.done){ var sp=sk.split(":"), to=swapTo[sp[sp.length-1]];
+      if(to){ sp[sp.length-1]=to; var nk=sp.join(":"); if(db.done[nk]===undefined) db.done[nk]=db.done[sk]; } }
+    db.settings.upperSwap="2026-10-09";
+  }
   /* v3 -> v4: the frozen lift diary + done ticks became "full"/"partial" (were boolean true) */
   if(!Array.isArray(db.history)) db.history=[];
   for(var dkq in db.done){ if(db.done[dkq]===true) db.done[dkq]="full"; }

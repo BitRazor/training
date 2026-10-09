@@ -43,12 +43,16 @@ var SEED_EXERCISES = [
   {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db", cat:"db"},
   {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
   {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},   /* kg = ONE dumbbell */
   {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable"},
   {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
   {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
-  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db"}
+  {id:"lu-raise",         name:"Lu Raises",                  pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
+  {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db"},
+  /* retired from the Upper day 2026-10-09 (owner: dumbbells for the chest, Lu raises for the lateral raises);
+     kept defined so their diary entries keep their names and their tested weights stay readable */
+  {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"}
 ];
 
 /* ---- DAYS (the training-day tracks a program points at; reused across programs).
@@ -71,15 +75,17 @@ var SEED_DAYS = {
   ]},
   "strength-b": { id:"strength-b", name:"HSR Upper (Day 2)", entries:[
     {exerciseId:"cable-pulldown",   block:"heavy", sets:3, restSec:150},
-    {exerciseId:"chest-press",      block:"heavy", sets:3, restSec:150},
+    {exerciseId:"db-chest-press",   block:"heavy", sets:3, restSec:150},
     {exerciseId:"cable-row",        block:"heavy", sets:3, restSec:150},
     {exerciseId:"triceps-overhead", block:"heavy", sets:3, restSec:150},
     {exerciseId:"face-pulls",       block:"gap",   sets:3, restSec:90, reps:15},
-    {exerciseId:"lateral-raise",    block:"gap",   sets:3, restSec:90, reps:15},
+    {exerciseId:"lu-raise",         block:"gap",   sets:3, restSec:90, reps:15},
     {exerciseId:"copenhagen-plank", block:"gap",   sets:3, restSec:90, timed:true},
     {exerciseId:"reverse-wrist-curl",block:"gap",  sets:3, restSec:60, reps:15}
     /* Copenhagen plank + reverse wrist curls moved here from Day 1 (2026-06-20) to balance session
-       length. Towel-Roll Internal Rotation stays out (warm-up cuff primer per exercise-guide.md). */
+       length. Towel-Roll Internal Rotation stays out (warm-up cuff primer per exercise-guide.md).
+       2026-10-09 (owner, for full range of motion): Dumbbell Chest Press replaces the machine press, Lu Raises
+       replace the lateral raises; both start without a weight (tap to enter). Copenhagen kept as a hold. */
   ]}
 };
 var STRENGTH_DAYS = ["strength-a","strength-b"];

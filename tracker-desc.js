@@ -11,7 +11,7 @@ var EX_GIF = {
   "tibialis-raise":"tib", "hip-flexion":"psoas", "copenhagen-plank":"copen",
   "suitcase-carry":"carry", "reverse-wrist-curl":"wristc", "cable-pulldown":"vpull",
   "chest-press":"press", "cable-row":"row1", "triceps-overhead":"vpush",
-  "face-pulls":"facep", "lateral-raise":"latr"
+  "face-pulls":"facep", "lateral-raise":"latr", "db-chest-press":"dbpress"
 };
 var EX_DESC = {
   "atg-split-squat": {

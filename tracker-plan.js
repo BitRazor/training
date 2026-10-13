@@ -74,10 +74,12 @@ function renderPlan(){
        '<div class="phaseReps">Target ' + repForWeekIn(shownProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM' + paceNote + '</div></div>';
   /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
-  h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~8–10 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
+  h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~10–12 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
        wu.map(function(m){
          var g = m.gif.indexOf(".") >= 0 ? m.gif : m.gif + ".gif", wd = isDone(prog, w, "wu:" + m.gif);
-         return '<div class="wuCard' + (wd ? " done" : "") + '"><div class="wuTop"><button class="exTick' + (wd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="wu:' + m.gif + '" aria-label="mark done">✓</button><div class="wuName">' + esc(m.name) + '</div></div><div class="wuDetail">' + esc(m.detail) + '</div><div class="exFig"><img src="gifs/' + g + '" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div></div>';
+         var fig = m.pending ? '<div class="exFig pending"><span class="pendTx">📷 Picture to come</span><span class="pendFile">gifs/' + esc(g) + '</span></div>'
+                             : '<div class="exFig"><img src="gifs/' + g + '" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div>';
+         return '<div class="wuCard' + (wd ? " done" : "") + '"><div class="wuTop"><button class="exTick' + (wd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="wu:' + m.gif + '" aria-label="mark done">✓</button><div class="wuName">' + esc(m.name) + '</div></div><div class="wuDetail">' + esc(m.detail) + '</div>' + fig + '</div>';
        }).join("") +
        '<button class="warmCollapse" data-act="warmcollapse">▲ Collapse warm-up</button>' +
        '</div></details>';
@@ -123,6 +125,8 @@ function planCardHtml(prog, w, en, tag){
   return '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — full">✓</button><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — partial" title="did it, but not fully">◐</button>' + (tag ? '<span class="ssTag">' + tag + '</span>' : '') + '<div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
     '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (pr.rate === "push" ? ' <span class="rateTag" style="color:var(--acc);font-size:11px" title="pushing harder — stuck adding reps">↑</span>' : pr.rate === "ease" ? ' <span class="rateTag" style="color:var(--dim);font-size:11px" title="easing — paying back the push">↓</span>' : '') + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
     (lt ? '<div class="lastTime">last time: <b>' + lt.kg + ' kg</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
+    /* ramp-up (owner 2026-10-13: the minimum): only the split squat and the deadlift, only in weeks of 11 reps or fewer */
+    (en.ramp && repForWeekIn(shownProg(), w) <= 11 ? '<div class="rampTip">↗ Ramp-up first: 1 light set, about half the weight, 6–8 reps</div>' : '') +
     gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
     (hist.length >= 2 ? '<details class="prog"><summary>📈 Progress · ' + hist.length + ' sessions</summary><div class="progBody">' + progHtml(hist) + '</div></details>' : '') +
     '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button>' +
@@ -136,7 +140,7 @@ function updateDoneCounts(prog, week){
   var ct = document.querySelector("#view-programs .phaseName .doneCt"); if(ct) ct.textContent = n + "/" + total + " done";
   var lh = document.querySelector("#view-programs .liftsHead"); if(lh) lh.textContent = "Main lifts · " + n + "/" + total + " done";
   var wu = WARMUP_BY_PROG[prog] || [], wn = doneCount(prog, week, wu.map(function(m){ return "wu:" + m.gif; }));
-  var ws = document.querySelector("#view-programs .warmSec > summary"); if(ws) ws.textContent = "🔥 Warm-up · ~8–10 min · " + wn + "/" + wu.length;
+  var ws = document.querySelector("#view-programs .warmSec > summary"); if(ws) ws.textContent = "🔥 Warm-up · ~10–12 min · " + wn + "/" + wu.length;
 }
 
 /* ---------- "next exercise" jump bar (the floating #nextBar above the tab bar) ---------- */

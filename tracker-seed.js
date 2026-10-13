@@ -74,7 +74,7 @@ var SEED_DAYS = {
      The split squat tires his legs more, so it goes on Tuesday, furthest from Saturday's 4×4; the Romanian
      deadlift goes on Thursday. Layout and reasons: kontor/dossiers/2026-10-13-supersets/layout.md. */
   "strength-a": { id:"strength-a", name:"HSR Day A (Tue)", entries:[
-    {exerciseId:"atg-split-squat",     block:"heavy", sets:3, restSec:150, solo:true},
+    {exerciseId:"atg-split-squat",     block:"heavy", sets:3, restSec:150, solo:true, ramp:true},   /* ramp: 1 light set first when the week's target is ≤ 11 reps */
     {exerciseId:"db-chest-press",      block:"heavy", sets:3, restSec:150, ss:1},
     {exerciseId:"cable-pulldown",      block:"heavy", sets:3, restSec:150, ss:1},
     {exerciseId:"leg-curl",            block:"heavy", sets:3, restSec:150, ss:2},
@@ -88,7 +88,7 @@ var SEED_DAYS = {
   "strength-b": { id:"strength-b", name:"HSR Day B (Thu)", entries:[
     {exerciseId:"db-overhead-press",   block:"gap",   sets:3, restSec:90,  ss:1},   /* light, pain-free range, stop rule */
     {exerciseId:"tibialis-raise",      block:"gap",   sets:3, restSec:90,  ss:1, reps:15},
-    {exerciseId:"rdl",                 block:"heavy", sets:3, restSec:150, solo:true},
+    {exerciseId:"rdl",                 block:"heavy", sets:3, restSec:150, solo:true, ramp:true},
     {exerciseId:"cable-row",           block:"heavy", sets:3, restSec:150, ss:2},
     {exerciseId:"triceps-overhead",    block:"heavy", sets:3, restSec:150, ss:2},
     {exerciseId:"hip-flexion",         block:"gap",   sets:3, restSec:90,  ss:3, reps:10},
@@ -113,23 +113,22 @@ var SEED_PROGRAM_LIB = {
 var PROGRAM_ORDER = ["hsr-base-12","hsr-wave-12"];   // display order + the forward<->wave cycle
 var DEFAULT_PROGRAM_ID = "hsr-base-12";
 
-/* warm-up sequences per strength day — gifs in gifs/wu_*.gif (a missing one hides gracefully) */
-var WARMUP_BY_PROG = {
-  "strength-a":[
-    {gif:"wu_sled",      name:"Backward sled drag / treadmill", detail:"3–5 min — drives blood into the knee & patellar tendon before deep loading."},
-    {gif:"wu_wgs",       name:"World's Greatest Stretch",       detail:"3–4 per side."},
-    {gif:"wu_inchworm",  name:"Inchworm → push-up",             detail:"4–5 reps."},
-    {gif:"wu_droplunge", name:"Lateral drop lunge",             detail:"5 per side — frontal-plane prep."},
-    {gif:"wu_balance",   name:"Eyes-closed single-leg balance", detail:"20–30 s per leg, once you're warm."}
-  ],
-  "strength-b":[
-    {gif:"wu_hindu",     name:"Hindu push-ups",                 detail:"6–8 — swoop low, push into extension; opens the thoracic spine."},
-    {gif:"wu_quad",      name:"Quadruped step-throughs",        detail:"5 per side — cross-body anti-rotation, opens the shoulder."},
-    {gif:"wu_windmill",  name:"Light DB windmills",             detail:"5 per side — shoulder stability, wakes the cuff. Keep it light."},
-    {gif:"wu_stickpass.jpg", name:"Stick shoulder pass-throughs", detail:"8–10 slow — opens the whole overhead arc."},
-    {gif:"wu_band",      name:"Band pull-aparts",               detail:"15–20 — wakes the rear delts/scapula before the pulls."}
-  ]
-};
+/* warm-up — ONE shared list for both blended days (owner 2026-10-13, his own list, about 10–12 min; replaces
+   the June Lower/Upper rosters: Hindu push-ups, DB windmills, lateral drop lunge and eyes-closed balance dropped).
+   gif = picture in gifs/ AND the done-tick id ("wu:"+gif). pending:true = no picture yet → a labelled
+   "Picture to come" box (lesson L-2). wu_sled keeps its picture (walking backward under load, same pattern). */
+var WARMUP_SHARED = [
+  {gif:"wu_sled",      name:"Backward walk · incline treadmill", detail:"2 min — warms the knees and kneecap tendons before deep loading. A backward sled drag works too."},
+  {gif:"wu_wgs",       name:"World's Greatest Stretch",       detail:"3–4 per side."},
+  {gif:"wu_quad",      name:"Quadruped step-throughs",        detail:"5 per side — cross-body, opens the shoulders and hips."},
+  {gif:"wu_inchworm",  name:"Inchworm → push-up",             detail:"4–5 reps — hamstrings for the deadlift, shoulders for the presses."},
+  {gif:"wu_asian",     name:"Asian squat hold",               detail:"30–60 s — heels down, knees out over the toes, feet only slightly turned out; pain-free depth for the right knee.", pending:true},
+  {gif:"wu_cossack",   name:"Cossack squat",                  detail:"5 per side, shifting slowly from leg to leg — the bent knee tracks over the toes.", pending:true},
+  {gif:"wu_stickpass.jpg", name:"Stick shoulder pass-throughs", detail:"8–10 slow — opens the whole overhead arc."},
+  {gif:"wu_band",      name:"Band pull-aparts",               detail:"15–20 — wakes the upper back before the pulls and presses."},
+  {gif:"wu_hang",      name:"Dead hang",                      detail:"20–30 s — warms the grip and the overhead position for the pulls and presses.", pending:true}
+];
+var WARMUP_BY_PROG = { "strength-a": WARMUP_SHARED, "strength-b": WARMUP_SHARED };
 
 /* current week (programs/current-week.md, schedule confirmed 2026-06-17) */
 var CURRENT_WEEK = [

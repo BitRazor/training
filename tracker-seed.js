@@ -33,21 +33,23 @@ var SEED_TESTED = {
    - equip:"db"  → DUMBBELLS: <10 kg steps 1 kg (1,2,…,9,10), ≥10 kg steps 2.5 kg (10,12.5,15,17.5…)
    - else inc:N  → fixed jump (barbell/cable/machine; 2.5 kg = a 1.25 plate per side).  (see nextWeight) */
 var SEED_EXERCISES = [
-  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db", cat:"db"},
-  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"bar"},
-  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  /* repFloor / repCap = the lift's rep window (owner 2026-10-13, rep-plan.md; priority: protection + tendons,
+     then strength, then size). No window = the plain HSR ladder 15 → 6. */
+  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db", cat:"db", repFloor:8},
+  {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"bar", repCap:10},
+  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:8},
   {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25, cat:"single"},  /* single plate */
-  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
-  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5, cat:"cable"},
+  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:12, repCap:20},
+  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5, cat:"cable", repFloor:10, repCap:15},
   {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s",      inc:2.5},
   {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db", cat:"db"},
-  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
+  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:12, repCap:20},
   {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},   /* kg = ONE dumbbell */
-  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable"},
-  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"lu-raise",         name:"Lu Raises",                  pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
+  {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:8},   /* kg = ONE dumbbell */
+  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable", repFloor:8},
+  {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:10, repCap:15},
+  {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:12, repCap:20},
+  {id:"lu-raise",         name:"Lu Raises",                  pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:12, repCap:20},
   {id:"internal-rotation",name:"Towel-Roll Internal Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db"},
   /* retired from the Upper day 2026-10-09 (owner: dumbbells for the chest, Lu raises for the lateral raises);
      kept defined so their diary entries keep their names and their tested weights stay readable */
@@ -57,8 +59,8 @@ var SEED_EXERCISES = [
      so each asks for its own weight; the seated calf raise and the Copenhagen plank (now in the home plan) stay
      defined above for the diary. The back extension is body weight plus an optional plate (loadType "bodyweight"). */
   {id:"calf-raise-standing", name:"Standing Calf Raise",     pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db"},   /* kg = ONE dumbbell */
-  {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db"},
+  {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db", repFloor:10, repCap:15},   /* kg = ONE dumbbell */
+  {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db", repFloor:12, repCap:20},
   {id:"back-extension-45",name:"45° Back Extension",         pattern:"hinge",     loadType:"bodyweight", defaultUnit:"kg"},  /* kg = the optional plate */
   /* home sessions (owner 2026-10-13, home-plan.md version 2): body weight, every set by EFFORT (near failure) —
      the card shows its dose text, no weight maths, no diary entry. The Copenhagen plank reuses its old id. */

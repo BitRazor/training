@@ -122,10 +122,15 @@ function frontLoadRate(mode, w, weeks){ var d = weeks>2 ? (w-2)/(weeks-2) : 0; r
 /* DIRECTION-AWARE block for one lift, driven by a PROGRAM (its repLadder + direction + weeks) and
    a forward-only RATE MODE (PROGRESSION_MODES — plateau default, or a front-loaded tier). Defaults
    to the base (forward) program + plateau so legacy 2/3-arg callers behave exactly as before. */
+/* per-lift rep WINDOW (owner 2026-10-13, kontor/dossiers/2026-10-13-reps/rep-plan.md): ex.repFloor / ex.repCap clamp
+   the program's rep ladder; double progression stops at the cap; a capped start (RDL 10 → 6) begins at the
+   10RM worked out from the tested 15RM. Lifts without a window behave exactly as before. */
+function repWindow(ex){ return { lo: (ex && ex.repFloor) || 1, hi: (ex && ex.repCap) || 99 }; }
+function clampReps(r, ex){ var w = repWindow(ex); return Math.max(w.lo, Math.min(w.hi, r)); }
 function ladderFor(tested, ex, program, rateMode){
   if(tested==null) return null;
   program = program || getProgram(DEFAULT_PROGRAM_ID);
-  var ladder = program.repLadder || REP_LADDER, weeks = program.weeks || TOTAL_WEEKS;
+  var ladder = (program.repLadder || REP_LADDER).map(function(r){ return clampReps(r, ex); }), weeks = program.weeks || TOTAL_WEEKS;
   var orm = tested / pct(15), plan = {};
   var mode = PROGRESSION_MODES[rateMode] || PROGRESSION_MODES[DEFAULT_RATE_MODE], dynamic = !!mode.dynamic;
   if(program.direction === "reverse"){
@@ -146,9 +151,10 @@ function ladderFor(tested, ex, program, rateMode){
        lift is stuck adding reps, EASES (LOW) the week after to pay it back, bounded by LEAD_CAP.
      - a fixed tier (slower/standard/steep): a deterministic FRONT-LOADED rate (fast early, decaying
        to its end value by the final week), no push/ease. Both share the never-easier grid-walk below. */
-  var CEIL = 20, prevW = tested, prevR = ladder[0];
+  var startsAt15 = ladder[0] === 15, startKg = startsAt15 ? roundTo(tested, 0.25) : snapDown(orm * pct(ladder[0]), ex);
+  var CEIL = Math.min(20, repWindow(ex).hi), prevW = startsAt15 ? tested : startKg, prevR = ladder[0];
   var dynE1 = orm, steppedLast = true, boostedLast = false;           // dynamic 1RM + per-lift state
-  plan[1] = {kg: roundTo(tested, 0.25), reps: ladder[0], rate: "hold", e1: orm};
+  plan[1] = {kg: startKg, reps: ladder[0], rate: "hold", e1: orm};
   for(var w=2; w<=weeks; w++){
     var rate, reason;
     if(dynamic){
@@ -165,7 +171,7 @@ function ladderFor(tested, ex, program, rateMode){
     var cand = prevW, stepped = false, g = 0;                         // walk the real-weight grid up toward the curve
     while(g++ < 60){ var nx = nextWeight(ex, cand); if(nx <= idealW + 1e-9){ cand = nx; stepped = true; } else break; }
     if(stepped){ prevW = cand; prevR = ladder[w-1]; }                 // curve earned ≥1 real step → step weight, reps to the ladder
-    else if(prevR >= CEIL){ prevW = nextWeight(ex, prevW); prevR = Math.max(6, Math.min(15, invpct(prevW / dynE1))); }  // reps earned the next weight
+    else if(prevR >= CEIL){ prevW = nextWeight(ex, prevW); prevR = clampReps(Math.max(6, Math.min(15, invpct(prevW / dynE1))), ex); }  // reps earned the next weight (kept inside the lift's window)
     else { prevR += 1; }                                              // add one rep (double progression while a step won't fit)
     steppedLast = stepped;
     plan[w] = {kg: roundTo(prevW, 0.25), reps: prevR, rate: reason, e1: dynE1};
@@ -224,7 +230,9 @@ function carriedLoad(sourceAnchor, ex, sourceProgram, sourceMode, lastCompletedW
    program switch. Logging exactly the planned weight changes nothing. Returns {anchor, kg, exact, bank}. */
 function anchorForLogged(ex, program, rateMode, week, liftedKg, curAnchor, curBank){
   var lifted = roundTo(liftedKg, 0.25), fwd = program.direction !== "reverse";
-  if(curAnchor==null || (fwd && week <= 1)) return {anchor: lifted, kg: lifted, exact: true, bank: lifted};
+  /* week 1 IS the anchor only when the lift's ladder starts at 15 reps (a capped start, e.g. RDL 10 → 6, searches) */
+  var startsAt15 = clampReps((program.repLadder || REP_LADDER)[0], ex) === 15;
+  if(curAnchor==null || (fwd && week <= 1 && startsAt15)) return {anchor: lifted, kg: lifted, exact: true, bank: lifted};
   var kgAt = function(a){ return ladderFor(a, ex, program, rateMode)[week].kg; };
   var planned = kgAt(curAnchor), b = (curBank==null) ? curAnchor : curBank;
   if(Math.abs(planned - lifted) < 1e-9) return {anchor: curAnchor, kg: lifted, exact: true, bank: b};

@@ -74,7 +74,7 @@ function renderPlan(){
        '<div class="phaseReps">Target ' + repForWeekIn(shownProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM' + paceNote + '</div></div>';
   /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
-  h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~10–12 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
+  h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ~10 min · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
        wu.map(function(m){
          var g = m.gif.indexOf(".") >= 0 ? m.gif : m.gif + ".gif", wd = isDone(prog, w, "wu:" + m.gif);
          var fig = m.pending ? '<div class="exFig pending"><span class="pendTx">📷 Picture to come</span><span class="pendFile">gifs/' + esc(g) + '</span></div>'
@@ -140,7 +140,7 @@ function updateDoneCounts(prog, week){
   var ct = document.querySelector("#view-programs .phaseName .doneCt"); if(ct) ct.textContent = n + "/" + total + " done";
   var lh = document.querySelector("#view-programs .liftsHead"); if(lh) lh.textContent = "Main lifts · " + n + "/" + total + " done";
   var wu = WARMUP_BY_PROG[prog] || [], wn = doneCount(prog, week, wu.map(function(m){ return "wu:" + m.gif; }));
-  var ws = document.querySelector("#view-programs .warmSec > summary"); if(ws) ws.textContent = "🔥 Warm-up · ~10–12 min · " + wn + "/" + wu.length;
+  var ws = document.querySelector("#view-programs .warmSec > summary"); if(ws) ws.textContent = "🔥 Warm-up · ~10 min · " + wn + "/" + wu.length;
 }
 
 /* ---------- "next exercise" jump bar (the floating #nextBar above the tab bar) ---------- */

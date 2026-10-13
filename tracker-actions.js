@@ -44,6 +44,7 @@ function carryFromActive(){
   var out={load:{}, bank:{}}, src=getProgram(db.activeProgram), srcMode=activeRateMode();
   for(var i=0;i<db.exercises.length;i++){ var ex=db.exercises[i], t=db.tested[ex.id];
     if(t==null){ out.load[ex.id]=null; out.bank[ex.id]=null; continue; }
+    if(ex.loadType==="bodyweight"){ out.load[ex.id]=t; out.bank[ex.id]=null; continue; }   /* a plate is carried as-is */
     var day=dayOf(ex.id), N=day?lastCompletedWeek(db.activeProgram, day):0;
     var c=carryLift(t, db.bank[ex.id], ex, src, srcMode, N);   /* load = on the lift's real grid; bank = exact strength */
     out.load[ex.id]=c.load; out.bank[ex.id]=c.bank;
@@ -80,6 +81,13 @@ function startTraining(pid){
 /* ---------- plan actions (weight / step / note edits) ---------- */
 function onSetWeight(t){
   var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
+  /* body-weight lift (45° back extension): the number is the plate he holds, stored as typed; 0 = body weight */
+  if(ex.loadType==="bodyweight"){
+    openModal({ title:"Plate · "+ex.name, message:"Body weight until 25 clean reps, then hold a 2.5–5 kg plate. Enter the plate's kg (0 = body weight).", mode:"number", value:cur!=null?String(cur):"", placeholder:"kg",
+      onSubmit:function(v){ if(v==null||String(v).trim()==="") return; var n=num(v); if(n==null||n<0){ toast("Enter 0 or more"); return; }
+        if(n>0) db.tested[exId]=Math.round(n*4)/4; else delete db.tested[exId]; save(); renderPlan(); } });
+    return;
+  }
   if(cur==null){
     openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at ~15 slow reps (kg).", mode:"number", placeholder:"kg",
       onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0){ db.tested[exId]=Math.round(num(v)*4)/4; delete db.bank[exId]; save(); renderPlan(); } } });

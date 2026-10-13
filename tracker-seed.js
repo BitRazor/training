@@ -52,40 +52,49 @@ var SEED_EXERCISES = [
   /* retired from the Upper day 2026-10-09 (owner: dumbbells for the chest, Lu raises for the lateral raises);
      kept defined so their diary entries keep their names and their tested weights stay readable */
   {id:"chest-press",      name:"Machine Chest Press",        pattern:"h-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"}
+  {id:"lateral-raise",    name:"Lateral Raises",             pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db"},
+  /* added 2026-10-13 with the two blended days (owner's batch: decisions.md 2026-10-10 to 2026-10-13). New ids,
+     so each asks for its own weight; the seated calf raise and the Copenhagen plank (now in the home plan) stay
+     defined above for the diary. The back extension is body weight plus an optional plate (loadType "bodyweight"). */
+  {id:"calf-raise-standing", name:"Standing Calf Raise",     pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
+  {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db"},   /* kg = ONE dumbbell */
+  {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db"},
+  {id:"back-extension-45",name:"45° Back Extension",         pattern:"hinge",     loadType:"bodyweight", defaultUnit:"kg"}   /* kg = the optional plate */
 ];
 
 /* ---- DAYS (the training-day tracks a program points at; reused across programs).
-   block: heavy = laddered by the algorithm · gap = steady working weight · timed = hold/carry ---- */
+   block: heavy = laddered by the algorithm · gap = light/prehab lift · finisher = last, trains the stabilizers.
+   Superset markers (2026-10-13): ss:N = superset N (its lifts alternate, 1 set each in turn, `sets` rounds);
+   solo:true = done alone with full rest. Entries without either are finishers. ---- */
 var SEED_DAYS = {
-  "strength-a": { id:"strength-a", name:"HSR Lower (Day 1)", entries:[
-    /* Heavy order = PRE-EXHAUST the weak / problematic hamstrings (reordered 2026-06-19):
-       isolation Leg Curl FIRST (hamstrings hit with full energy, zero spine load), then the
-       RDL while the spine + core are still fresh, then the quad-dominant ATG split squat,
-       then calves. Chosen over the "heavy hinge first" option because the hamstrings are the
-       weak link and the lower back is spared by doing the isolation before the spinal loading. */
-    {exerciseId:"leg-curl",         block:"heavy", sets:3, restSec:150},
-    {exerciseId:"rdl",              block:"heavy", sets:3, restSec:150},
-    {exerciseId:"atg-split-squat",  block:"heavy", sets:3, restSec:150},
-    {exerciseId:"calf-raise",       block:"heavy", sets:3, restSec:150},
-    {exerciseId:"tibialis-raise",   block:"gap",   sets:3, restSec:90, reps:15},
-    {exerciseId:"hip-flexion",      block:"gap",   sets:3, restSec:90, reps:10},
-    {exerciseId:"suitcase-carry",   block:"finisher", sets:3, restSec:90, timed:true}
-    /* Copenhagen plank + reverse wrist curls moved to Day 2 (2026-06-20) to balance session length. */
+  /* 2026-10-13 (owner): two BLENDED full-body days with supersets replace Lower (Tue) / Upper (Thu).
+     Same-muscle lifts sit on different days, so most muscles get two hits a week with every lift once.
+     His order rule: weak links first, then the heaviest lifts (done alone, full rest), then the pairs, and
+     the stabilizer work (cuff, grip, lower back) last — a tired cuff lets the shoulder ball ride up (Chen 1999).
+     The split squat tires his legs more, so it goes on Tuesday, furthest from Saturday's 4×4; the Romanian
+     deadlift goes on Thursday. Layout and reasons: kontor/dossiers/2026-10-13-supersets/layout.md. */
+  "strength-a": { id:"strength-a", name:"HSR Day A (Tue)", entries:[
+    {exerciseId:"atg-split-squat",     block:"heavy", sets:3, restSec:150, solo:true},
+    {exerciseId:"db-chest-press",      block:"heavy", sets:3, restSec:150, ss:1},
+    {exerciseId:"cable-pulldown",      block:"heavy", sets:3, restSec:150, ss:1},
+    {exerciseId:"leg-curl",            block:"heavy", sets:3, restSec:150, ss:2},
+    {exerciseId:"lu-raise",            block:"gap",   sets:3, restSec:90,  ss:2, reps:15},
+    {exerciseId:"calf-raise-standing", block:"heavy", sets:3, restSec:150, ss:3},
+    {exerciseId:"face-pulls",          block:"gap",   sets:3, restSec:90,  ss:3, reps:15},
+    {exerciseId:"suitcase-carry",      block:"finisher", sets:3, restSec:90, timed:true},
+    {exerciseId:"back-extension-45",   block:"finisher", sets:1, restSec:0}
+    /* back extension once a week (owner 2026-10-13), on the day WITHOUT the Romanian deadlift, last */
   ]},
-  "strength-b": { id:"strength-b", name:"HSR Upper (Day 2)", entries:[
-    {exerciseId:"cable-pulldown",   block:"heavy", sets:3, restSec:150},
-    {exerciseId:"db-chest-press",   block:"heavy", sets:3, restSec:150},
-    {exerciseId:"cable-row",        block:"heavy", sets:3, restSec:150},
-    {exerciseId:"triceps-overhead", block:"heavy", sets:3, restSec:150},
-    {exerciseId:"face-pulls",       block:"gap",   sets:3, restSec:90, reps:15},
-    {exerciseId:"lu-raise",         block:"gap",   sets:3, restSec:90, reps:15},
-    {exerciseId:"copenhagen-plank", block:"gap",   sets:3, restSec:90, timed:true},
-    {exerciseId:"reverse-wrist-curl",block:"gap",  sets:3, restSec:60, reps:15}
-    /* Copenhagen plank + reverse wrist curls moved here from Day 1 (2026-06-20) to balance session
-       length. Towel-Roll Internal Rotation stays out (warm-up cuff primer per exercise-guide.md).
-       2026-10-09 (owner, for full range of motion): Dumbbell Chest Press replaces the machine press, Lu Raises
-       replace the lateral raises; both start without a weight (tap to enter). Copenhagen kept as a hold. */
+  "strength-b": { id:"strength-b", name:"HSR Day B (Thu)", entries:[
+    {exerciseId:"db-overhead-press",   block:"gap",   sets:3, restSec:90,  ss:1},   /* light, pain-free range, stop rule */
+    {exerciseId:"tibialis-raise",      block:"gap",   sets:3, restSec:90,  ss:1, reps:15},
+    {exerciseId:"rdl",                 block:"heavy", sets:3, restSec:150, solo:true},
+    {exerciseId:"cable-row",           block:"heavy", sets:3, restSec:150, ss:2},
+    {exerciseId:"triceps-overhead",    block:"heavy", sets:3, restSec:150, ss:2},
+    {exerciseId:"hip-flexion",         block:"gap",   sets:3, restSec:90,  ss:3, reps:10},
+    {exerciseId:"side-lying-er",       block:"gap",   sets:3, restSec:90,  ss:3, reps:15},
+    {exerciseId:"reverse-wrist-curl",  block:"finisher", sets:3, restSec:60, reps:15}
+    /* the Copenhagen plank moved to the home plan (Home A) on the owner's word 2026-10-12/13 */
   ]}
 };
 var STRENGTH_DAYS = ["strength-a","strength-b"];
@@ -125,9 +134,9 @@ var WARMUP_BY_PROG = {
 /* current week (programs/current-week.md, schedule confirmed 2026-06-17) */
 var CURRENT_WEEK = [
   {day:"Mon", label:"Zone 2 · 45–60 min", type:"cardio",   ref:"z2", note:"Easy, zero-impact"},
-  {day:"Tue", label:"HSR Lower",          type:"strength", ref:"strength-a", note:"Heavy + gap-closure · evening · NO cold-water after"},
+  {day:"Tue", label:"HSR Day A · full body", type:"strength", ref:"strength-a", note:"Split-squat day · supersets · evening · NO cold-water after"},
   {day:"Wed", label:"Zone 2 · 45–60 min", type:"cardio",   ref:"z2", note:"Easy, zero-impact"},
-  {day:"Thu", label:"HSR Upper",          type:"strength", ref:"strength-b", note:"Heavy + gap-closure · evening · NO cold-water after"},
+  {day:"Thu", label:"HSR Day B · full body", type:"strength", ref:"strength-b", note:"Deadlift day · supersets · evening · NO cold-water after"},
   {day:"Fri", label:"Complete rest",      type:"rest",     ref:null, note:"Recover"},
   {day:"Sat", label:"Norwegian 4×4",      type:"hiit",     ref:"norwegian-4x4", note:"Morning · CWI OK today · carb refill"},
   {day:"Sun", label:"Rest",               type:"rest",     ref:null, note:"Eat normally"}

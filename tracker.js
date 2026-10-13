@@ -73,6 +73,22 @@ function migrate(){
       if(to){ sp[sp.length-1]=to; var nk=sp.join(":"); if(db.done[nk]===undefined) db.done[nk]=db.done[sk]; } }
     db.settings.upperSwap="2026-10-09";
   }
+  /* 2026-10-13 two blended days with supersets (owner): lifts moved between Day A and Day B, and the standing
+     calf raise took the seated one's slot. One time only: each lift tick (full or partial) is COPIED to the day
+     where that lift now lives, same program and week, so finished weeks keep their count. Original keys stay;
+     an existing tick on the new day is never overwritten; warm-ups and lifts on no day are left alone. */
+  if(db.settings.supersetLayout!=="2026-10-13"){
+    var homeDay={}, renamed={"calf-raise":"calf-raise-standing"};
+    STRENGTH_DAYS.forEach(function(dd){ (SEED_DAYS[dd].entries||[]).forEach(function(e){ homeDay[e.exerciseId]=dd; }); });
+    var adds={};
+    for(var lk in db.done){ var lp=lk.split(":"); if(lp.length<4) continue;
+      var item=lp.slice(3).join(":"); if(item.indexOf("wu:")===0) continue;
+      var lift=renamed[item]||item, to2=homeDay[lift]; if(!to2) continue;
+      if(to2===lp[1] && lift===item) continue;   /* already on its day, same lift */
+      var nk2=lp[0]+":"+to2+":"+lp[2]+":"+lift; if(db.done[nk2]===undefined && adds[nk2]===undefined) adds[nk2]=db.done[lk]; }
+    for(var ak in adds) db.done[ak]=adds[ak];
+    db.settings.supersetLayout="2026-10-13";
+  }
   /* v3 -> v4: the frozen lift diary + done ticks became "full"/"partial" (were boolean true) */
   if(!Array.isArray(db.history)) db.history=[];
   for(var dkq in db.done){ if(db.done[dkq]===true) db.done[dkq]="full"; }
@@ -124,6 +140,7 @@ function recordHistory(prog,week,exId,quality){
   if(!exId||exId.indexOf("wu:")===0) return;
   if(!progEntry(prog,exId)) return;
   var ex=exById(exId)||{}, tested=db.tested[exId]; if(tested==null) return;
+  if(ex.loadType==="bodyweight") return;   /* body weight + an optional plate: no laddered kg to freeze */
   var p=ladderFor(tested,ex,getProgram(db.activeProgram),activeRateMode())[week]; if(!p||p.kg==null) return;
   var ts=todayISO(), cyc=cycleOf(db.activeProgram);
   for(var i=0;i<db.history.length;i++){ var h=db.history[i];

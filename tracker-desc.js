@@ -13,6 +13,11 @@ var EX_GIF = {
   "chest-press":"press", "cable-row":"row1", "triceps-overhead":"vpush",
   "face-pulls":"facep", "lateral-raise":"latr", "db-chest-press":"dbpress"
 };
+/* lifts whose picture is not added yet (2026-10-13): the card shows a labelled placeholder naming the
+   expected file (project lesson L-2: never a silent gap). Move an entry to EX_GIF once its gif is in gifs/. */
+var EX_GIF_PENDING = {
+  "calf-raise-standing":"calfstand", "db-overhead-press":"dbohp", "side-lying-er":"sler", "back-extension-45":"backext"
+};
 var EX_DESC = {
   "atg-split-squat": {
     setup: "Split stance, both feet pointing forward; front foot flat (heel stays down), rear heel up on the ball. Torso tall. Front heel on a small wedge is optional for ankle range.",
@@ -57,7 +62,7 @@ var EX_DESC = {
     feel: "A strong pull in the inner thigh/groin (adductors) of the top leg, plus the obliques bracing."
   },
   "suitcase-carry": {
-    setup: "One heavy DB/KB at one side, stand tall, shoulders level. Done while grip is fresh.",
+    setup: "One heavy DB/KB at one side, stand tall, shoulders level. It sits on the day without the deadlift, so your grip is as fresh as it gets at the end.",
     move: "Walk a normal pace ~60 s, no lean toward or away from the weight, no shrug. Switch arms. Not to failure.",
     cue: "Anti-lean — the trunk fights side-bending the whole walk. Posture never breaks.",
     feel: "Grip, and the side of your trunk opposite the weight working to keep you upright."
@@ -66,7 +71,7 @@ var EX_DESC = {
     setup: "Forearms flat on a bench, palms down, DBs in hands, wrists just past the bench edge.",
     move: "Raise the knuckles up (wrist extension), lower slowly. 3·3 tempo, forearms never leave the bench; last set to failure.",
     cue: "Only the wrists move — trains the extensors and lateral elbow (counters all-day gripping).",
-    feel: "A burn on the top of the forearm and the outer elbow. Day-1 finisher — nothing after needs grip."
+    feel: "A burn on the top of the forearm and the outer elbow. The Day B finisher — nothing after needs grip."
   },
   "cable-pulldown": {
     setup: "Seated, thighs locked under the pad, slight backward lean from the hips — then hold that torso angle.",
@@ -115,6 +120,30 @@ var EX_DESC = {
     move: "Raise the arms out to the sides and a little forward, past shoulder height, all the way until your hands are overhead; lower slowly along the same path. 2 s up / 2 s down.",
     cue: "Keep it light: the long arc makes small weights hard. Don't lean back to get the arms up; if a point of the arc pinches, stop just below it.",
     feel: "The shoulder caps working the whole way up; above shoulder height the upper back joins in, which is normal."
+  },
+  "calf-raise-standing": {
+    setup: "Standing, balls of the feet on a block or step, knees straight (soft, not locked). Calf machine with the pads on your shoulders — or hold a dumbbell and do one leg at a time.",
+    move: "Lower the heels for 3 s into a deep stretch, hold the bottom 3 s, rise for 3 s as high onto the toes as you can. 9-s tempo, full range.",
+    cue: "Knees straight puts the work on the big outer calf as well as the deep one. The paused bottom stretch is the Achilles stimulus — never bounce out of it.",
+    feel: "The whole calf working, and a loaded stretch in the calf and Achilles at the bottom."
+  },
+  "db-overhead-press": {
+    setup: "Stand tall, feet hip-width, dumbbells at shoulder height, palms forward or slightly in. Squeeze your glutes and pull the ribs down. The weight shown is ONE dumbbell.",
+    move: "Press both dumbbells up for 3 s until the arms are straight overhead, lower for 3 s back to the shoulders. Only the range that is pain-free.",
+    cue: "Ribs down, no lean-back: if your lower back arches to get the arms up, that rep ends there. Keep it light, last set one rep short. A stab in the shoulder during the press, or a shoulder ache the next day, stops this exercise until the physio check.",
+    feel: "Shoulders and triceps pressing; stomach and glutes holding the body still."
+  },
+  "side-lying-er": {
+    setup: "Lie on your side, the working arm on top, a folded towel between the elbow and your side, elbow bent 90°, a light dumbbell in front of your belly. Start at 1–3 kg.",
+    move: "Rotate the forearm up and away from your belly as far as is comfortable, keeping the elbow on the towel; lower for 3 s. 3 × 12–15 per arm.",
+    cue: "Only the forearm turns — the elbow stays pinned to the towel. Pain at most 3/10 and settled by the next session; a stab stops it. It comes after the day's presses and pulls: a tired cuff lets the shoulder ball ride up.",
+    feel: "The back of the shoulder (the small rotator-cuff muscles) working. Nothing sharp."
+  },
+  "back-extension-45": {
+    setup: "45° back-extension bench, the pad just below your hip bones, feet locked in, body in one line, arms crossed on the chest. At least 2 h after eating.",
+    move: "Lower the upper body for 3 s, bending at the hips and letting the back round a little, then rise for 3 s to a straight line and squeeze the glutes hard for 2–3 s at the top. 1 set of 15–25 slow reps.",
+    cue: "Stop at a straight line — don't overarch at the top. Body weight until 25 clean reps, then hold a 2.5–5 kg plate (tap the line to enter it). If heartburn starts, stop at horizontal, or skip it that day.",
+    feel: "Lower back, glutes and hamstrings working, and the glute squeeze at the top."
   },
   "internal-rotation": {
     setup: "Lie on your back (or stand with a cable), a rolled towel under the working upper arm, elbow bent 90° tucked at your side.",

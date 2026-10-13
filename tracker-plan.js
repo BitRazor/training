@@ -1,10 +1,13 @@
 "use strict";
-/* training-tracker — the 12-week Plan view. Two independent program tracks (Lower / Upper),
-   each with its own week picker + manual mark-done. Heavy lifts show algorithm-calculated
-   weights (tested 15RM → +1%/week → rep-max %); tap a weight to log what you actually lifted
-   and the rest of the block recomputes. Uses seed math (calcWeight/repForWeek/...) + howToHtml/gifHtml. */
+/* training-tracker — the 12-week Plan view. Two independent program tracks (Day A / Day B, blended
+   full-body days since 2026-10-13), each with its own week picker + manual mark-done. Heavy lifts show
+   algorithm-calculated weights (tested 15RM → +1%/week → rep-max %); tap a weight to log what you actually
+   lifted and the rest of the block recomputes. Lifts render in blocks: done alone (solo), supersets (ss:N,
+   cards joined with a connector and tagged 1A/1B), finishers. Uses seed math + howToHtml/gifHtml. */
 
-function shortName(prog){ return prog === "strength-a" ? "Lower" : "Upper"; }
+function shortName(prog){ return prog === "strength-a" ? "Day A" : "Day B"; }
+/* rest seconds → "2.5 min" / "1.5 min" / "1 min" */
+function fmtMin(sec){ return (Math.round((sec || 0) / 6) / 10) + " min"; }
 function todayProgram(){ var t = CURRENT_WEEK[weekdayIdx()]; return (t && t.type === "strength") ? t.ref : null; }
 function activeProg(){ return getProgram(db.activeProgram); }
 /* the active program's chosen climb-rate mode (forward only); defaults to plateau (= current behavior) */
@@ -32,6 +35,12 @@ function prescFor(en, week){
   var ex = exById(en.exerciseId) || {}, tested = shownAnchor(en.exerciseId), side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
   // Copenhagen plank: bodyweight hold → progress the HOLD TIME (seconds), no load
   if(en.exerciseId === "copenhagen-plank") return { text: en.sets + " × " + holdSec(week) + " s/side", tested: true, kind: "hold", weight: null };
+  // body-weight lift (45° back extension): reps 15–25, then an optional plate he types in — no 15RM maths
+  if(ex.loadType === "bodyweight"){
+    var plate = (tested != null && tested > 0) ? tested : null;
+    return plate != null ? { text: "<b>+" + plate + " kg</b> plate · " + en.sets + " × 15–25 slow reps", tested: true, kind: "bw", weight: plate }
+                         : { text: "body weight · " + en.sets + " × 15–25 slow reps", tested: true, kind: "bw", weight: null };
+  }
   // Suitcase carry: a timed carry — its "reps" dimension is TIME, so the seconds climb each week
   // (reps×3 s/arm), then drop when the weight steps up. Same double-progression, shown as time.
   if(en.exerciseId === "suitcase-carry"){
@@ -73,21 +82,33 @@ function renderPlan(){
        '<button class="warmCollapse" data-act="warmcollapse">▲ Collapse warm-up</button>' +
        '</div></details>';
   h += '<div class="liftsHead">Main lifts · ' + liftDone + '/' + P.entries.length + ' done</div>';
-  P.entries.forEach(function(en){
-    var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold"), st = doneState(prog, w, en.exerciseId), exd = !!st, hist = historyFor(en.exerciseId), lt = hist.length ? hist[hist.length - 1] : null;
-    h += '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — full">✓</button><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — partial" title="did it, but not fully">◐</button><div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
-         '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (pr.rate === "push" ? ' <span class="rateTag" style="color:var(--acc);font-size:11px" title="pushing harder — stuck adding reps">↑</span>' : pr.rate === "ease" ? ' <span class="rateTag" style="color:var(--dim);font-size:11px" title="easing — paying back the push">↓</span>' : '') + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
-         (lt ? '<div class="lastTime">last time: <b>' + lt.kg + ' kg</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
-         gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
-         (hist.length >= 2 ? '<details class="prog"><summary>📈 Progress · ' + hist.length + ' sessions</summary><div class="progBody">' + progHtml(hist) + '</div></details>' : '') +
-         '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button>' +
-         (pr.kind !== "hold" ? '<button class="stepBtn" data-act="setstep" data-ex="' + en.exerciseId + '" title="smallest weight jump for this lift">⚙ ' + esc(stepLabel(ex)) + '</button>' : '') +
-         '</div></div>';
-  });
+  /* blocks in program order: a lift done alone (solo) · a superset (consecutive entries sharing ss:N, cards
+     joined by a connector, tagged NA/NB) · the finishers (block "finisher") · anything else as a plain card */
+  var E = P.entries, i = 0;
+  while(i < E.length){
+    var en = E[i];
+    if(en.ss){
+      var grp = [], ssN = en.ss;
+      while(i < E.length && E[i].ss === ssN){ grp.push(E[i]); i++; }
+      var rest = Math.max.apply(null, grp.map(function(g){ return g.restSec || 0; }));
+      h += '<div class="ssGroup"><div class="blockHead ssHead"><span class="ssTitle">Superset ' + ssN + '</span>' +
+           '<span class="ssHow">1 set of each in turn · ' + grp[0].sets + ' rounds · ~' + fmtMin(rest) + ' before the same lift again</span>' +
+           '<span class="ssPair">' + grp.map(function(g, j){ var gx = exById(g.exerciseId) || { name: g.exerciseId }; return '<b>' + ssN + String.fromCharCode(65 + j) + '</b> ' + esc(gx.name); }).join(' <span class="ssArrow">⇄</span> ') + '</span></div>';
+      grp.forEach(function(g, j){ if(j > 0) h += '<div class="ssLink" aria-hidden="true"><span>⇅ then</span></div>'; h += planCardHtml(prog, w, g, ssN + String.fromCharCode(65 + j)); });
+      h += '</div>';
+    } else if(en.solo){
+      h += '<div class="soloBlock"><div class="blockHead">Alone · full rest ' + fmtMin(en.restSec) + ' between sets</div>' + planCardHtml(prog, w, en, null) + '</div>';
+      i++;
+    } else if(en.block === "finisher"){
+      var fins = [];
+      while(i < E.length && !E[i].ss && !E[i].solo && E[i].block === "finisher"){ fins.push(E[i]); i++; }
+      h += '<div class="finBlock"><div class="blockHead">Finishers · last, in this order</div>' + fins.map(function(f){ return planCardHtml(prog, w, f, null); }).join("") + '</div>';
+    } else { h += planCardHtml(prog, w, en, null); i++; }
+  }
   var weekIsDone = done.indexOf(w) >= 0;
   h += '<div class="btnRow" style="margin:14px 0 6px"><button class="btn primary block" data-act="weekdone" data-prog="' + prog + '" data-week="' + w + '">' +
        (weekIsDone ? "✓ Week " + w + " " + shortName(prog) + " done — tap to undo" : "✓ Mark Week " + w + " " + shortName(prog) + " done") + '</button></div>';
-  h += '<div class="note dim" style="margin:4px 2px">Tick each lift as you finish it (top-left ✓) — it collapses to save space and the day count updates. Heavy lifts auto-calculate; tap a weight (✎) to log what you actually lifted. "+ note" logs go to the Notes tab.</div>';
+  h += '<div class="note dim" style="margin:4px 2px">Superset: one set of 1A, then one set of 1B, back to 1A — 3 rounds. Tick each lift when all its sets are done (top-left ✓) — it collapses to save space and the day count updates. Heavy lifts auto-calculate; tap a weight (✎) to log what you actually lifted. "+ note" logs go to the Notes tab.</div>';
   if(previewing()){
     h = '<div class="previewBar">👀 Previewing <b>' + esc(shownProg().name) + '</b> from your current strength — not your active program yet.' +
         '<div class="btnRow" style="margin-top:8px"><button class="btn sm" data-act="previewreturn">↩ Return</button>' +
@@ -95,6 +116,18 @@ function renderPlan(){
   }
   $("#view-programs").innerHTML = h;
   updateNextBar(prog, w);
+}
+/* one lift's card. `tag` = its superset slot ("1A", "1B" …) or null */
+function planCardHtml(prog, w, en, tag){
+  var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold"), st = doneState(prog, w, en.exerciseId), exd = !!st, hist = historyFor(en.exerciseId), lt = hist.length ? hist[hist.length - 1] : null;
+  return '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — full">✓</button><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — partial" title="did it, but not fully">◐</button>' + (tag ? '<span class="ssTag">' + tag + '</span>' : '') + '<div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
+    '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (pr.rate === "push" ? ' <span class="rateTag" style="color:var(--acc);font-size:11px" title="pushing harder — stuck adding reps">↑</span>' : pr.rate === "ease" ? ' <span class="rateTag" style="color:var(--dim);font-size:11px" title="easing — paying back the push">↓</span>' : '') + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
+    (lt ? '<div class="lastTime">last time: <b>' + lt.kg + ' kg</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
+    gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
+    (hist.length >= 2 ? '<details class="prog"><summary>📈 Progress · ' + hist.length + ' sessions</summary><div class="progBody">' + progHtml(hist) + '</div></details>' : '') +
+    '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button>' +
+    (pr.kind !== "hold" && pr.kind !== "bw" ? '<button class="stepBtn" data-act="setstep" data-ex="' + en.exerciseId + '" title="smallest weight jump for this lift">⚙ ' + esc(stepLabel(ex)) + '</button>' : '') +
+    '</div></div>';
 }
 /* update the done counts in place (no full re-render) so a tick can animate the card collapse */
 function updateDoneCounts(prog, week){

@@ -8,7 +8,7 @@ function renderToday(){
   var h = '<div class="todayHero">';
   if(today.type === "strength"){
     var cw = currentWeek(today.ref);
-    h += '<div class="todayDay">' + today.day + ' · ' + shortName(today.ref) + ' day · Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
+    h += '<div class="todayDay">' + today.day + ' · ' + shortName(today.ref) + ' · Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
          '<div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
          '<div class="btnRow"><button class="btn primary block" data-act="gotoplan" data-prog="' + today.ref + '">Open Week ' + cw + ' →</button></div>';
   } else {
@@ -28,6 +28,8 @@ function renderToday(){
 
 /* ---------- shared: gif + How-to (used by the Plan) ---------- */
 function gifHtml(exId){
+  var pend = (typeof EX_GIF_PENDING !== "undefined") ? EX_GIF_PENDING[exId] : null;
+  if(pend) return '<div class="exFig pending"><span class="pendTx">📷 Picture to come</span><span class="pendFile">gifs/' + esc(pend) + '.gif</span></div>';
   var g = EX_GIF[exId]; if(!g) return "";
   return '<div class="exFig"><img src="gifs/' + g + '.gif" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div>';
 }

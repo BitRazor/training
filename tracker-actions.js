@@ -71,7 +71,7 @@ function startTraining(pid){
     clearTicks(pid);                                    /* … and no ticks left over from the last run */
     db.activeProgram=pid;
     if(!ps.startedAt) ps.startedAt=nowISO(); ps.completedAt=null;
-    STRENGTH_DAYS.forEach(function(d){ if(!ps.progress[d]) ps.progress[d]={weeksDone:[]}; else ps.progress[d].weeksDone=[]; });
+    STRENGTH_DAYS.concat(typeof HOME_DAYS!=="undefined"?HOME_DAYS:[]).forEach(function(d){ if(!ps.progress[d]) ps.progress[d]={weeksDone:[]}; else ps.progress[d].weeksDone=[]; });   /* home weeks restart with the cycle too */
     clearPreview(); ui.planWeek=null; ui.planLastProg=null; save(); showView("programs");
   };
   if(hasProg) confirmModal("Restart "+getProgram(pid).name+"?", getProgram(pid).name+" already has training logged. Start a fresh cycle from your current strength? Its ticks and finished weeks will be cleared — your diary keeps every lift.", go);

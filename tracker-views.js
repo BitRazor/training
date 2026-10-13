@@ -6,21 +6,23 @@
 function renderToday(){
   var i = weekdayIdx(), today = CURRENT_WEEK[i];
   var h = '<div class="todayHero">';
-  if(today.type === "strength"){
+  if(today.type === "strength" || today.type === "home"){
     var cw = currentWeek(today.ref);
-    h += '<div class="todayDay">' + today.day + ' · ' + shortName(today.ref) + ' · Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
+    h += '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home" : shortName(today.ref)) + ' · Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
          '<div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
          '<div class="btnRow"><button class="btn primary block" data-act="gotoplan" data-prog="' + today.ref + '">Open Week ' + cw + ' →</button></div>';
   } else {
     h += '<div class="todayDay">' + today.day + '</div><div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
          (today.type === "cardio" ? '<div class="todayNote dim">Zone 2 ' + zoneRange("z2") + ' — keep it conversational.</div>' : "") +
-         (today.type === "hiit" ? '<div class="todayNote dim">4 × 4 min hard / 3 min easy. Watch the last interval\'s peak HR.</div>' : "");
+         (today.type === "hiit" ? '<div class="todayNote dim">4 × 4 min hard / 3 min easy. Watch the last interval\'s peak HR.</div>' : "") +
+         /* a home session riding on this day (Wednesday): its own button under the cardio */
+         (today.home ? '<div class="btnRow"><button class="btn block" data-act="gotoplan" data-prog="' + today.home + '">🏠 Home core · Open Week ' + currentWeek(today.home) + ' →</button></div>' : "");
   }
   h += '</div>';
   h += '<div class="card weekList">' + CURRENT_WEEK.map(function(d, j){
-    var strength = d.type === "strength";
-    return '<div class="wrow' + (j === i ? " today" : "") + '"' + (strength ? ' data-act="gotoplan" data-prog="' + d.ref + '" style="cursor:pointer"' : "") + '>' +
-           '<span class="wd">' + d.day + '</span><span class="dot ' + d.type + '"></span><span class="wt">' + esc(d.label) + '</span>' + (strength ? '<span class="goarrow">›</span>' : "") + '</div>';
+    var target = (d.type === "strength" || d.type === "home") ? d.ref : (d.home || null);   /* the day-track a tap opens */
+    return '<div class="wrow' + (j === i ? " today" : "") + '"' + (target ? ' data-act="gotoplan" data-prog="' + target + '" style="cursor:pointer"' : "") + '>' +
+           '<span class="wd">' + d.day + '</span><span class="dot ' + d.type + '"></span><span class="wt">' + esc(d.label) + (d.home ? ' <span class="dim">+ home core</span>' : '') + '</span>' + (target ? '<span class="goarrow">›</span>' : "") + '</div>';
   }).join("") + '</div>';
   $("#headMeta").innerHTML = (db.profile.targetBodyweightKg ? db.profile.targetBodyweightKg + " kg" : '<span class="dim">set target BW</span>');
   $("#view-today").innerHTML = h;

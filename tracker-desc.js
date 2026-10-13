@@ -16,7 +16,10 @@ var EX_GIF = {
 /* lifts whose picture is not added yet (2026-10-13): the card shows a labelled placeholder naming the
    expected file (project lesson L-2: never a silent gap). Move an entry to EX_GIF once its gif is in gifs/. */
 var EX_GIF_PENDING = {
-  "calf-raise-standing":"calfstand", "db-overhead-press":"dbohp", "side-lying-er":"sler", "back-extension-45":"backext"
+  "calf-raise-standing":"calfstand", "db-overhead-press":"dbohp", "side-lying-er":"sler", "back-extension-45":"backext",
+  /* home exercises (2026-10-13) */
+  "bear-crawl":"bearcrawl", "bear-step-through":"bearstep", "hollow-hold":"hollow", "lateral-step-down":"stepdown",
+  "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank"
 };
 var EX_DESC = {
   "atg-split-squat": {
@@ -144,6 +147,55 @@ var EX_DESC = {
     move: "Lower the upper body for 3 s, bending at the hips and letting the back round a little, then rise for 3 s to a straight line and squeeze the glutes hard for 2–3 s at the top. 1 set of 15–25 slow reps.",
     cue: "Stop at a straight line — don't overarch at the top. Body weight until 25 clean reps, then hold a 2.5–5 kg plate (tap the line to enter it). If heartburn starts, stop at horizontal, or skip it that day.",
     feel: "Lower back, glutes and hamstrings working, and the glute squeeze at the top."
+  },
+  /* ---- home exercises (2026-10-13, home-plan.md version 2): every set by effort, near failure ---- */
+  "bear-crawl": {
+    setup: "On hands and feet, hands under the shoulders, knees under the hips and lifted 2–5 cm off the floor, back flat, ribs down. Warm up the wrists first.",
+    move: "Crawl slowly forward and back: opposite hand and foot move together, small steps.",
+    cue: "Hips stay level and knees stay low the whole time; end the set when the hips start to rock or rise.",
+    feel: "Stomach and shoulders holding the body still while the arms and legs move."
+  },
+  "bear-step-through": {
+    setup: "Start in the bear position: hands under the shoulders, knees under the hips, lifted 2–5 cm.",
+    move: "Lift the hand opposite the stepping leg, pivot on the ball of the planted foot, sweep the leg through under the body and straighten it out to the side, hips up. Come back the same way and switch. 2–3 s each way.",
+    cue: "Turn the foot, never twist the knee (right knee). No stab in the left shoulder while that hand supports. End the set when the hips sag or twist.",
+    feel: "The whole trunk turning under control, shoulders and hips working together."
+  },
+  "hollow-hold": {
+    setup: "On your back, lower back pressed into the floor, shoulders lifted, ribs down.",
+    move: "Hold. Start with the knees bent; progress to straighter and lower legs, then arms overhead (where your ribs want to lift).",
+    cue: "Only as far as the lower back stays flat; end the hold when it starts to lift. Past about 45 s with good form, use the harder version.",
+    feel: "The front of the stomach working hard; nothing in the lower back."
+  },
+  "lateral-step-down": {
+    setup: "Stand on one leg on a chair-height step, the other foot hanging off the side.",
+    move: "Lower over 3 s until the free heel touches the floor, then stand back up. Alternate legs: one leg's set is the other leg's rest.",
+    cue: "Knee over the second toe, never caving or twisting; hips level. Stop 1–2 reps before it would cave. Lower step if the right knee hurts (at most 3/10, gone by morning). At 3 × 10 clean: the single-leg box squat, arms reaching forward.",
+    feel: "The front of the thigh and the side of the hip of the standing leg."
+  },
+  "sissy-squat": {
+    setup: "Stand tall holding a support, feet in the normal position (never turned out).",
+    move: "Let the knees travel forward while the body stays in one line from knees to shoulders; go as low as the knee rule allows, then come back up.",
+    cue: "Stop 1–2 reps before failure. Harder later: deeper and slower, before adding sets.",
+    feel: "Hard work and a stretch in the front of the thighs, above the knees."
+  },
+  "reverse-nordic": {
+    setup: "Kneel upright on a pad, body straight from knees to head, glutes squeezed so the hips stay straight.",
+    move: "Lean back slowly only as far as you can control, then come back up.",
+    cue: "Stop when the next rep would not come back under control. For more reps, lean back a little less; deepen the lean over the weeks. Expect sore thighs at first.",
+    feel: "The front of the thighs working while they lengthen, and a stretch at the front of the hips."
+  },
+  "glute-bridge-hold": {
+    setup: "On your back, feet hip-width, heels about a shin's length from your bottom.",
+    move: "Tuck the pelvis first, push through the heels to a straight line from knees to shoulders, squeeze and hold until the hips start to drop.",
+    cue: "Ribs down; stop just before any back pinch. Progression: two legs → one leg (when 45 s on two legs is easy) → the crab hold (when the one-leg hold reaches 3 × 30 s per leg, pelvis level, no pinch): sit, hands behind you, hips up to a flat table, chest open; hands wider or fingers out if the left shoulder pinches.",
+    feel: "The glutes doing the holding at the top; in the crab also a stretch across the front of the shoulders."
+  },
+  "rkc-plank": {
+    setup: "Forearms down, elbows a hand's width in front of the shoulders, legs straight.",
+    move: "Tuck the pelvis, squeeze the glutes as hard as you can, ribs down, and pull the elbows toward the toes without moving. 10 s at full tension.",
+    cue: "Full tension, short holds; rest 30–60 s. Harder: elbows further forward.",
+    feel: "The whole front of the body shaking with effort; nothing in the lower back."
   },
   "internal-rotation": {
     setup: "Lie on your back (or stand with a cable), a rolled towel under the working upper arm, elbow bent 90° tucked at your side.",

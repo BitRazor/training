@@ -120,7 +120,7 @@ button{font-family:inherit}
 .weekList .wt{flex:1}
 .weekList .wrow.today{background:var(--accD); margin:0 -8px; padding:9px 12px; border-radius:9px; border-bottom:0}
 .dot{width:8px;height:8px;border-radius:99px;flex:none}
-.dot.strength{background:var(--acc)} .dot.cardio{background:var(--blue)} .dot.hiit{background:var(--warn)} .dot.rest{background:var(--dim)}
+.dot.strength{background:var(--acc)} .dot.cardio{background:var(--blue)} .dot.hiit{background:var(--warn)} .dot.rest{background:var(--dim)} .dot.home{background:#c084fc}
 
 /* logger */
 .exBlock{background:var(--card); border:1px solid var(--line); border-radius:var(--r); margin:12px 0; overflow:hidden}
@@ -226,6 +226,8 @@ details.how[open]>summary::before{content:"▾ "}
 .progTabs{display:flex; gap:8px; margin:14px 0 4px}
 .progTab{flex:1; font-size:14px; font-weight:650; padding:11px 8px; border-radius:11px; border:1px solid var(--line); background:var(--card); color:var(--mut); cursor:pointer}
 .progTab.sel{border-color:var(--acc); color:var(--acc); background:var(--accD)}
+.progTabs.home{margin-top:0}
+.progTabs.home .progTab{font-size:13px; padding:8px 8px}
 .planPresc.tap{cursor:pointer; display:flex; align-items:center; justify-content:space-between}
 .planPresc b{color:var(--tx); font-size:15px}
 .planPresc .editi{color:var(--dim); font-size:12px; flex:none; margin-left:8px}

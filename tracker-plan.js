@@ -43,11 +43,11 @@ function prescFor(en, week){
   if(en.dose) return { text: en.dose, tested: true, kind: "effort", weight: null };
   // Copenhagen plank: bodyweight hold → progress the HOLD TIME (seconds), no load
   if(en.exerciseId === "copenhagen-plank") return { text: en.sets + " × " + holdSec(week) + " s/side", tested: true, kind: "hold", weight: null };
-  // body-weight lift (45° back extension): reps 15–25, then an optional plate he types in — no 15RM maths
+  // body-weight lift (45° back extension): reps 12–20 (owner 2026-10-17), then an optional plate he types in — no 15RM maths
   if(ex.loadType === "bodyweight"){
     var plate = (tested != null && tested > 0) ? tested : null;
-    return plate != null ? { text: "<b>+" + plate + " kg</b> plate · " + en.sets + " × 15–25 slow reps", tested: true, kind: "bw", weight: plate }
-                         : { text: "body weight · " + en.sets + " × 15–25 slow reps", tested: true, kind: "bw", weight: null };
+    return plate != null ? { text: "<b>+" + plate + " kg</b> plate · " + en.sets + " × 12–20 reps", tested: true, kind: "bw", weight: plate }
+                         : { text: "body weight · " + en.sets + " × 12–20 reps", tested: true, kind: "bw", weight: null };
   }
   // Suitcase carry: a timed carry — its "reps" dimension is TIME, so the seconds climb each week
   // (reps×3 s/arm), then drop when the weight steps up. Same double-progression, shown as time.
@@ -83,7 +83,8 @@ function renderPlan(){
   if(P.home) h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — Home · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
        '<div class="phaseReps">Every set near failure: holds until your form is about to break; knee work stops 1–2 reps short. No weights to calculate.</div></div>';
   else h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseLbl + ' · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
-       '<div class="phaseReps">Target ' + repForWeekIn(shownProg(), w) + ' reps · 3·3 tempo (calves 3·3·3) · heavy weights are calculated from your tested 15RM' + paceNote + '</div></div>';
+       '<div class="phaseReps">Reps as on each card · lower in about 3 s, then lift firmly in about 1–2 s, no jerk or bounce · heavy weights are calculated from your tested 15RM' + paceNote + '</div>' +
+       '<div class="phaseReps">Still very sore 3+ days after a session? Do 2 sets of everything that day.</div></div>';
   /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
   h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ' + warmTime(prog) + ' · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
@@ -122,7 +123,9 @@ function renderPlan(){
   var weekIsDone = done.indexOf(w) >= 0;
   h += '<div class="btnRow" style="margin:14px 0 6px"><button class="btn primary block" data-act="weekdone" data-prog="' + prog + '" data-week="' + w + '">' +
        (weekIsDone ? "✓ Week " + w + " " + shortName(prog) + " done — tap to undo" : "✓ Mark Week " + w + " " + shortName(prog) + " done") + '</button></div>';
-  h += '<div class="note dim" style="margin:4px 2px">Superset: one set of 1A, then one set of 1B, back to 1A — 3 rounds. Tick each lift when all its sets are done (top-left ✓) — it collapses to save space and the day count updates. Heavy lifts auto-calculate; tap a weight (✎) to log what you actually lifted. "+ note" logs go to the Notes tab.</div>';
+  /* the gym supersets run 2 or 3 rounds (the head of each says which); the home day keeps its own wording */
+  var roundsTx = P.home ? "3 rounds" : "as many rounds as the header says";
+  h += '<div class="note dim" style="margin:4px 2px">Superset: one set of 1A, then one set of 1B, back to 1A — ' + roundsTx + '. Tick each lift when all its sets are done (top-left ✓) — it collapses to save space and the day count updates. Heavy lifts auto-calculate; tap a weight (✎) to log what you actually lifted. "+ note" logs go to the Notes tab.</div>';
   if(previewing()){
     h = '<div class="previewBar">👀 Previewing <b>' + esc(shownProg().name) + '</b> from your current strength — not your active program yet.' +
         '<div class="btnRow" style="margin-top:8px"><button class="btn sm" data-act="previewreturn">↩ Return</button>' +
@@ -137,8 +140,9 @@ function planCardHtml(prog, w, en, tag){
   return '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — full">✓</button><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — partial" title="did it, but not fully">◐</button>' + (tag ? '<span class="ssTag">' + tag + '</span>' : '') + '<div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
     '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (pr.rate === "push" ? ' <span class="rateTag" style="color:var(--acc);font-size:11px" title="pushing harder — stuck adding reps">↑</span>' : pr.rate === "ease" ? ' <span class="rateTag" style="color:var(--dim);font-size:11px" title="easing — paying back the push">↓</span>' : '') + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
     (lt ? '<div class="lastTime">last time: <b>' + lt.kg + ' kg</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
-    /* ramp-up (owner 2026-10-13: the minimum): only the split squat and the deadlift, only in weeks of 11 reps or fewer */
-    (en.ramp && repForWeekIn(shownProg(), w) <= 11 ? '<div class="rampTip">↗ Ramp-up first: 1 light set, about half the weight, 6–8 reps</div>' : '') +
+    /* ramp-up (owner 2026-10-13: the minimum): only the split squat and the deadlift, only in weeks where THAT lift's own reps are 11 or fewer
+       (2026-10-17: its own window, so the deadlift's 10-rep start shows the tip from week 1) */
+    (en.ramp && clampReps(repForWeekIn(shownProg(), w), ex) <= 11 ? '<div class="rampTip">↗ Ramp-up first: 1 light set, about half the weight, 6–8 reps</div>' : '') +
     gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
     (hist.length >= 2 ? '<details class="prog"><summary>📈 Progress · ' + hist.length + ' sessions</summary><div class="progBody">' + progHtml(hist) + '</div></details>' : '') +
     '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button>' +

@@ -89,7 +89,7 @@ function onSetWeight(t){
     return;
   }
   if(cur==null){
-    openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at ~15 slow reps (kg).", mode:"number", placeholder:"kg",
+    openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at about 15 reps, lowering in about 3 s and lifting firmly (kg).", mode:"number", placeholder:"kg",
       onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0){ db.tested[exId]=Math.round(num(v)*4)/4; delete db.bank[exId]; save(); renderPlan(); } } });
     return;
   }

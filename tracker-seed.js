@@ -34,19 +34,22 @@ var SEED_TESTED = {
    - else inc:N  → fixed jump (barbell/cable/machine; 2.5 kg = a 1.25 plate per side).  (see nextWeight) */
 var SEED_EXERCISES = [
   /* repFloor / repCap = the lift's rep window (owner 2026-10-13, rep-plan.md; priority: protection + tendons,
-     then strength, then size). No window = the plain HSR ladder 15 → 6. */
-  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db", cat:"db", repFloor:8},
+     then strength, then size). No window = the plain HSR ladder 15 → 6.
+     Retuned 2026-10-17 (owner, kontor/dossiers/2026-10-17-exercise-review/review.md): the loaded lifts start at
+     12 reps (repCap 12), the fixed windows tightened (overhead press 9–12; external rotation and wrist curls 10–15);
+     the split squat has no floor now. Plans are worked out live from these, so a stored phone needs no migration. */
+  {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db", cat:"db", repCap:12},
   {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"bar", repCap:10},
-  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:8},
+  {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:8, repCap:12},
   {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25, cat:"single"},  /* single plate */
   {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:12, repCap:20},
   {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5, cat:"cable", repFloor:10, repCap:15},
   {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s",      inc:2.5},
   {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db", cat:"db"},
-  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:12, repCap:20},
-  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:8},   /* kg = ONE dumbbell */
-  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable", repFloor:8},
+  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:10, repCap:15},
+  {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repCap:12},
+  {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:8, repCap:12},   /* kg = ONE dumbbell */
+  {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable", repFloor:8, repCap:12},
   {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:10, repCap:15},
   {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:12, repCap:20},
   {id:"lu-raise",         name:"Lu Raises",                  pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:12, repCap:20},
@@ -58,9 +61,9 @@ var SEED_EXERCISES = [
   /* added 2026-10-13 with the two blended days (owner's batch: decisions.md 2026-10-10 to 2026-10-13). New ids,
      so each asks for its own weight; the seated calf raise and the Copenhagen plank (now in the home plan) stay
      defined above for the diary. The back extension is body weight plus an optional plate (loadType "bodyweight"). */
-  {id:"calf-raise-standing", name:"Standing Calf Raise",     pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable"},
-  {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db", repFloor:10, repCap:15},   /* kg = ONE dumbbell */
-  {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db", repFloor:12, repCap:20},
+  {id:"calf-raise-standing", name:"Standing Calf Raise",     pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repCap:12},
+  {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db", repFloor:9, repCap:12},   /* kg = ONE dumbbell */
+  {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db", repFloor:10, repCap:15},
   {id:"back-extension-45",name:"45° Back Extension",         pattern:"hinge",     loadType:"bodyweight", defaultUnit:"kg"},  /* kg = the optional plate */
   /* home sessions (owner 2026-10-13, home-plan.md version 2): body weight, every set by EFFORT (near failure) —
      the card shows its dose text, no weight maths, no diary entry. The Copenhagen plank reuses its old id. */
@@ -86,23 +89,25 @@ var SEED_DAYS = {
      The split squat tires his legs more, so it goes on Tuesday, furthest from Saturday's 4×4; the Romanian
      deadlift goes on Thursday. Layout and reasons: kontor/dossiers/2026-10-13-supersets/layout.md. */
   "strength-a": { id:"strength-a", name:"HSR Day A (Tue)", entries:[
-    {exerciseId:"atg-split-squat",     block:"heavy", sets:3, restSec:150, solo:true, ramp:true},   /* ramp: 1 light set first when the week's target is ≤ 11 reps */
-    {exerciseId:"db-chest-press",      block:"heavy", sets:3, restSec:150, ss:1},
-    {exerciseId:"cable-pulldown",      block:"heavy", sets:3, restSec:150, ss:1},
+    /* sets (owner 2026-10-17, exercise-review/review.md): the heavy, whole-body-costly lifts get 2, the light or cheap
+       lifts 3, the back extension 1; the two lifts of a superset share one count (its head reads the first lift's) */
+    {exerciseId:"atg-split-squat",     block:"heavy", sets:2, restSec:150, solo:true, ramp:true},   /* ramp: 1 light set first when the week's target is ≤ 11 reps */
+    {exerciseId:"db-chest-press",      block:"heavy", sets:2, restSec:150, ss:1},
+    {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, ss:1},
     {exerciseId:"leg-curl",            block:"heavy", sets:3, restSec:150, ss:2},
     {exerciseId:"lu-raise",            block:"gap",   sets:3, restSec:90,  ss:2, reps:15},
     {exerciseId:"calf-raise-standing", block:"heavy", sets:3, restSec:150, ss:3},
     {exerciseId:"face-pulls",          block:"gap",   sets:3, restSec:90,  ss:3, reps:15},
-    {exerciseId:"suitcase-carry",      block:"finisher", sets:3, restSec:90, timed:true},
+    {exerciseId:"suitcase-carry",      block:"finisher", sets:2, restSec:90, timed:true},
     {exerciseId:"back-extension-45",   block:"finisher", sets:1, restSec:0}
     /* back extension once a week (owner 2026-10-13), on the day WITHOUT the Romanian deadlift, last */
   ]},
   "strength-b": { id:"strength-b", name:"HSR Day B (Thu)", entries:[
     {exerciseId:"db-overhead-press",   block:"gap",   sets:3, restSec:90,  ss:1},   /* light, pain-free range, stop rule */
     {exerciseId:"tibialis-raise",      block:"gap",   sets:3, restSec:90,  ss:1, reps:15},
-    {exerciseId:"rdl",                 block:"heavy", sets:3, restSec:150, solo:true, ramp:true},
-    {exerciseId:"cable-row",           block:"heavy", sets:3, restSec:150, ss:2},
-    {exerciseId:"triceps-overhead",    block:"heavy", sets:3, restSec:150, ss:2},
+    {exerciseId:"rdl",                 block:"heavy", sets:2, restSec:150, solo:true, ramp:true},
+    {exerciseId:"cable-row",           block:"heavy", sets:2, restSec:150, ss:2},
+    {exerciseId:"triceps-overhead",    block:"heavy", sets:2, restSec:150, ss:2},
     {exerciseId:"hip-flexion",         block:"gap",   sets:3, restSec:90,  ss:3, reps:10},
     {exerciseId:"side-lying-er",       block:"gap",   sets:3, restSec:90,  ss:3, reps:15},
     {exerciseId:"reverse-wrist-curl",  block:"finisher", sets:3, restSec:60, reps:15}

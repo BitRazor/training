@@ -71,7 +71,7 @@ var EX_DESC = {
     feel: "A strong pull in the inner thigh/groin (adductors) of the top leg, plus the obliques bracing."
   },
   "suitcase-carry": {
-    setup: "One heavy DB/KB at one side, stand tall, shoulders level. It sits on the day without the deadlift, so your grip is as fresh as it gets at the end.",
+    setup: "One heavy DB/KB at one side, stand tall, shoulders level. It pairs with the chest press: walk short laps near your bench so you keep your spot. It sits on the day without the deadlift, so your grip is fresh.",
     move: "Walk a normal pace ~60 s, no lean toward or away from the weight, no shrug. Switch arms. Not to failure.",
     cue: "Anti-lean — the trunk fights side-bending the whole walk. Posture never breaks.",
     feel: "Grip, and the side of your trunk opposite the weight working to keep you upright."

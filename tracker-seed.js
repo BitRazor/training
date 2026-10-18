@@ -92,14 +92,17 @@ var SEED_DAYS = {
     /* sets (owner 2026-10-17, exercise-review/review.md): the heavy, whole-body-costly lifts get 2, the light or cheap
        lifts 3, the back extension 1; the two lifts of a superset share one count (its head reads the first lift's) */
     {exerciseId:"atg-split-squat",     block:"heavy", sets:2, restSec:150, solo:true, ramp:true},   /* ramp: 1 light set first when the week's target is ≤ 11 reps */
+    /* re-paired 2026-10-18 (owner): each superset stays in one area of his gym — at the dumbbells the chest press
+       pairs with the suitcase carry (laps near the bench); at the machines the pulldown pairs with the back extension
+       (now 2 sets), and the light Lu-raise dumbbells are carried over to the leg curl */
     {exerciseId:"db-chest-press",      block:"heavy", sets:2, restSec:150, ss:1},
-    {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, ss:1},
-    {exerciseId:"leg-curl",            block:"heavy", sets:3, restSec:150, ss:2},
-    {exerciseId:"lu-raise",            block:"gap",   sets:3, restSec:90,  ss:2, reps:15},
-    {exerciseId:"calf-raise-standing", block:"heavy", sets:3, restSec:150, ss:3},
-    {exerciseId:"face-pulls",          block:"gap",   sets:3, restSec:90,  ss:3, reps:15},
-    {exerciseId:"suitcase-carry",      block:"finisher", sets:2, restSec:90, timed:true},
-    {exerciseId:"back-extension-45",   block:"finisher", sets:1, restSec:0}
+    {exerciseId:"suitcase-carry",      block:"gap",   sets:2, restSec:90,  ss:1, timed:true},
+    {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, ss:2},
+    {exerciseId:"back-extension-45",   block:"gap",   sets:2, restSec:90,  ss:2},
+    {exerciseId:"leg-curl",            block:"heavy", sets:3, restSec:150, ss:3},
+    {exerciseId:"lu-raise",            block:"gap",   sets:3, restSec:90,  ss:3, reps:15},
+    {exerciseId:"calf-raise-standing", block:"heavy", sets:3, restSec:150, ss:4},
+    {exerciseId:"face-pulls",          block:"gap",   sets:3, restSec:90,  ss:4, reps:15}
     /* back extension once a week (owner 2026-10-13), on the day WITHOUT the Romanian deadlift, last */
   ]},
   "strength-b": { id:"strength-b", name:"HSR Day B (Thu)", entries:[

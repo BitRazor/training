@@ -92,17 +92,18 @@ var SEED_DAYS = {
     /* sets (owner 2026-10-17, exercise-review/review.md): the heavy, whole-body-costly lifts get 2, the light or cheap
        lifts 3, the back extension 1; the two lifts of a superset share one count (its head reads the first lift's) */
     {exerciseId:"atg-split-squat",     block:"heavy", sets:2, restSec:150, solo:true, ramp:true},   /* ramp: 1 light set first when the week's target is ≤ 11 reps */
-    /* by the areas of the owner's gym (2026-10-18; corrected twice on 2026-10-25: the back-extension bench stands by
-       the barbells and dumbbells, and no dumbbells leave the dumbbell area). At the dumbbells: the split squat alone,
-       the chest press with the suitcase carry (laps near the bench), the Lu raises with the back extension. At the
-       machines: the pulldown with the leg curl, the calf raise with the face pulls. Partners share a count, so the Lu
-       raises and the leg curl run 2 sets and the back extension 2 (the week's hamstring sets stay the same). */
-    {exerciseId:"db-chest-press",      block:"heavy", sets:2, restSec:150, ss:1},
-    {exerciseId:"suitcase-carry",      block:"gap",   sets:2, restSec:90,  ss:1, timed:true},
-    {exerciseId:"lu-raise",            block:"gap",   sets:2, restSec:90,  ss:2, reps:15},
-    {exerciseId:"back-extension-45",   block:"gap",   sets:2, restSec:90,  ss:2},
-    {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, ss:3},
-    {exerciseId:"leg-curl",            block:"heavy", sets:2, restSec:150, ss:3},
+    /* every superset inside one area of the owner's gym (2026-10-18; corrected on 2026-10-25: the back-extension bench
+       stands by the barbells and dumbbells, no dumbbells leave the dumbbell area, and the pairs run in plan order).
+       Split squat alone (dumbbells) → pulldown with leg curl (machines) → chest press with suitcase carry, then Lu
+       raises with back extension (dumbbells) → calf raise with face pulls (machines). Heavier pairs first, the carry's
+       grip after the pulldown, the Lu raises after the presses and pulls, cuff work last; walks happen between
+       supersets, never inside one. Partners share a count: Lu raises, leg curl and back extension run 2 sets. */
+    {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, ss:1},
+    {exerciseId:"leg-curl",            block:"heavy", sets:2, restSec:150, ss:1},
+    {exerciseId:"db-chest-press",      block:"heavy", sets:2, restSec:150, ss:2},
+    {exerciseId:"suitcase-carry",      block:"gap",   sets:2, restSec:90,  ss:2, timed:true},
+    {exerciseId:"lu-raise",            block:"gap",   sets:2, restSec:90,  ss:3, reps:15},
+    {exerciseId:"back-extension-45",   block:"gap",   sets:2, restSec:90,  ss:3},
     {exerciseId:"calf-raise-standing", block:"heavy", sets:3, restSec:150, ss:4},
     {exerciseId:"face-pulls",          block:"gap",   sets:3, restSec:90,  ss:4, reps:15}
     /* back extension once a week (owner 2026-10-13), on the day WITHOUT the Romanian deadlift, last */

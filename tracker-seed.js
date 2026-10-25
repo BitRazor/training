@@ -74,7 +74,8 @@ var SEED_EXERCISES = [
   {id:"sissy-squat",      name:"Sissy Squat",                pattern:"squat",     loadType:"effort", defaultUnit:"reps"},
   {id:"reverse-nordic",   name:"Reverse Nordic",             pattern:"squat",     loadType:"effort", defaultUnit:"reps"},
   {id:"glute-bridge-hold",name:"Glute Bridge Hold",          pattern:"hinge",     loadType:"effort", defaultUnit:"s"},
-  {id:"rkc-plank",        name:"RKC Plank",                  pattern:"core",      loadType:"effort", defaultUnit:"s"}
+  {id:"rkc-plank",        name:"RKC Plank",                  pattern:"core",      loadType:"effort", defaultUnit:"s"},
+  {id:"towel-stretch",    name:"Towel Stretch Behind the Back", pattern:"mobility", loadType:"effort", defaultUnit:"s"}   /* 2026-10-25: left shoulder, pain-free, until the physio */
 ];
 
 /* ---- DAYS (the training-day tracks a program points at; reused across programs).
@@ -126,7 +127,8 @@ var SEED_DAYS = {
   "home-wed": { id:"home-wed", name:"Home · Wed", home:true, entries:[
     {exerciseId:"bear-crawl",        block:"core", sets:2, dose:"2 × until the hips stop staying level (start ~20–40 s)"},
     {exerciseId:"bear-step-through", block:"core", sets:2, dose:"2–3 × as many clean reps per side as you can (start ~5)"},
-    {exerciseId:"hollow-hold",       block:"core", sets:3, dose:"3 × hold until the lower back starts to lift · past ~45 s, the harder version"}
+    {exerciseId:"hollow-hold",       block:"core", sets:3, dose:"3 × hold until the lower back starts to lift · past ~45 s, the harder version"},
+    {exerciseId:"towel-stretch",     block:"core", sets:1, dose:"10 × 3 s gentle holds · pain-free, well below the stab · daily is fine"}
   ]},
   "home-sun": { id:"home-sun", name:"Home · Sun", home:true, entries:[
     {exerciseId:"lateral-step-down", block:"legs", sets:3, restSec:60, solo:true, dose:"3 × per leg, stop 1–2 reps before the knee would cave or twist (start ~8–10)"},

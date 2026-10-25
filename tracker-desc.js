@@ -21,7 +21,7 @@ var EX_GIF_PENDING = {
   "db-overhead-press":"dbohp", "side-lying-er":"sler",
   /* home exercises (2026-10-13) */
   "bear-crawl":"bearcrawl", "bear-step-through":"bearstep", "hollow-hold":"hollow", "lateral-step-down":"stepdown",
-  "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank"
+  "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank", "towel-stretch":"towelstretch"
 };
 /* 2026-10-17 (owner, exercise-review/review.md): the gym lifts' speed is "lower in about 3 s, then lift firmly in
    about 1–2 s, no jerk or bounce" (the old 3 s down / 3 s up is gone); the face-pull squeeze, the hip-flexion top
@@ -202,6 +202,12 @@ var EX_DESC = {
     move: "Tuck the pelvis, squeeze the glutes as hard as you can, ribs down, and pull the elbows toward the toes without moving. 10 s at full tension.",
     cue: "Full tension, short holds; rest 30–60 s. Harder: elbows further forward.",
     feel: "The whole front of the body shaking with effort; nothing in the lower back."
+  },
+  "towel-stretch": {
+    setup: "Standing tall, a towel in both hands: the right hand over the right shoulder holds the top end, the left hand behind the lower back holds the bottom end.",
+    move: "Pull the towel gently upward with the top hand so the left hand slides up your back, until a mild stretch at the front or top of the left shoulder. Hold 3 s, let it back down. 10 times. The other side gently too, if you like.",
+    cue: "Pain-free and well below the stab: any stab on the side of the shoulder stops it until the physio has seen the shoulder. Small, slow pulls, never a yank. Fine once or twice a day, any day.",
+    feel: "A mild stretch at the front or top of the left shoulder; nothing sharp."
   },
   "internal-rotation": {
     setup: "Lie on your back (or stand with a cable), a rolled towel under the working upper arm, elbow bent 90° tucked at your side.",

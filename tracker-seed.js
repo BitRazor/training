@@ -92,18 +92,19 @@ var SEED_DAYS = {
     /* sets (owner 2026-10-17, exercise-review/review.md): the heavy, whole-body-costly lifts get 2, the light or cheap
        lifts 3, the back extension 1; the two lifts of a superset share one count (its head reads the first lift's) */
     {exerciseId:"atg-split-squat",     block:"heavy", sets:2, restSec:150, solo:true, ramp:true},   /* ramp: 1 light set first when the week's target is ≤ 11 reps */
-    /* by the areas of the owner's gym (2026-10-18; the back-extension bench corrected 2026-10-25: it stands by the
-       barbells and dumbbells). At the dumbbells: the split squat alone, the chest press with the suitcase carry (laps
-       near the bench), then the back extension's 1 set. At the machines: the pulldown alone (no 2-set partner there),
-       the leg curl with the Lu raises (light dumbbells carried over), the calf raise with the face pulls. */
+    /* by the areas of the owner's gym (2026-10-18; corrected twice on 2026-10-25: the back-extension bench stands by
+       the barbells and dumbbells, and no dumbbells leave the dumbbell area). At the dumbbells: the split squat alone,
+       the chest press with the suitcase carry (laps near the bench), the Lu raises with the back extension. At the
+       machines: the pulldown with the leg curl, the calf raise with the face pulls. Partners share a count, so the Lu
+       raises and the leg curl run 2 sets and the back extension 2 (the week's hamstring sets stay the same). */
     {exerciseId:"db-chest-press",      block:"heavy", sets:2, restSec:150, ss:1},
     {exerciseId:"suitcase-carry",      block:"gap",   sets:2, restSec:90,  ss:1, timed:true},
-    {exerciseId:"back-extension-45",   block:"gap",   sets:1, restSec:0},
-    {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, solo:true},
-    {exerciseId:"leg-curl",            block:"heavy", sets:3, restSec:150, ss:2},
-    {exerciseId:"lu-raise",            block:"gap",   sets:3, restSec:90,  ss:2, reps:15},
-    {exerciseId:"calf-raise-standing", block:"heavy", sets:3, restSec:150, ss:3},
-    {exerciseId:"face-pulls",          block:"gap",   sets:3, restSec:90,  ss:3, reps:15}
+    {exerciseId:"lu-raise",            block:"gap",   sets:2, restSec:90,  ss:2, reps:15},
+    {exerciseId:"back-extension-45",   block:"gap",   sets:2, restSec:90,  ss:2},
+    {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, ss:3},
+    {exerciseId:"leg-curl",            block:"heavy", sets:2, restSec:150, ss:3},
+    {exerciseId:"calf-raise-standing", block:"heavy", sets:3, restSec:150, ss:4},
+    {exerciseId:"face-pulls",          block:"gap",   sets:3, restSec:90,  ss:4, reps:15}
     /* back extension once a week (owner 2026-10-13), on the day WITHOUT the Romanian deadlift, last */
   ]},
   "strength-b": { id:"strength-b", name:"HSR Day B (Thu)", entries:[

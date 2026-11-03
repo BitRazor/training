@@ -13,15 +13,19 @@ var EX_GIF = {
   "chest-press":"press", "cable-row":"row1", "triceps-overhead":"vpush",
   "face-pulls":"facep", "lateral-raise":"latr", "db-chest-press":"dbpress",
   /* 2026-10-17: from the owner's own photo album (the Lu raise clip shrunk from 21 MB to 1.3 MB, 240x360) */
-  "lu-raise":"luraise", "calf-raise-standing":"calfstand", "back-extension-45":"backext"
+  "lu-raise":"luraise", "calf-raise-standing":"calfstand", "back-extension-45":"backext",
+  /* 2026-11-03 (owner: "put gif's on each exercise" of the two home days): fitnessprogramer.com, each looked at
+     frame by frame. The reverse Nordic is the site's "Bodyweight Kneeling Sissy Squat" (same move: kneeling,
+     straight body, lean back); the hollow hold is its still picture, turned into a GIF without changing a pixel. */
+  "bear-crawl":"bearcrawl", "hollow-hold":"hollow", "towel-stretch":"towelstretch", "lateral-step-down":"stepdown",
+  "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank"
 };
 /* lifts whose picture is not added yet (2026-10-13): the card shows a labelled placeholder naming the
    expected file (project lesson L-2: never a silent gap). Move an entry to EX_GIF once its gif is in gifs/. */
 var EX_GIF_PENDING = {
   "db-overhead-press":"dbohp", "side-lying-er":"sler",
-  /* home exercises (2026-10-13) */
-  "bear-crawl":"bearcrawl", "bear-step-through":"bearstep", "hollow-hold":"hollow", "lateral-step-down":"stepdown",
-  "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank", "towel-stretch":"towelstretch"
+  /* home: none of the site's 1,234 exercise pages shows the bear step-through (2026-11-03); his own picture only */
+  "bear-step-through":"bearstep"
 };
 /* 2026-10-17 (owner, exercise-review/review.md): the gym lifts' speed is "lower in about 3 s, then lift firmly in
    about 1–2 s, no jerk or bounce" (the old 3 s down / 3 s up is gone); the face-pull squeeze, the hip-flexion top

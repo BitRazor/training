@@ -122,20 +122,22 @@ var SEED_DAYS = {
   ]},
   /* HOME days (owner 2026-10-13: "Put home exercises in my app too"; home-plan.md version 2). Not part of any
      program's `days` (block completion + strength carry ignore them); own week counters. `dose` = the card text:
-     every set by effort, near failure. Wednesday: light core (the day after the split squat, before the deadlift).
-     Sunday: the knee work + holds (48 h before Tuesday's split squat). */
+     every set by effort, near failure. 2026-11-03 even split (owner: "Forget the cardio.... O need two those
+     exarcise to split..."), about 20 min each: the bridge ⇄ Copenhagen pair moved from Sunday to Wednesday.
+     Wednesday: core and hips, no knee work (the day after the split squat, before the deadlift).
+     Sunday: the knee work (48 h before Tuesday's split squat), the RKC plank last. */
   "home-wed": { id:"home-wed", name:"Home · Wed", home:true, entries:[
     {exerciseId:"bear-crawl",        block:"core", sets:2, dose:"2 × until the hips stop staying level (start ~20–40 s)"},
     {exerciseId:"bear-step-through", block:"core", sets:2, dose:"2–3 × as many clean reps per side as you can (start ~5)"},
     {exerciseId:"hollow-hold",       block:"core", sets:3, dose:"3 × hold until the lower back starts to lift · past ~45 s, the harder version"},
+    {exerciseId:"glute-bridge-hold", block:"hold", sets:3, restSec:60, ss:1, dose:"3 × until the hips start to drop (start ~20–45 s) · then one leg · then the crab hold"},
+    {exerciseId:"copenhagen-plank",  block:"hold", sets:3, restSec:60, ss:1, dose:"3 × per side until the hips start to drop (start ~20 s) · past ~45 s, the longer lever"},
     {exerciseId:"towel-stretch",     block:"core", sets:1, dose:"10 × 3 s gentle holds · pain-free, well below the stab · daily is fine"}
   ]},
   "home-sun": { id:"home-sun", name:"Home · Sun", home:true, entries:[
     {exerciseId:"lateral-step-down", block:"legs", sets:3, restSec:60, solo:true, dose:"3 × per leg, stop 1–2 reps before the knee would cave or twist (start ~8–10)"},
     {exerciseId:"sissy-squat",       block:"legs", sets:2, restSec:90, solo:true, dose:"2 × stop 1–2 reps before failure, holding a support"},
     {exerciseId:"reverse-nordic",    block:"legs", sets:2, restSec:90, solo:true, dose:"2 × as many controlled reps as you have (now ~2–3)"},
-    {exerciseId:"glute-bridge-hold", block:"hold", sets:3, restSec:60, ss:1, dose:"3 × until the hips start to drop (start ~20–45 s) · then one leg · then the crab hold"},
-    {exerciseId:"copenhagen-plank",  block:"hold", sets:3, restSec:60, ss:1, dose:"3 × per side until the hips start to drop (start ~20 s) · past ~45 s, the longer lever"},
     {exerciseId:"rkc-plank",         block:"finisher", sets:3, restSec:45, dose:"3–5 × 10 s at full tension"}
   ]}
 };
@@ -183,11 +185,11 @@ var WARMUP_TIME = { "strength-a":"~10 min", "strength-b":"~10 min", "home-wed":"
 var CURRENT_WEEK = [
   {day:"Mon", label:"Zone 2 · 45–60 min", type:"cardio",   ref:"z2", note:"Easy, zero-impact"},
   {day:"Tue", label:"HSR Day A · full body", type:"strength", ref:"strength-a", note:"Split-squat day · supersets · evening · NO cold-water after"},
-  {day:"Wed", label:"Zone 2 · 45–60 min", type:"cardio",   ref:"z2", note:"Easy, zero-impact", home:"home-wed"},   /* + the light home core session */
+  {day:"Wed", label:"Zone 2 · 45–60 min", type:"cardio",   ref:"z2", note:"Easy, zero-impact", home:"home-wed"},   /* + the home core-and-hips session */
   {day:"Thu", label:"HSR Day B · full body", type:"strength", ref:"strength-b", note:"Deadlift day · supersets · evening · NO cold-water after"},
   {day:"Fri", label:"Complete rest",      type:"rest",     ref:null, note:"Recover"},
   {day:"Sat", label:"Norwegian 4×4",      type:"hiit",     ref:"norwegian-4x4", note:"Morning · CWI OK today · carb refill"},
-  {day:"Sun", label:"Home · legs and holds", type:"home",  ref:"home-sun", note:"The heavier home session · knee work first · eat normally"}
+  {day:"Sun", label:"Home · legs", type:"home",  ref:"home-sun", note:"Knee work first · eat normally"}
 ];
 
 /* nutrition reference (nutrition/protein-protocol.md) */

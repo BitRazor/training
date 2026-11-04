@@ -26,7 +26,7 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, schedule:null, dayNames:{}, settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -106,8 +106,16 @@ function normalize(){
   if(db.session===undefined || (db.session!==null && typeof db.session!=="object")) db.session=null;
   /* the smart rest timer (2026-11-04) keeps each set's tick time in the session; a session saved before has none */
   if(db.session && (!db.session.ticks || typeof db.session.ticks!=="object" || Array.isArray(db.session.ticks))) db.session.ticks={};
+  /* the clock control (2026-11-04, Part 1): the ticks that were on before the session began (base) and when the clock was
+     stopped (stoppedAt); a session saved before has neither */
+  if(db.session && db.session.base!==undefined && !(Array.isArray(db.session.base) && db.session.base.every(function(k){ return typeof k==="string"; }))) delete db.session.base;
+  if(db.session && db.session.stoppedAt!==undefined && !(typeof db.session.stoppedAt==="number" && isFinite(db.session.stoppedAt))) delete db.session.stoppedAt;
   if(!db.profile.hrZones||!db.profile.hrZones.z1) regenZones();
   migrate();
+  /* Part 1, additive: the week schedule (null = the original week) and the workout names (tracker-week.js). After
+     migrate, which refreshes the day tracks they are checked against. Version 1 ignores both. */
+  db.dayNames=cleanNames(db.dayNames);
+  db.schedule=cleanSchedule(db.schedule);
 }
 function load(){
   try{var raw=localStorage.getItem(STORE_KEY); db=raw?JSON.parse(raw):seedDb();}catch(e){db=seedDb();}
@@ -182,11 +190,14 @@ function maybeCompleteActive(){
    Version 2 (2026-11-04): a bottom bar with four destinations (Today, Workout, Progress, More) and the pages
    reached from More. The v1 view ids and names stay: "programs" = Workout (the old Plan), "library" = Programs,
    "log" = Notes, "nutrition" = Fuel. The More tab stays selected while one of its pages is open. */
-var VIEWS=["today","programs","progress","more","library","exercises","log","nutrition","settings"];
+var VIEWS=["today","programs","progress","more","library","exercises","log","nutrition","settings","schedule"];
 var MORE_PAGES=["library","exercises","log","nutrition","settings"];
-function navOf(name){ return MORE_PAGES.indexOf(name)>=0 ? "more" : name; }
+/* the week schedule editor (2026-11-04) is opened from Today or from More: that tab stays selected, and its back
+   control (and Android back, tracker-week.js) returns there */
+function navOf(name){ if(name==="schedule") return ui.schedFrom==="today" ? "today" : "more"; return MORE_PAGES.indexOf(name)>=0 ? "more" : name; }
 function showView(name){
   if(VIEWS.indexOf(name)<0) name="today";
+  if(name==="schedule" && ui.view!=="schedule") ui.schedFrom=(ui.view==="today") ? "today" : "more";
   if(name !== "programs") clearPreview();   /* leaving the Workout auto-reverts a just-looking preview */
   ui.view=name;
   VIEWS.forEach(function(v){var el=$("#view-"+v); if(el)el.hidden=(v!==name);});
@@ -194,7 +205,7 @@ function showView(name){
   $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===nav);});
   if(name!=="programs"){ var nb=$("#nextBar"); if(nb){ nb.hidden=true; nb.innerHTML=""; } }   /* the Next pill lives only on the Workout */
   ({today:renderToday, programs:renderPlan, progress:renderProgress, more:renderMore, library:renderLibrary, exercises:renderExercises,
-    log:renderLog, nutrition:renderNutrition, settings:renderSettings}[name])();
+    log:renderLog, nutrition:renderNutrition, settings:renderSettings, schedule:renderSchedule}[name])();
   if(typeof onViewShown==="function") onViewShown(name);   /* the rest pill, keep-awake (tracker-session.js) */
   window.scrollTo(0,0);
 }
@@ -254,9 +265,25 @@ document.addEventListener("click",function(e){
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }
   if(act==="appinfo"){ openAppSheet(); return; }
   if(act==="checknow"){ onCheckNow(t); return; }
+  if(act==="apprestart"){ appRestart(); return; }
+  /* Part 1 (2026-11-04): the workout clock, the week schedule editor, renaming a workout */
+  if(act==="clocksheet"){ openClockSheet(); return; }
+  if(act==="clockstop"){ stopClock(); return; }
+  if(act==="clockreset"){ resetClock(); return; }
+  if(act==="schedday"){ openDaySheet(+t.getAttribute("data-day")); return; }
+  if(act==="schedset"){ setDayChoice(+t.getAttribute("data-day"), t.getAttribute("data-choice")); return; }
+  if(act==="schedhome"){ setDayHome(+t.getAttribute("data-day"), t.getAttribute("data-home")); return; }
+  if(act==="schedreset"){ resetWeek(); return; }
+  if(act==="rename"){ openRename(t.getAttribute("data-prog")); return; }
+  if(act==="renamereset"){ var rp=t.getAttribute("data-prog"); closeModal(); saveDayName(rp, ""); return; }
   if(act==="export"){ doExport(); return; }
   if(act==="import"){ $("#importFile").click(); return; }
   if(act==="reset"){ confirmModal("Erase all data?", "This wipes everything saved on this device. Export first if you want a backup.", function(){ localStorage.removeItem(STORE_KEY); location.reload(); }); return; }
+});
+/* Enter in a one-line sheet field (the rename sheet) saves, as its Save button does */
+document.addEventListener("keydown",function(e){
+  var f=e.target; if(e.key!=="Enter"||e.isComposing||!f||f.id!=="mText"||f.tagName!=="INPUT") return;   /* not while a keyboard is still composing a word */
+  e.preventDefault(); modalSubmit(f.value);
 });
 $("#importFile").addEventListener("change",function(ev){
   var f=ev.target.files&&ev.target.files[0]; if(!f)return;

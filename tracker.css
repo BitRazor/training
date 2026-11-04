@@ -182,8 +182,20 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 .tileI .ic{width:24px; height:24px}
 .tileT{font-size:16.5px; font-weight:700; line-height:1.2}
 .tileS{font-size:13px; color:var(--tx2); line-height:1.35; margin-top:-8px}
+.moreTile.wide{grid-column:1 / -1; display:grid; grid-template-columns:44px 1fr; column-gap:14px; row-gap:2px; align-items:center; min-height:0}
+.moreTile.wide .tileI{grid-row:1 / span 2}
+.moreTile.wide .tileS{margin-top:0}
 .appVerBig{font-size:24px; font-weight:800; letter-spacing:-.01em}
 .appLine{font-size:14px; color:var(--tx2); margin-top:12px; line-height:1.45}
+.appStatus{display:flex; align-items:flex-start; gap:12px; margin:14px 0 4px; padding:12px 14px; border-radius:18px; background:var(--card); font-size:15.5px; font-weight:600; line-height:1.4}
+.asIc{flex:none; width:36px; height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--high); color:var(--tx2)}
+.appStatus .appLast{padding-top:7px}
+.appStatus.ok .asIc,.appStatus.ready .asIc{background:var(--accTint); color:var(--acc)}
+.appStatus.ready{box-shadow:inset 0 0 0 1px var(--accLine)}
+.appStatus.offline .asIc,.appStatus.broken .asIc,.appStatus.skipped .asIc{background:var(--warmTint); color:var(--warm)}
+.appStatus.app .asIc{background:var(--cardioTint); color:var(--cardio)}
+.appStatus.busy{color:var(--tx2)}
+.appRestart{margin-top:10px}
 
 /* ===================== 8. Workout (calm: dark, one accent, big numbers) ===================== */
 .previewBar{display:flex; gap:12px; align-items:flex-start; margin:14px 0 0; padding:14px 16px; border-radius:var(--r-card); background:var(--cardioTint); color:var(--tx); font-size:14.5px; line-height:1.45}
@@ -192,11 +204,19 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 /* the sticky session header */
 .sessHead{position:sticky; top:0; z-index:20; margin:4px -16px 0; padding:6px 16px 10px; background:rgba(11,13,16,.96); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px)}
 .shRow{display:flex; align-items:center; gap:10px; min-height:52px}
-.shDay{font-size:22px; font-weight:800; letter-spacing:-.01em; white-space:nowrap}
+.shDay{display:inline-flex; align-items:center; gap:6px; flex:0 1 auto; min-width:0; min-height:48px; padding:0 2px; border:0; background:none; color:var(--tx); font:800 22px/1.2 var(--font); letter-spacing:-.01em; white-space:nowrap; text-align:left}
+.shName{min-width:0; overflow:hidden; text-overflow:ellipsis}
+.shDay .shEdit{flex:none; width:16px; height:16px; color:var(--tx3)}
+.shDay:active .shName{opacity:.7}
 .shWeek{position:relative; display:inline-flex; align-items:center; gap:4px; min-height:40px; padding:0 12px 0 16px; border:0; border-radius:999px; background:var(--raised); color:var(--tx); font:700 15px var(--font)}
 .shWeek::after{content:""; position:absolute; left:0; right:0; top:-4px; bottom:-4px}
-.shTime{margin-left:auto; display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; border-radius:999px; background:var(--accTint); color:var(--acc); font-weight:700; font-size:15px}
+.shTime{position:relative; flex:none; margin-left:auto; display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 12px; border:0; border-radius:999px; background:var(--accTint); color:var(--acc); font:700 15px var(--font); font-variant-numeric:tabular-nums}
+.shTime::after{content:""; position:absolute; left:-4px; right:-4px; top:-6px; bottom:-6px}
 .shTime[hidden]{display:none}
+.shTime .icStop{display:none}
+.shTime.stopped{background:var(--raised); color:var(--tx2)}
+.shTime.stopped .icRun{display:none}
+.shTime.stopped .icStop{display:inline-block}
 .shBar{height:4px}
 /* the day switcher: one control, the home days grouped at its end in purple */
 .daySwitch{display:flex; gap:8px; margin:12px 0 8px}
@@ -426,6 +446,16 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 .sumNext{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:20px; font-size:16px; font-weight:600}
 .sumNext .ic{color:var(--tx2)}
 
+/* the workout clock's sheet (2026-11-04): the time big, then Stop and Reset */
+.clockBig{margin:2px 0 4px; text-align:center; font-size:56px; font-weight:800; letter-spacing:-.02em; line-height:1.05; color:var(--acc); font-variant-numeric:tabular-nums}
+.clockBig.stopped{color:var(--tx2)}
+.clockSub{margin:0 0 18px; text-align:center; font-size:14.5px; color:var(--tx2); line-height:1.45}
+.clockList{margin:0; background:var(--card)}
+.clockRow[data-act="clockstop"] .liI{background:var(--accTint); color:var(--acc)}
+/* the rename sheet */
+.renameHint{margin:10px 2px 0; font-size:13.5px; color:var(--tx2); line-height:1.45}
+.renameReset{margin-top:10px}
+
 /* ===================== 11. Today (expressive) ===================== */
 .todayHero{position:relative; margin:12px 0; padding:20px; border-radius:24px; background:var(--card); overflow:hidden}
 .todayHero.gym{background:linear-gradient(150deg,#232B12 0%,#171B14 46%,var(--card) 100%)}
@@ -457,8 +487,8 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 .hhSub{display:block; font-size:13.5px; color:var(--tx2); margin-top:2px}
 .homeBtn{background:var(--homec); color:#1C0D2A; font-weight:700}
 /* the week strip */
-.weekStrip{display:grid; grid-template-columns:repeat(7,1fr); gap:6px}
-.wrow{position:relative; display:flex; flex-direction:column; align-items:center; gap:7px; padding:10px 0 12px; border:0; border-radius:16px; background:var(--card); color:var(--tx2); font:inherit; min-height:84px}
+.weekStrip{display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:6px}   /* equal days, whatever a name's length */
+.wrow{position:relative; display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; padding:10px 0 12px; border:0; border-radius:16px; background:var(--card); color:var(--tx2); font:inherit; min-height:84px}
 button.wrow{cursor:pointer}
 button.wrow:active{background:var(--raised)}
 .wrow .wd{font-size:12.5px; font-weight:700}
@@ -472,6 +502,14 @@ button.wrow:active{background:var(--raised)}
 .wrow .dot2{position:absolute; top:46px; right:calc(50% - 26px); width:20px; height:20px; border-radius:7px; display:flex; align-items:center; justify-content:center; background:var(--homec); color:#1C0D2A; border:2px solid var(--card)}
 .wrow .dot2 .ic{width:12px; height:12px}
 .wrow.today{background:var(--raised); color:var(--tx); box-shadow:inset 0 0 0 2px var(--acc)}
+.wrow .wn{max-width:100%; padding:0 3px; font-size:11px; font-weight:600; line-height:1.2; color:var(--tx3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.wrow.today .wn{color:var(--tx2)}
+.sectRow{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:22px 4px 10px}
+.sectRow .sectH{margin:0}
+.editWeek{position:relative; display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 14px; border:0; border-radius:999px; background:var(--card); color:var(--tx); font:600 14px var(--font)}
+.editWeek::after{content:""; position:absolute; left:0; right:0; top:-4px; bottom:-4px}
+.editWeek .ic{color:var(--acc)}
+.editWeek:active{background:var(--raised)}
 /* program card + last session */
 .progCard{display:block; width:100%; text-align:left; border:0; color:var(--tx); font:inherit; cursor:pointer}
 .progCard > span{display:flex}
@@ -494,6 +532,32 @@ button.wrow:active{background:var(--raised)}
 .lsName{flex:1; min-width:0}
 .lsKg{flex:none; font-weight:700}
 .lsRow.pb .lsKg{color:var(--acc)}
+
+/* ===================== 11b. the week schedule editor (2026-11-04) ===================== */
+.schedRow,.choice,.nameRow{gap:12px}
+.sdWd{flex:none; width:34px; font-size:14px; font-weight:800; color:var(--tx2)}
+.schedRow.today .sdWd{color:var(--acc)}
+.schedRow .dot,.choice .dot,.nameRow .dot{flex:none; width:36px; height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:var(--raised); color:var(--tx3)}
+.schedRow .dot .ic,.choice .dot .ic,.nameRow .dot .ic{width:19px; height:19px}
+.schedRow .dot.strength,.choice .dot.strength,.nameRow .dot.strength{color:var(--acc); background:var(--accTint)}
+.schedRow .dot.cardio,.choice .dot.cardio{color:var(--cardio); background:var(--cardioTint)}
+.schedRow .dot.hiit,.choice .dot.hiit{color:var(--warm); background:var(--warmTint)}
+.schedRow .dot.home,.choice .dot.home,.nameRow .dot.home{color:var(--homec); background:var(--homeTint)}
+.sdWhat{font-weight:700}
+.sdAdd{display:inline-block; margin-left:8px; padding:2px 8px; border-radius:999px; background:var(--homeTint); color:var(--homec); font-size:12.5px; font-weight:700; vertical-align:1px; white-space:nowrap}
+.sdSub{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.schedOff{margin:10px 4px 0; color:var(--warm)}
+.schedReset{margin-top:14px}
+.nameRow .chev{width:18px; height:18px}
+.daySheet > .sectH:first-child{margin-top:0}
+.daySheet .sectH{margin:16px 0 8px}
+.choiceList{margin:0; background:var(--card)}
+.choice.sel{background:var(--accTint)}
+.choice.sel .liT{color:var(--acc)}
+.choice .chk{flex:none; display:flex; color:var(--acc)}
+.homeAdd{margin:2px 0 4px}
+.homeAdd .chip{min-height:40px; padding:0 16px; background:var(--high)}
+.homeAdd .chip.sel{background:var(--homec); color:#1C0D2A}
 
 /* ===================== 12. Progress ===================== */
 .liftChips{margin:4px -16px 4px; padding:6px 16px}

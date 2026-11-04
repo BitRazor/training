@@ -55,6 +55,9 @@ var ICONS = {
   swap:     '<path d="M7 7.5h11l-3-3M17 16.5H6l3 3"/>',
   link:     '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
   bell:     '<path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/>',
+  /* 2026-11-04 (Part 1): the stopped workout clock; an update check that could not reach GitHub */
+  stop:     '<rect x="6.5" y="6.5" width="11" height="11" rx="2.5"/>',
+  wifiOff:  '<path d="M8.8 16a4.6 4.6 0 0 1 6.4 0M5.6 12.6a9.2 9.2 0 0 1 12.8 0M2.5 9.2a13.8 13.8 0 0 1 19 0M12 19.5v.1M4 4l16 16"/>',
   pulse:    '<path d="M3 12h4l2.5-6 5 12 2.5-6h4"/>'
 };
 function icon(name, cls){

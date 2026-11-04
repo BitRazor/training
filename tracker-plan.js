@@ -8,7 +8,8 @@
    switcher, one quiet phase line with an info sheet, set rows with 56 dp ticks (tracker-session.js), action chips
    and an exercise sheet (tracker-progress.js). The v1 hooks stay (.planCard, .exName, .exTick, .planPresc, …). */
 
-function shortName(prog){ return prog === "strength-a" ? "Day A" : prog === "strength-b" ? "Day B" : ((db && db.programs && db.programs[prog] && db.programs[prog].name) || prog); }
+/* a workout's name on every screen: his own name, else "Day A" / "Day B" / "Home · <its weekday>" (tracker-week.js) */
+function shortName(prog){ return dayName(prog); }
 function isHomeDay(prog){ return typeof HOME_DAYS !== "undefined" && HOME_DAYS.indexOf(prog) >= 0; }
 /* rest seconds → "2.5 min" / "1.5 min" / "1 min" */
 function fmtMin(sec){ return (Math.round((sec || 0) / 6) / 10) + " min"; }
@@ -16,8 +17,8 @@ function fmtMin(sec){ return (Math.round((sec || 0) / 6) / 10) + " min"; }
 function warmTime(prog){ return (typeof WARMUP_TIME !== "undefined" && WARMUP_TIME[prog]) || "~10 min"; }
 /* the lifts heading word: "Main lifts" in the gym, "Exercises" at home */
 function liftsWord(prog){ var P = db.programs[prog]; return (P && P.home) ? "Exercises" : "Main lifts"; }
-/* the day-track for today: a gym or home day, or the home session riding on a cardio day (Wednesday) */
-function todayProgram(){ var t = CURRENT_WEEK[weekdayIdx()]; if(!t) return null; if(t.type === "strength" || t.type === "home") return t.ref; return t.home || null; }
+/* the day-track for today in his week schedule: a gym or home day, or the home session riding on a cardio day */
+function todayProgram(){ var t = weekPlan()[weekdayIdx()]; if(!t) return null; if(t.type === "strength" || t.type === "home") return t.ref; return t.home || null; }
 function activeProg(){ return getProgram(db.activeProgram); }
 /* the active program's chosen climb-rate mode (forward only); defaults to plateau (= current behavior) */
 function activeRateMode(){ var ps = db.programState && db.programState[db.activeProgram]; return (ps && ps.rateMode) || DEFAULT_RATE_MODE; }
@@ -122,14 +123,16 @@ function renderPlan(){
       '<button class="btn primary sm" data-act="previewstart" data-prog="' + esc(shownProgramId()) + '">' + icon("play") + 'Start training</button></div></div></div>';
   }
   h += mainHead("Workout", esc(SP.name) + " · " + SP.weeks + " weeks");
-  /* sticky session header: the day, the week sheet, elapsed time once a set is ticked, lifts done of total */
-  h += '<div class="sessHead"><div class="shRow"><div class="shDay">' + esc(shortName(prog)) + '</div>' +
+  /* sticky session header: the day (tap to rename it), the week sheet, the workout clock once a set is ticked (tap:
+     stop or reset it, tracker-session.js), lifts done of total */
+  h += '<div class="sessHead"><div class="shRow"><button class="shDay" data-act="rename" data-prog="' + prog + '" title="Rename this workout"><span class="shName">' + esc(shortName(prog)) + '</span>' + icon("edit", "sm shEdit") + '</button>' +
     '<button class="shWeek" data-act="weeksheet" aria-label="Pick a week">Week ' + w + icon("chevD", "sm") + '</button>' +
-    '<span class="shTime" hidden>' + icon("timer", "sm") + '<span class="shClock"></span></span></div>' +
+    '<button class="shTime" data-act="clocksheet" title="Workout clock" hidden>' + icon("timer", "sm icRun") + icon("stop", "sm icStop") + '<span class="shClock"></span></button></div>' +
     '<div class="bar shBar"><i style="width:' + Math.round(liftDone / (P.entries.length || 1) * 100) + '%"></i></div></div>';
-  /* the day switcher: one segmented control, the home days grouped at its end */
+  /* the day switcher: one segmented control, the home days grouped at its end (a home tab: his name for it, else the
+     weekday it sits on in his week) */
   var dayTab = function(id){ var home = isHomeDay(id);
-    return '<button class="progTab' + (id === prog ? " sel" : "") + '" data-act="prog" data-prog="' + id + '">' + (home ? icon("house", "sm") + '<span class="sr">Home </span>' + esc(CURRENT_WEEK_DAY_OF[id] || id) : esc(shortName(id))) + '</button>'; };
+    return '<button class="progTab' + (id === prog ? " sel" : "") + '" data-act="prog" data-prog="' + id + '">' + (home ? icon("house", "sm") + '<span class="sr">Home </span>' : '') + '<span class="ptName">' + esc(home ? homeTabLabel(id) : shortName(id)) + '</span></button>'; };
   h += '<div class="daySwitch"><div class="progTabs">' + STRENGTH_DAYS.map(dayTab).join("") + '</div>' +
     (typeof HOME_DAYS !== "undefined" ? '<div class="progTabs home">' + HOME_DAYS.filter(function(id){ return !!db.programs[id]; }).map(dayTab).join("") + '</div>' : '') + '</div>';
   /* one quiet phase line; the speed rule in full and the soreness rule sit behind the i chip */
@@ -172,7 +175,7 @@ function renderPlan(){
   });
   var weekIsDone = done.indexOf(w) >= 0;
   h += '<div class="finishRow"><button class="btn ' + (weekIsDone ? "tonal" : "primary") + ' big block" data-act="weekdone" data-prog="' + prog + '" data-week="' + w + '">' +
-       (weekIsDone ? icon("check") + "Week " + w + " · " + shortName(prog) + " finished · tap to reopen" : icon("trophy") + "Finish week " + w + " · " + shortName(prog)) + '</button></div>';
+       (weekIsDone ? icon("check") + "Week " + w + " · " + esc(shortName(prog)) + " finished · tap to reopen" : icon("trophy") + "Finish week " + w + " · " + esc(shortName(prog))) + '</button></div>';
   /* the gym supersets run 2 or 3 rounds (the head of each says which); the home day keeps its own wording */
   var roundsTx = P.home ? "3 rounds" : "as many rounds as the header says";
   h += '<div class="note footNote">Superset: one set of 1A, then one set of 1B, back to 1A — ' + roundsTx + '. Tick each lift\'s sets as you go: the rest timer starts, and the card folds away after its last set. Heavy lifts auto-calculate; tap a weight to log what you actually lifted. Notes collect on the Notes page.</div>';
@@ -180,9 +183,6 @@ function renderPlan(){
   updateNextBar(prog, w);
   if(typeof refreshSessionUi === "function") refreshSessionUi();
 }
-/* the weekday a home day belongs to, for its tab ("Wed" / "Sun"), read from the week schedule */
-var CURRENT_WEEK_DAY_OF = (function(){ var o = {}; (typeof CURRENT_WEEK !== "undefined" ? CURRENT_WEEK : []).forEach(function(d){ if(d.type === "home" && d.ref) o[d.ref] = d.day; if(d.home) o[d.home] = d.day; }); return o; })();
-
 /* one lift's card. `tag` = its superset slot ("1A", "1B" …) or null */
 function planCardHtml(prog, w, en, tag){
   var exId = en.exerciseId, ex = exById(exId) || { name: exId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold" && pr.kind !== "effort");

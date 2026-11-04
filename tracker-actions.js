@@ -7,7 +7,8 @@
 
 /* ---------- in-app sheet (replaces the browser's native prompt / confirm / alert) ----------
    Version 2: every modal is a bottom sheet (#modal, slides up). Modes: "chips", "text", "number" (the keypad,
-   tracker-plan.js keypadHtml), "sheet" (any html, closed with its Close button, the backdrop or Android back).
+   tracker-plan.js keypadHtml), "sheet" (any html, closed with its Close button, the backdrop or Android back), "line"
+   (2026-11-04: a one-line #mText input, o.maxLength, then o.html; Enter saves; the rename sheet).
    The v1 hooks stay: #modal.open, #mNum / #mText, data-act modalok / modalcancel / modalchip / modalcustom. */
 var modalState = null;
 function openModal(o){
@@ -24,6 +25,8 @@ function openModal(o){
       : '<input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" value="' + esc(o.value==null?"":o.value) + '" placeholder="' + esc(o.placeholder||"kg") + '">';
   } else if(o.mode === "sheet"){
     body = o.html || "";
+  } else if(o.mode === "line"){
+    body = '<input type="text" class="mInput" id="mText" value="' + esc(o.value||"") + '" placeholder="' + esc(o.placeholder||"") + '"' + (o.maxLength ? ' maxlength="' + o.maxLength + '"' : '') + ' autocomplete="off" spellcheck="false" enterkeyhint="done">' + (o.html || "");
   }
   var ok = (o.mode === "chips" || o.mode === "sheet") ? "" : '<button class="btn primary" data-act="modalok">' + esc(o.okLabel||"Save") + '</button>';
   var cancel = o.noCancel ? "" : '<button class="btn" data-act="modalcancel">' + esc(o.mode === "sheet" ? (o.closeLabel || "Close") : "Cancel") + '</button>';
@@ -32,6 +35,7 @@ function openModal(o){
     body + ((cancel || ok) ? '<div class="mActions">' + cancel + ok + '</div>' : '') + '</div>';
   $("#modal").classList.add("open");
   if(o.mode === "text") setTimeout(function(){ var f = $("#mText"); if(f && f.focus) f.focus(); }, 60);   /* the keypad never opens the phone keyboard */
+  if(o.mode === "line") setTimeout(function(){ var f = $("#mText"); if(f && f.focus){ f.focus(); if(f.select) f.select(); } }, 60);   /* typing replaces the old name */
 }
 /* ---------- the number pad (design §5): replaces the phone keyboard for the weight, the 15RM and the plate ----------
    A big read-only display (#mNum: the v1 hook, so the old handlers read it unchanged), −step / +step on the lift's

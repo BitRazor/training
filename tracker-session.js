@@ -3,8 +3,13 @@
    - set ticks: db.sets[doneKey] = [bool…], one per set of the entry (additive; version 1 ignores it). The lift's
      done state stays in db.done exactly as in v1 (applyMark writes the frozen diary): ticking the last set marks it
      full, un-ticking a set of a full lift un-marks it; ✓ ticks every set, ◐ leaves them and marks partial;
-   - the session: the first tick of a day-track and week today starts db.session {start, last, ticks}; Finish clears
-     it; ticks = the time each set was ticked (for the superset rest below);
+   - the session: the first tick of a day-track and week today starts db.session {start, last, ticks, base}; Finish
+     clears it; ticks = the time each set was ticked (for the superset rest below); base = what was already ticked on
+     that week before the session began;
+   - the workout clock (2026-11-04, Part 1: "impossible to turn off"): the header's elapsed-time chip opens a sheet to
+     Stop the clock (the session ends: stoppedAt, the time freezes, the ticks stay, the rest timer ends; the next tick
+     starts a new clock) or Reset it (no session, the ticks stay). When every tick of the session is undone (Undo,
+     unticking), the session and its clock clear by themselves, with any rest timer that tick started;
    - the rest timer (the smart rule of 2026-11-04, see restPlan): each lift rests its own restSec; a superset breathes
      20 s between its lifts and, after the round's last lift, rests until the round's first lift is ready again; no
      timer after a lift's last set. One at a time, kept on its end time (localStorage "training-tracker:v1:rest"), so
@@ -36,16 +41,17 @@ function onSetTick(t){
   var prog = t.getAttribute("data-prog"), week = +t.getAttribute("data-week"), exId = t.getAttribute("data-item"), i = +t.getAttribute("data-set");
   if(!progEntry(prog, exId)) return;
   primeAudio();
-  var undo = undoPoint(), arr = setTicks(prog, week, exId), on = !arr[i], st0 = doneState(prog, week, exId);
+  var undo = undoPoint(), before = tickKeys(prog, week), arr = setTicks(prog, week, exId), on = !arr[i], st0 = doneState(prog, week, exId);
   arr[i] = on;
   if(!db.sets) db.sets = {};
   db.sets[doneKey(prog, week, exId)] = arr;
-  if(on){ touchSession(prog, week); if(arr.every(Boolean) && st0 !== "full") applyMark(prog, week, exId, "full"); }
+  if(on){ touchSession(prog, week, before); if(arr.every(Boolean) && st0 !== "full") applyMark(prog, week, exId, "full"); }
   else if(st0 === "full") applyMark(prog, week, exId, "full");   /* un-ticking a set of a full lift un-marks it (v1 untick) */
   noteTick(prog, week, exId, i, on);
   save();
   var st = doneState(prog, week, exId), ex = exById(exId) || { name: exId };
   ui.nowPrompt = null;
+  if(!on && endSessionIfEmpty(prog, week)) stopRest();   /* the session's every tick undone: no clock, no rest */
   if(on){
     var b = blockOf(prog, exId), plan = restPlan(prog, week, exId, i);
     if(b && b.kind === "ss" && b.idx < b.entries.length - 1) ui.nowPrompt = { prog: prog, week: week, exId: b.entries[b.idx + 1].exerciseId, tag: b.n + String.fromCharCode(66 + b.idx) };
@@ -59,11 +65,12 @@ function onSetTick(t){
 /* the lift ✓ (all sets) and ◐ (partial), and a warm-up move's tick */
 function onMark(t, mark){
   var prog = t.getAttribute("data-prog"), week = +t.getAttribute("data-week"), item = t.getAttribute("data-item"), wu = item.indexOf("wu:") === 0;
-  var undo = wu ? null : undoPoint();
+  var undo = wu ? null : undoPoint(), before = tickKeys(prog, week);
   applyMark(prog, week, item, mark);
   var st = doneState(prog, week, item);
   if(!wu && mark === "full"){ if(!db.sets) db.sets = {}; if(st === "full") db.sets[doneKey(prog, week, item)] = allSets(prog, item, true); else delete db.sets[doneKey(prog, week, item)]; save(); }
-  if(st) touchSession(prog, week);
+  if(st) touchSession(prog, week, before);
+  else if(endSessionIfEmpty(prog, week)){ ui.nowPrompt = null; stopRest(); }
   var c = t.closest(".planCard") || t.closest(".wuCard");
   if(c){ c.classList.toggle("done", !!st); c.classList.toggle("partial", st === "partial");
     var fb = c.querySelector('[data-act="donetick"]'), pb = c.querySelector('[data-act="partialtick"]');
@@ -86,19 +93,73 @@ function refreshCardState(prog, week, exId, popped){
 function popEl(el){ el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
 
 /* ---------- the session (first tick → last tick, one day-track and week, today) ---------- */
-function touchSession(prog, week){
+/* everything ticked on a day-track's week, as keys: "<lift>:<set index>", "<lift>:full|partial", "wu:<move>" */
+function tickKeys(prog, week){
+  var out = [], P = db.programs[prog]; if(!P || previewing()) return out;
+  P.entries.forEach(function(en){ var id = en.exerciseId, st = doneState(prog, week, id);
+    if(st) out.push(id + ":" + st);
+    setTicks(prog, week, id).forEach(function(on, i){ if(on) out.push(id + ":" + i); }); });
+  (WARMUP_BY_PROG[prog] || []).forEach(function(m){ if(isDone(prog, week, "wu:" + m.gif)) out.push("wu:" + m.gif); });
+  return out;
+}
+/* a tick: the first one of a day-track and week today (or the first after the clock was stopped) starts a session;
+   before = the week's ticks just before it, so the session knows which ticks are its own */
+function touchSession(prog, week, before){
   var now = nowMs(), today = todayISO(), s = db.session;
-  if(!s || s.prog !== prog || s.week !== week || s.date !== today || s.program !== db.activeProgram) db.session = { program: db.activeProgram, prog: prog, week: week, date: today, start: now, last: now, ticks: {} };
+  if(!s || s.prog !== prog || s.week !== week || s.date !== today || s.program !== db.activeProgram || s.stoppedAt != null)
+    db.session = { program: db.activeProgram, prog: prog, week: week, date: today, start: now, last: now, ticks: {}, base: before || [] };
   else s.last = Math.max(s.last || now, now);   /* a clock that steps back never shortens the session below zero */
   save();
 }
 function sessionFor(prog, week){ var s = db.session; return (s && !previewing() && s.prog === prog && s.week === week && s.date === todayISO() && s.program === db.activeProgram) ? s : null; }
-/* the header's elapsed-time chip */
+/* after an untick: when nothing the session ticked is still on (only what was on before it began, if anything), the
+   session and its clock clear by themselves. true = cleared (the caller stops the rest timer that tick started).
+   A session saved before 2026-11-04 has no base: it clears once nothing is ticked on its week */
+function endSessionIfEmpty(prog, week){
+  var s = sessionFor(prog, week); if(!s) return false;
+  var base = Array.isArray(s.base) ? s.base : [];
+  if(tickKeys(prog, week).some(function(k){ return base.indexOf(k) < 0; })) return false;
+  db.session = null; save();
+  return true;
+}
+/* the clock's time: now − start while it runs, frozen at stoppedAt once stopped */
+function clockSec(s){ return ((s.stoppedAt != null ? s.stoppedAt : nowMs()) - s.start) / 1000; }
+/* "18:05", local time */
+function hhmm(ms){ var d = new Date(ms); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()); }
+/* the header's elapsed-time chip (a button: the clock sheet), and the open sheet's big time */
 function refreshSessionUi(){
-  var chip = document.querySelector("#view-programs .shTime"); if(!chip) return;
-  var s = sessionFor(ui.planProg, ui.planWeek);
-  chip.hidden = !s;
-  if(s){ var c = chip.querySelector(".shClock"); if(c) c.textContent = mmss((nowMs() - s.start) / 1000); ensureTicker(); }
+  var chip = document.querySelector("#view-programs .shTime"), s = sessionFor(ui.planProg, ui.planWeek), stopped = !!(s && s.stoppedAt != null);
+  var t = s ? mmss(clockSec(s)) : "", big = document.querySelector("#modal.open .clockBig");
+  if(big && s) big.textContent = t;
+  if(!chip) return;
+  chip.hidden = !s; chip.classList.toggle("stopped", stopped);
+  if(s){ var c = chip.querySelector(".shClock"); if(c) c.textContent = t; if(!stopped) ensureTicker(); }
+}
+/* the clock sheet: the time big, when it started (or stopped), Stop the clock, Reset the clock */
+function openClockSheet(){
+  var s = sessionFor(ui.planProg, ui.planWeek); if(!s) return;
+  var stopped = s.stoppedAt != null;
+  var row = function(act, ic, t, sub){ return '<button class="li clockRow" data-act="' + act + '"><span class="liI">' + icon(ic) + '</span><span class="liB"><span class="liT">' + t + '</span><span class="liS">' + sub + '</span></span></button>'; };
+  openSheet("Workout clock", '<div class="clockSheet"><div class="clockBig' + (stopped ? " stopped" : "") + '">' + mmss(clockSec(s)) + '</div>' +
+    '<div class="clockSub">' + (stopped ? "Stopped at " + hhmm(s.stoppedAt) + ". Your next tick starts a new clock." : "Started at " + hhmm(s.start) + " with your first tick.") + '</div>' +
+    '<div class="list clockList">' + (stopped ? '' : row("clockstop", "stop", "Stop the clock", "End the session here. Your ticks stay.")) +
+    row("clockreset", "undo", "Reset the clock", "Clear it. Your ticks stay, and your next tick starts it again.") + '</div></div>', { cls: "clockCard" });
+}
+/* Stop: the session ends where it is: the time freezes, the ticks stay, the rest timer ends, the screen may sleep */
+function stopClock(){
+  var s = sessionFor(ui.planProg, ui.planWeek); if(!s || s.stoppedAt != null) return;
+  var undo = undoPoint();
+  s.stoppedAt = Math.max(nowMs(), s.start); save();
+  closeModal(); stopRest(); refreshSessionUi(); updateAwake(true);
+  toast("Clock stopped at " + mmss(clockSec(s)), { undo: undo });
+}
+/* Reset: no session (no start), the ticks stay; the next tick starts a new clock */
+function resetClock(){
+  var s = sessionFor(ui.planProg, ui.planWeek); if(!s) return;
+  var undo = undoPoint();
+  db.session = null; save();
+  closeModal(); refreshSessionUi(); updateAwake(true);
+  toast("Clock reset", { undo: undo });
 }
 
 /* ---------- rest durations: the smart rule (2026-11-04; it replaced design §5's "a superset rests only after its
@@ -243,7 +304,7 @@ function restTick(){
   renderRest(); refreshSessionUi(); updateAwake(false);
   if(!tickerNeeded()) stopTicker();
 }
-function tickerNeeded(){ return !!rest || !!awakeOn || !!(db.session && db.session.date === todayISO()); }
+function tickerNeeded(){ return !!rest || !!awakeOn || !!(db.session && db.session.date === todayISO() && db.session.stoppedAt == null); }
 function ensureTicker(){ if(!tickTimer) tickTimer = setInterval(restTick, 500); }
 function stopTicker(){ if(tickTimer){ clearInterval(tickTimer); tickTimer = null; } }
 /* a short double beep, only while the app is on screen (WebAudio, unlocked by the tick's tap) */
@@ -270,7 +331,7 @@ function askNotifyOnce(){
 
 /* ---------- keep awake: a tick under 20 minutes old and the Workout open ---------- */
 function updateAwake(force){
-  var s = db.session, want = !!(ui.view === "programs" && !document.hidden && s && s.date === todayISO() && (nowMs() - s.last) < AWAKE_MS);
+  var s = db.session, want = !!(ui.view === "programs" && !document.hidden && s && s.date === todayISO() && s.stoppedAt == null && (nowMs() - s.last) < AWAKE_MS);
   if(force || want !== awakeOn){ awakeOn = want; if(window.Native && Native.keepAwake) Native.keepAwake(want); }
 }
 
@@ -322,10 +383,10 @@ function bestsToday(ids){
   });
   return out;
 }
-/* the next session of the same kind in the week schedule, after today: "Next: Day B on Thursday" */
+/* the next session of the same kind in his week schedule, after today: "Next: Day B on Thursday" */
 function nextSessionText(pr){
-  var gym = !isHomeDay(pr), d0 = weekdayIdx();
-  for(var k = 1; k <= 7; k++){ var j = (d0 + k) % 7, d = CURRENT_WEEK[j]; if(!d) continue;
+  var gym = !isHomeDay(pr), d0 = weekdayIdx(), plan = weekPlan();
+  for(var k = 1; k <= 7; k++){ var j = (d0 + k) % 7, d = plan[j]; if(!d) continue;
     var ref = gym ? (d.type === "strength" ? d.ref : null) : (d.type === "home" ? d.ref : (d.home || null));
     if(ref) return "Next: " + shortName(ref) + " on " + DAY_NAMES[j]; }
   return "";

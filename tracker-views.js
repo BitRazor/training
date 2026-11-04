@@ -2,7 +2,9 @@
 /* training-tracker — view renderers (version 2 look, 2026-11-04): Today (hero, week strip, program card, last session),
    More and its App-and-updates sheet, Notes ("log"), Fuel ("nutrition"), Programs ("library"), Settings, plus the page
    headers and the v1 gif + How-to helpers. The Workout ("programs") lives in tracker-plan.js; Progress and the
-   Exercises library in tracker-progress.js. */
+   Exercises library in tracker-progress.js; the week schedule editor and the workout names in tracker-week.js.
+   Part 1 (2026-11-04): Today reads his week (weekPlan) and his workout names; App and updates says the result of the
+   last check in one plain sentence, never boot.js's raw log. */
 
 /* ---------- TODAY (expressive: the hero, the week, the program, the last session) ---------- */
 var WEEKDAY_LONG = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
@@ -11,13 +13,14 @@ var DAY_ICON = { strength: "dumbbell", cardio: "heart", hiit: "bolt", rest: "moo
 /* a lift's target for the hero preview: "10 kg × 10/side", a home dose's set count, or the 15RM prompt */
 function previewTarget(en, w){ var t = setTargetText(en, w); if(t) return t; if(en.dose) return en.sets + (en.sets === 1 ? " set" : " sets"); return "enter your 15RM"; }
 function renderToday(){
-  var i = weekdayIdx(), today = CURRENT_WEEK[i], now = new Date();
+  var plan = weekPlan(), i = weekdayIdx(), today = plan[i], now = new Date();
   var h = mainHead("Today", WEEKDAY_LONG[i] + " · " + now.getDate() + " " + MONTHS_LONG[now.getMonth()]);
   if(today.type === "strength" || today.type === "home"){
-    var ref = today.ref, cw = currentWeek(ref), E = (db.programs[ref] || { entries: [] }).entries;
+    /* his own name for the workout is the title (and then not repeated in the line above) */
+    var ref = today.ref, cw = currentWeek(ref), E = (db.programs[ref] || { entries: [] }).entries, cn = customName(ref);
     h += '<div class="todayHero gym' + (today.type === "home" ? " home" : "") + '">' +
-      '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home" : shortName(ref)) + ' · Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
-      '<div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
+      '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home · " : (cn ? "" : esc(shortName(ref)) + " · ")) + 'Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
+      '<div class="todayTitle">' + esc(cn || today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
       '<div class="heroPreview">' + E.slice(0, 4).map(function(en){
         return '<div class="hpRow"><span class="hpName">' + esc((exById(en.exerciseId) || { name: en.exerciseId }).name) + '</span><span class="hpTgt">' + esc(previewTarget(en, cw)) + '</span></div>';
       }).join("") + (E.length > 4 ? '<div class="hpMore">+ ' + (E.length - 4) + ' more</div>' : '') + '</div>' +
@@ -28,20 +31,22 @@ function renderToday(){
     h += '<div class="todayHero ' + today.type + '"><div class="todayDay">' + today.day + '</div><div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
       (rule ? '<div class="zoneBox"><span class="zIc">' + icon(rule.ic) + '</span><span class="zTx"><span class="zoneBig">' + esc(rule.big) + '</span><span class="zoneSub">' + esc(rule.sub) + '</span></span></div>'
             : '<div class="zoneBox rest"><span class="zIc">' + icon("moon") + '</span><span class="zTx"><span class="zoneSub">No training today. Sleep, food and an easy walk count.</span></span></div>') + '</div>';
-    /* a home session riding on this day (Wednesday): its own card with its own Start */
+    /* a home session riding on this day (Wednesday in the original week): its own card with its own Start */
     if(today.home){
-      var hw = today.home, cwh = currentWeek(hw), nh = ((db.programs[hw] || {}).entries || []).length;
-      h += '<div class="todayHero homeHero"><div class="hhTop"><span class="hhIc">' + icon("house") + '</span><span><span class="hhTitle">Home core</span>' +
-        '<span class="hhSub">' + esc(shortName(hw)) + ' · Week ' + cwh + ' of ' + TOTAL_WEEKS + ' · ' + nh + ' exercises</span></span></div>' +
-        '<button class="btn big block homeBtn" data-act="gotoplan" data-prog="' + hw + '">' + icon("play") + 'Start home core</button></div>';
+      var hw = today.home, cwh = currentWeek(hw), nh = ((db.programs[hw] || {}).entries || []).length, hcn = customName(hw), ht = hcn || ADDON_TITLE[hw] || dayName(hw);
+      h += '<div class="todayHero homeHero"><div class="hhTop"><span class="hhIc">' + icon("house") + '</span><span><span class="hhTitle">' + esc(ht) + '</span>' +
+        '<span class="hhSub">' + (hcn ? '' : esc(dayName(hw)) + ' · ') + 'Week ' + cwh + ' of ' + TOTAL_WEEKS + ' · ' + nh + ' exercises</span></span></div>' +
+        '<button class="btn big block homeBtn" data-act="gotoplan" data-prog="' + hw + '">' + icon("play") + 'Start ' + esc(hcn || ht.toLowerCase()) + '</button></div>';
     }
   }
-  /* the week strip: Mon-Sun, an icon per day type, today highlighted, training and home days tappable */
-  h += '<div class="sectH">This week</div><div class="weekStrip">' + CURRENT_WEEK.map(function(d, j){
-    var target = (d.type === "strength" || d.type === "home") ? d.ref : (d.home || null), tag = target ? "button" : "div";
+  /* the week strip: Mon-Sun from his week, an icon and a short name per day, today highlighted, training and home days
+     tappable; "Edit week" opens the schedule editor (tracker-week.js) */
+  h += '<div class="sectRow"><div class="sectH">This week</div><button class="editWeek" data-view="schedule">' + icon("edit", "sm") + 'Edit week</button></div><div class="weekStrip">' + plan.map(function(d, j){
+    var work = d.type === "strength" || d.type === "home", target = work ? d.ref : (d.home || null), tag = target ? "button" : "div";
+    var sr = (work ? (customName(d.ref) || d.label) : d.label) + (d.home ? ' + ' + addonWord(d.home) : '');
     return '<' + tag + ' class="wrow' + (j === i ? " today" : "") + '"' + (target ? ' data-act="gotoplan" data-prog="' + target + '"' : '') + '>' +
       '<span class="wd">' + d.day + '</span><span class="dot ' + d.type + '">' + icon(DAY_ICON[d.type] || "calendar") + '</span>' +
-      (d.home ? '<span class="dot2">' + icon("house") + '</span>' : '') + '<span class="sr">' + esc(d.label) + (d.home ? ' + home core' : '') + '</span></' + tag + '>';
+      (d.home ? '<span class="dot2">' + icon("house") + '</span>' : '') + '<span class="wn" aria-hidden="true">' + esc(stripWord(d)) + '</span><span class="sr">' + esc(sr) + '</span></' + tag + '>';
   }).join("") + '</div>';
   /* the program card: weeks done of 12 per day-track; opens Programs */
   var AP = getProgram(db.activeProgram), tracks = AP.days.concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []);
@@ -91,37 +96,81 @@ function renderMore(){
   var moves = (typeof libraryGroups === "function") ? libraryGroups().reduce(function(s, g){ return s + g.items.length; }, 0) : 0;
   var tiles = [
     { view:"library",   ic:"layers",   t:"Programs",        s: esc(P.name) + " is active" },
+    { view:"schedule",  ic:"calendar", t:"Week schedule",   s: "Move workouts between days" },
     { view:"exercises", ic:"dumbbell", t:"Exercises",       s: moves + " moves, with how-tos" },
     { view:"log",       ic:"note",     t:"Notes",           s: n ? n + (n === 1 ? " note" : " notes") : "No notes yet" },
     { view:"nutrition", ic:"fork",     t:"Fuel",            s: bw ? Math.round(bw * NUTRITION.targetLow) + "–" + Math.round(bw * NUTRITION.targetHigh) + " g protein a day" : "Set your target weight" },
     { view:"settings",  ic:"sliders",  t:"Settings",        s: "Profile, heart-rate zones, data" },
     { act:"appinfo",    ic:"phone",    t:"App and updates", s: ver ? "Version " + esc(ver) : "Version and updates" }
   ];
-  $("#view-more").innerHTML = mainHead("More") + '<div class="moreGrid">' + tiles.map(function(x){
-    return '<button class="moreTile" ' + (x.view ? 'data-view="' + x.view + '"' : 'data-act="' + x.act + '"') + '>' +
+  $("#view-more").innerHTML = mainHead("More") + '<div class="moreGrid">' + tiles.map(function(x, k){
+    /* an odd last tile spans the row */
+    return '<button class="moreTile' + (k === tiles.length - 1 && tiles.length % 2 ? " wide" : "") + '" ' + (x.view ? 'data-view="' + x.view + '"' : 'data-act="' + x.act + '"') + '>' +
       '<span class="tileI">' + icon(x.ic) + '</span><span class="tileT">' + x.t + '</span><span class="tileS">' + x.s + '</span></button>';
   }).join("") + '</div>';
 }
 
-/* ---------- App and updates (a sheet; reads window.__boot from boot.js) ---------- */
-/* the newest update-check line of boot.js's log, without its time stamp: {msg, when} */
+/* ---------- App and updates (a sheet; reads window.__boot from boot.js, which never changes over the air) ----------
+   The result of the newest check in one plain sentence (2026-11-04, Part 1: "app update button doesn't work"), from
+   boot.js's state (info.state(): next = a downloaded update waiting for a restart) and its log lines (info.log(),
+   "<ISO time> <message>"); never the raw log. A waiting update always reads "restart to use it", with a Restart button:
+   before, a second check said "up to date" about it and nothing seemed to happen. */
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function pad2(n){ n = String(n); return n.length < 2 ? "0" + n : n; }
+var UPD_TEXT = { ready: "Update downloaded, restart to use it", offline: "Couldn't reach GitHub, check the internet and try again",
+  app: "This update needs a newer app", skipped: "The newest update didn't work on this phone before, so it is skipped",
+  broken: "The update didn't download completely, try again in a few minutes" };
+var UPD_ICON = { ok: "check", ready: "download", offline: "wifiOff", app: "phone", skipped: "info", broken: "refresh", busy: "refresh" };
+function cmpVersion(a, b){ var x = String(a || "0").split("."), y = String(b || "0").split("."); for(var i = 0; i < Math.max(x.length, y.length); i++){ var d = (parseInt(x[i], 10) || 0) - (parseInt(y[i], 10) || 0); if(d) return d < 0 ? -1 : 1; } return 0; }
+/* a failed check's reason: a broken download (checksum, manifest) or no connection */
+function failKind(msg){ return /checksum|not valid|incomplete|missing/i.test(String(msg || "")) ? "broken" : "offline"; }
+/* the newest check result in boot.js's log: {kind, ver, at}; start-up lines (applying, confirmed, APK build) are not results */
 function lastUpdateCheck(log){
   for(var i = (log || []).length - 1; i >= 0; i--){
-    var m = /^(\S+)\s+(.*)$/.exec(String(log[i]));
-    if(m && /^(up to date|update \S+ downloaded|update check failed|not taking|\S+ needs app build|APK build)/.test(m[2])){
-      var d = new Date(m[1]), when = isNaN(d) ? "" : (d.toDateString() === new Date().toDateString() ? "today " : d.getDate() + " " + MONTHS[d.getMonth()] + " ") + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
-      return { msg: m[2], when: when };
-    }
+    var m = /^(\S+)\s+(.*)$/.exec(String(log[i])), r = null; if(!m) continue;
+    var msg = m[2], t = Date.parse(m[1]), x;
+    if((x = /^up to date: have (\S+?),/.exec(msg))) r = { kind: "ok", ver: x[1] };
+    else if((x = /^update (\S+) downloaded/.exec(msg))) r = { kind: "downloaded", ver: x[1] };
+    else if((x = /^update check failed: (.*)$/.exec(msg))) r = { kind: failKind(x[1]) };
+    else if(/^not taking /.test(msg)) r = { kind: "skipped" };
+    else if(/^\S+ needs app build /.test(msg)) r = { kind: "app" };
+    if(r){ r.at = isNaN(t) ? null : t; return r; }
   }
   return null;
 }
-var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-function pad2(n){ n = String(n); return n.length < 2 ? "0" + n : n; }
-function appLastHtml(){
-  var b = window.__boot || {}, log = []; try { log = typeof b.log === "function" ? b.log() : []; } catch(e){}
-  var last = lastUpdateCheck(log);
-  return last ? '<div class="sectH" style="margin:18px 0 6px">Last check' + (last.when ? ' · ' + esc(last.when) : '') + '</div><div class="appLast note">' + esc(last.msg) + '</div>' : '';
+/* this app run's own failed Check now (it writes no log line), kept for its updater (window.__boot) */
+var updFail = null;
+/* the newest result as {kind, text, at}, or null (never checked) */
+function updateStatus(){
+  var b = window.__boot || {}, st = {}, log = [];
+  try { st = (typeof b.state === "function" && b.state()) || {}; } catch(e){}
+  try { log = typeof b.log === "function" ? b.log() : []; } catch(e){}
+  var r = lastUpdateCheck(log), run = b.version || null, mine = (updFail && updFail.boot === b) ? updFail : null;
+  if(mine && (!r || r.at == null || mine.at >= r.at)) r = { kind: mine.kind, at: mine.at };
+  if(st.next && cmpVersion(st.next, run) > 0) return { kind: "ready", text: UPD_TEXT.ready, at: r ? r.at : null };
+  if(!r) return null;
+  if(r.kind === "ok" || r.kind === "downloaded") return { kind: "ok", text: "You have the newest version (" + (run || r.ver) + ")", at: r.at };
+  return { kind: r.kind, text: UPD_TEXT[r.kind], at: r.at };
 }
+/* "Today at 10:00" / "Yesterday at 12:00" / "30 Oct at 09:05" / "Not yet" */
+function whenWords(ms){
+  if(ms == null) return "Not yet";
+  var d = new Date(ms), n = new Date(), y = new Date(n.getFullYear(), n.getMonth(), n.getDate() - 1), hm = pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+  var same = function(a, c){ return a.getFullYear() === c.getFullYear() && a.getMonth() === c.getMonth() && a.getDate() === c.getDate(); };
+  return same(d, n) ? "Today at " + hm : same(d, y) ? "Yesterday at " + hm : d.getDate() + " " + MONTHS[d.getMonth()] + " at " + hm;
+}
+/* "Last checked" and the sentence; in a browser (no updater) nothing */
+function appLastHtml(busy){
+  var b = window.__boot || {};
+  if(!b.native && typeof b.checkNow !== "function" && typeof b.log !== "function") return "";
+  if(busy) return '<div class="kv"><span>Last checked</span><b class="appWhen">Checking now…</b></div><div class="appStatus busy"><span class="asIc">' + icon(UPD_ICON.busy) + '</span><span class="appLast">Checking GitHub…</span></div>';
+  var st = updateStatus();
+  return '<div class="kv"><span>Last checked</span><b class="appWhen">' + esc(whenWords(st ? st.at : null)) + '</b></div>' +
+    (st ? '<div class="appStatus ' + st.kind + '"><span class="asIc">' + icon(UPD_ICON[st.kind] || "info") + '</span><span class="appLast">' + esc(st.text) + '</span></div>' +
+      (st.kind === "ready" ? '<button class="btn primary big block appRestart" data-act="apprestart">' + icon("refresh") + 'Restart now</button>' : '') : '');
+}
+/* the waiting update starts on a reload (boot.js applies it at launch) */
+function appRestart(){ try { location.reload(); } catch(e){} }
 function openAppSheet(){
   var b = window.__boot || {}, nat = !!b.native;
   var src = !nat ? "Web version" : (b.source === "downloaded" ? "Downloaded update" : "Built into the app");
@@ -151,9 +200,14 @@ function offerApkLink(){
 function onCheckNow(t){
   var b = window.__boot; if(!b || typeof b.checkNow !== "function") return;
   t.disabled = true; t.innerHTML = icon("refresh") + "Checking…";
-  var done = function(label){ t.disabled = false; t.innerHTML = icon("refresh") + label; var box = $("#appLastBox"); if(box) box.innerHTML = appLastHtml(); };
+  var box = $("#appLastBox"); if(box) box.innerHTML = appLastHtml(true);
+  var done = function(err){
+    updFail = err ? { boot: b, kind: failKind(err && (err.message || err)), at: Date.now() } : null;
+    t.disabled = false; t.innerHTML = icon("refresh") + "Check again";
+    var bx = $("#appLastBox"); if(bx) bx.innerHTML = appLastHtml();
+  };
   var p; try { p = b.checkNow(); } catch(e){ p = Promise.reject(e); }
-  Promise.resolve(p).then(function(){ done("Check again"); }, function(){ done("Could not check · try again"); });
+  Promise.resolve(p).then(function(){ done(null); }, function(e){ done(e || new Error("failed")); });
 }
 
 /* ---------- shared: gif + How-to (used by the Plan) ---------- */

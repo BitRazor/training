@@ -4,7 +4,8 @@
    Loaded after the views and the Workout (tracker-plan.js), before the actions and the core. */
 
 /* ---------- the Exercises library: every move of the active program's days and the home days, warm-up last ---------- */
-function dayTitle(d){ return d === "strength-a" ? "Day A" : d === "strength-b" ? "Day B" : ((db.programs[d] && db.programs[d].name) || d); }
+/* a workout's name (his own, else the default; tracker-week.js dayName) */
+function dayTitle(d){ return dayName(d); }
 function libraryGroups(){
   var days = getProgram(db.activeProgram).days.concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []), groups = [], seen = {}, wu = [];
   days.forEach(function(d){

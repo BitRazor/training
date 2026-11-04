@@ -1,0 +1,25 @@
+{
+  "name": "training",
+  "private": true,
+  "version": "2.0.0",
+  "description": "Training tracker: the web app plus its Android app (Capacitor), which updates its web files from GitHub.",
+  "scripts": {
+    "make-version": "node tools/make-version.mjs",
+    "www": "node tools/build-www.mjs",
+    "sync": "node tools/build-www.mjs && npx cap sync android",
+    "apk": "node tools/build-apk.mjs"
+  },
+  "dependencies": {
+    "@capacitor-community/keep-awake": "^8.0.1",
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.6.0"
+  }
+}

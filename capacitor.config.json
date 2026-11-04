@@ -1,0 +1,16 @@
+{
+  "appId": "io.github.bitrazor.training",
+  "appName": "Training",
+  "webDir": "www",
+  "backgroundColor": "#0c0f12",
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK"
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0c0f12"
+    }
+  }
+}

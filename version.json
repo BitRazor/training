@@ -56,5 +56,10 @@
     "icon-192.png": "e93cabf32ea984d64a6a5f28b4f26aa577808745a74f473a285d3cdf99352449",
     "icon-512.png": "c7fabe3d61b88a3078d31d8961f41379bd7f464e2df82d57f14316d3a6044d2f",
     "apple-touch-icon.png": "f73d841a140b5bc9459d478a9444ae5510faee6d4f401adf9c9ec37e74e9531b"
+  },
+  "apk": {
+    "build": 26110406,
+    "version": "2026.11.04.6",
+    "url": "https://github.com/BitRazor/training/releases/download/v2-2026.11.04.6/training-v2-2026.11.04.6.apk"
   }
 }

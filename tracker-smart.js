@@ -216,6 +216,8 @@ function needsStartWeight(en){ var k = smartKind(en, exById(en.exerciseId)); ret
 var repSheet = null;
 function openRepSheet(prog, week, exId, i){
   var en = progEntry(prog, exId); if(!en) return;
+  /* a lift with no weight yet: the weight first, then its reps */
+  if(needsStartWeight(en)){ onSmartWeight(prog, week, exId, function(){ renderPlan(); openRepSheet(prog, week, exId, i); }); return; }
   var ex = exById(exId) || { name: exId }, k = smartKind(en, ex), u = unitOf(en, ex), cur = smartSetReps(prog, week, en, i);
   if(cur == null) cur = lastEffortValue(exId, i) || (u === "s" ? HOLD_LO : 10);
   var t = entryTarget(en), tgt = (k === "effort" || !t) ? null : t.reps;

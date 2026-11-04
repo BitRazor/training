@@ -317,7 +317,7 @@ $("#importFile").addEventListener("change",function(ev){
   var f=ev.target.files&&ev.target.files[0]; if(!f)return;
   var rd=new FileReader(); rd.onload=function(){ var d; try{ d=JSON.parse(rd.result); if(d.app!=="training-tracker")throw 0; }catch(e){ toast("Not a valid training-tracker export."); return; } confirmModal("Replace all data?", "Importing overwrites what's on this device with the file's contents.", function(){
       var prev=db;   /* bring the file up to date IN MEMORY first — a file the app can't use changes nothing */
-      try{ db=d; normalize(); }catch(err){ db=prev; toast("That backup can't be read — nothing was changed."); return; }
+      try{ db=d; normalize(); }catch(err){ db=prev; if(typeof syncPrograms==="function"){ syncPrograms(); applyDays(); } toast("That backup can't be read — nothing was changed."); return; }
       save(); location.reload(); }); };
   rd.readAsText(f);
 });

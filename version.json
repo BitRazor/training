@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.04.12",
+  "version": "2026.11.04.13",
   "files": {
     "index.html": "5e1631a2e081737b6022a8f2ca59ec77df68b312620396912bcfe157daf704fa",
     "tracker.css": "8376998418936b802af24c33134ea81dcda2b80b60ba53ca3c8c1f62cf661714",
@@ -14,11 +14,11 @@
     "tracker-session.js": "de4efefa19671040bd933c95feef1c5b62481b1faa5eaa8ff0468f42ee1c6ac2",
     "tracker-progress.js": "008ea87397597cd3f874a33040dc47bcb71d374b60d7df3bb9eeaa8a4b136f1a",
     "tracker-week.js": "358f7eaf4c5586199b4a60709f2cb3d9ef658d1d5b85cb993a81ea1b13324468",
-    "tracker-smart.js": "ce97f0ffaa4ce40a4b8662badf5cbc0399faa35e80c27e083bfa96d444c52f89",
-    "tracker-editor.js": "9f4ca527f26908409fdd33d3070290f3cab0122edc4dd180f4969fab020fb060",
+    "tracker-smart.js": "45ac6506a33e927e61f7e639c999394e586266d9ccbc6bfca10558da2979f522",
+    "tracker-editor.js": "bef7c4f1ebbf95b2194acc231a255fd72cc988088a074de47249fb0ce7eaea12",
     "tracker-catalog.js": "2af2d2ae4b2c044ece4bbccf3643b69e0aac0a4e636871aecd68af2309874380",
     "tracker-actions.js": "68db9cb65e46a2bcc24bd6b40935b1c3a9d0911091fe72584ab33c7b084e6761",
-    "tracker.js": "5a86ecb470710c89001c901ed55a485d11cbbf7cca48b175d786989f65735e63"
+    "tracker.js": "9eb47a350671a7bcb769d8db5026f6b1ba477c758ee8ffb4ae08d0d01c57a0fe"
   },
   "assets": {
     "gifs/atg.gif": "c0d086c9d4c11045f252fb74091d0ec4d0133f46ba9d84f19185db88cd2725cb",

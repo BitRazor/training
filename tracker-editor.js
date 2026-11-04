@@ -289,7 +289,10 @@ function openPicker(){
 }
 function pickExercise(id){
   var ex = exById(id); if(!ex) return;
-  var pid = edPid(), d = edDayId(), def = dayMut(pid, d), r = smartRange({}, ex), en = { exerciseId: id, block: "main", sets: 3, restSec: 90 };
+  var pid = edPid(), d = edDayId(), cur = dayDef(pid, d);
+  /* ticks, logs and the diary key on the day and the lift, so one lift can sit on a day only once */
+  if(cur && cur.entries.some(function(e){ return e.exerciseId === id; })){ closeModal(); toast(ex.name + " is already in " + dayName(d)); return; }
+  var def = dayMut(pid, d), r = smartRange({}, ex), en = { exerciseId: id, block: "main", sets: 3, restSec: 90 };
   if(r.unit === "reps" && smartKind({}, ex) !== "effort"){ en.repLo = r.lo; en.repHi = r.hi; }
   def.entries.push(en); closeModal(); afterEdit();
   toast(ex.name + " added to " + dayName(d));

@@ -204,7 +204,7 @@ document.addEventListener("input",function(e){
   var inp=e.target; if(!inp.getAttribute||!inp.matches||!inp.matches("[data-path]"))return;
   var path=inp.getAttribute("data-path");
   setPath(path, inp.type==="number"?(inp.value===""?null:num(inp.value)):inp.value);
-  if(path==="p.maxHr") regenZones();
+  if(path==="p.maxHr"){ regenZones(); var zl=$("#view-settings .zoneList"); if(zl) zl.innerHTML=zoneRowsHtml(); }   /* zones follow the max in place (the input keeps focus) */
   save();
   if(ui.view==="nutrition") renderNutrition();
 });
@@ -243,6 +243,9 @@ document.addEventListener("click",function(e){
   if(act==="setcatstep"){ onSetCatStep(t); return; }
   if(act==="note"){ onNote(t); return; }
   if(act==="delnote"){ onDelNote(t); return; }
+  if(act==="notefilter"){ ui.noteFilter=t.getAttribute("data-ex")||null; renderLog(); return; }
+  if(act==="setbw"){ onSetBw(); return; }
+  if(act==="proglift"){ ui.progLift=t.getAttribute("data-ex"); renderProgress(); return; }
   if(act==="donetick"||act==="partialtick"){ onMark(t, act==="partialtick" ? "partial" : "full"); return; }   /* in place, so the card animates its collapse (tracker-session.js) */
   if(act==="nextex"){ jumpToNext(t.getAttribute("data-ex")); return; }
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }

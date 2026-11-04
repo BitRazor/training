@@ -200,9 +200,13 @@ function onNote(t){
       db.notes.push({date:todayISO(), week:week, exerciseId:exId, weight:weight, text:txt.trim()});
       save(); toast("Note saved ✓"); } });
 }
+/* delete asks first (design §4 Notes), then a toast offers Undo for 5 s (§5) */
 function onDelNote(t){
   var idx=+t.getAttribute("data-idx");
-  if(!isNaN(idx)&&idx>=0&&idx<db.notes.length){ db.notes.splice(idx,1); save(); renderLog(); }
+  if(isNaN(idx)||idx<0||idx>=db.notes.length) return;
+  var n=db.notes[idx], ex=exById(n.exerciseId)||{name:n.exerciseId}, tx=String(n.text||"");
+  openModal({ title:"Delete this note?", message:ex.name+": “"+(tx.length>90?tx.slice(0,88)+"…":tx)+"”", okLabel:"Delete", cls:"dangerSheet",
+    onSubmit:function(){ var undo=undoPoint(); db.notes.splice(idx,1); save(); renderLog(); toast("Note deleted", { undo: undo }); } });
 }
 
 /* ---------- export ---------- */

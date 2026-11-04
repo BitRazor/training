@@ -1,30 +1,80 @@
 "use strict";
-/* training-tracker — view renderers: Today (tappable → Plan), Log (notes), Nutrition, Settings,
-   plus the shared gif + How-to. The Plan view lives in tracker-plan.js. */
+/* training-tracker — view renderers (version 2 look, 2026-11-04): Today (hero, week strip, program card, last session),
+   More and its App-and-updates sheet, Notes ("log"), Fuel ("nutrition"), Programs ("library"), Settings, plus the page
+   headers and the v1 gif + How-to helpers. The Workout ("programs") lives in tracker-plan.js; Progress and the
+   Exercises library in tracker-progress.js. */
 
-/* ---------- TODAY ---------- */
+/* ---------- TODAY (expressive: the hero, the week, the program, the last session) ---------- */
+var WEEKDAY_LONG = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+var MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+var DAY_ICON = { strength: "dumbbell", cardio: "heart", hiit: "bolt", rest: "moon", home: "house" };
+/* a lift's target for the hero preview: "10 kg × 10/side", a home dose's set count, or the 15RM prompt */
+function previewTarget(en, w){ var t = setTargetText(en, w); if(t) return t; if(en.dose) return en.sets + (en.sets === 1 ? " set" : " sets"); return "enter your 15RM"; }
 function renderToday(){
-  var i = weekdayIdx(), today = CURRENT_WEEK[i];
-  var h = '<div class="todayHero">';
+  var i = weekdayIdx(), today = CURRENT_WEEK[i], now = new Date();
+  var h = mainHead("Today", WEEKDAY_LONG[i] + " · " + now.getDate() + " " + MONTHS_LONG[now.getMonth()]);
   if(today.type === "strength" || today.type === "home"){
-    var cw = currentWeek(today.ref);
-    h += '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home" : shortName(today.ref)) + ' · Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
-         '<div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
-         '<div class="btnRow"><button class="btn primary block" data-act="gotoplan" data-prog="' + today.ref + '">Open Week ' + cw + ' →</button></div>';
+    var ref = today.ref, cw = currentWeek(ref), E = (db.programs[ref] || { entries: [] }).entries;
+    h += '<div class="todayHero gym' + (today.type === "home" ? " home" : "") + '">' +
+      '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home" : shortName(ref)) + ' · Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
+      '<div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
+      '<div class="heroPreview">' + E.slice(0, 4).map(function(en){
+        return '<div class="hpRow"><span class="hpName">' + esc((exById(en.exerciseId) || { name: en.exerciseId }).name) + '</span><span class="hpTgt">' + esc(previewTarget(en, cw)) + '</span></div>';
+      }).join("") + (E.length > 4 ? '<div class="hpMore">+ ' + (E.length - 4) + ' more</div>' : '') + '</div>' +
+      '<button class="btn primary big block" data-act="gotoplan" data-prog="' + ref + '">' + icon("play") + 'Start workout</button></div>';
   } else {
-    h += '<div class="todayDay">' + today.day + '</div><div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
-         (today.type === "cardio" ? '<div class="todayNote dim">Zone 2 ' + zoneRange("z2") + ' — keep it conversational.</div>' : "") +
-         (today.type === "hiit" ? '<div class="todayNote dim">4 × 4 min hard / 3 min easy. Watch the last interval\'s peak HR.</div>' : "") +
-         /* a home session riding on this day (Wednesday): its own button under the cardio */
-         (today.home ? '<div class="btnRow"><button class="btn block" data-act="gotoplan" data-prog="' + today.home + '">🏠 Home core · Open Week ' + currentWeek(today.home) + ' →</button></div>' : "");
+    var rule = today.type === "cardio" ? { ic: "heart", big: zoneRange("z2"), sub: "keep it conversational" }
+             : today.type === "hiit" ? { ic: "bolt", big: "4 × 4 min", sub: "hard, with 3 min easy between · watch the last interval's peak HR" } : null;
+    h += '<div class="todayHero ' + today.type + '"><div class="todayDay">' + today.day + '</div><div class="todayTitle">' + esc(today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
+      (rule ? '<div class="zoneBox"><span class="zIc">' + icon(rule.ic) + '</span><span class="zTx"><span class="zoneBig">' + esc(rule.big) + '</span><span class="zoneSub">' + esc(rule.sub) + '</span></span></div>'
+            : '<div class="zoneBox rest"><span class="zIc">' + icon("moon") + '</span><span class="zTx"><span class="zoneSub">No training today. Sleep, food and an easy walk count.</span></span></div>') + '</div>';
+    /* a home session riding on this day (Wednesday): its own card with its own Start */
+    if(today.home){
+      var hw = today.home, cwh = currentWeek(hw), nh = ((db.programs[hw] || {}).entries || []).length;
+      h += '<div class="todayHero homeHero"><div class="hhTop"><span class="hhIc">' + icon("house") + '</span><span><span class="hhTitle">Home core</span>' +
+        '<span class="hhSub">' + esc(shortName(hw)) + ' · Week ' + cwh + ' of ' + TOTAL_WEEKS + ' · ' + nh + ' exercises</span></span></div>' +
+        '<button class="btn big block homeBtn" data-act="gotoplan" data-prog="' + hw + '">' + icon("play") + 'Start home core</button></div>';
+    }
   }
-  h += '</div>';
-  h += '<div class="card weekList">' + CURRENT_WEEK.map(function(d, j){
-    var target = (d.type === "strength" || d.type === "home") ? d.ref : (d.home || null);   /* the day-track a tap opens */
-    return '<div class="wrow' + (j === i ? " today" : "") + '"' + (target ? ' data-act="gotoplan" data-prog="' + target + '" style="cursor:pointer"' : "") + '>' +
-           '<span class="wd">' + d.day + '</span><span class="dot ' + d.type + '"></span><span class="wt">' + esc(d.label) + (d.home ? ' <span class="dim">+ home core</span>' : '') + '</span>' + (target ? '<span class="goarrow">›</span>' : "") + '</div>';
+  /* the week strip: Mon-Sun, an icon per day type, today highlighted, training and home days tappable */
+  h += '<div class="sectH">This week</div><div class="weekStrip">' + CURRENT_WEEK.map(function(d, j){
+    var target = (d.type === "strength" || d.type === "home") ? d.ref : (d.home || null), tag = target ? "button" : "div";
+    return '<' + tag + ' class="wrow' + (j === i ? " today" : "") + '"' + (target ? ' data-act="gotoplan" data-prog="' + target + '"' : '') + '>' +
+      '<span class="wd">' + d.day + '</span><span class="dot ' + d.type + '">' + icon(DAY_ICON[d.type] || "calendar") + '</span>' +
+      (d.home ? '<span class="dot2">' + icon("house") + '</span>' : '') + '<span class="sr">' + esc(d.label) + (d.home ? ' + home core' : '') + '</span></' + tag + '>';
+  }).join("") + '</div>';
+  /* the program card: weeks done of 12 per day-track; opens Programs */
+  var AP = getProgram(db.activeProgram), tracks = AP.days.concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []);
+  h += '<button class="card progCard" data-view="library"><span class="pcTop"><span class="pcIc">' + icon("layers") + '</span><span class="pcHead"><span class="pcName">' + esc(AP.name) + '</span>' +
+    '<span class="pcSub">Active program · ' + AP.weeks + ' weeks</span></span>' + icon("chevR", "chev") + '</span>' +
+    tracks.map(function(d){ var n = progWeeksDone(d).length; return '<span class="pcTrack"><span class="pcT">' + esc(dayTitle(d)) + '</span><span class="bar"><i style="width:' + Math.round(n / AP.weeks * 100) + '%"></i></span><span class="pcV">' + n + '/' + AP.weeks + '</span></span>'; }).join("") + '</button>';
+  /* the last session, from the diary */
+  var ls = lastSession();
+  if(ls) h += '<div class="card lastSess"><div class="sectH">Last session</div><div class="lsDate">' + esc(ls.label) + '</div>' + ls.rows.map(function(r){
+    return '<div class="lsRow' + (r.pb ? " pb" : "") + '">' + (r.pb ? icon("trophy", "sm") : '<span class="lsDot"></span>') + '<span class="lsName">' + esc(r.name) + '</span><span class="lsKg">' + r.kg + ' kg × ' + r.reps + (r.partial ? ' <span class="ltPartial">partial</span>' : '') + '</span></div>';
   }).join("") + '</div>';
   $("#view-today").innerHTML = h;
+}
+/* the newest diary day: "Tue 27 Oct · Day A" and its lifts, a trophy where the lift beat every earlier entry */
+function lastSession(){
+  var H = db.history || []; if(!H.length) return null;
+  var ts = H.reduce(function(m, h){ return h.ts > m ? h.ts : m; }, ""), rows = H.filter(function(h){ return h.ts === ts; });
+  var d = new Date(ts + "T00:00:00"), wd = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][d.getDay()];
+  return { label: wd + " " + d.getDate() + " " + MONTHS[d.getMonth()] + " · " + dayTitle(rows[0].day), rows: rows.map(function(h){
+    var earlier = H.filter(function(x){ return x.exId === h.exId && x.ts < ts; }), best = earlier.length ? Math.max.apply(null, earlier.map(function(x){ return x.kg; })) : null;
+    return { name: (exById(h.exId) || { name: h.exId }).name, kg: h.kg, reps: h.reps, partial: h.quality === "partial", pb: best != null && h.kg > best };
+  }) };
+}
+/* a missing target body weight: a prompt card (Fuel, Settings) that opens the number pad */
+function bwPrompt(msg){
+  return '<div class="card promptCard"><div class="pcMsg">' + icon("user", "lg") + '<span>' + msg + '</span></div>' +
+    '<button class="btn primary block" data-act="setbw">' + icon("edit") + 'Set target weight</button></div>';
+}
+function onSetBw(){
+  var cur = db.profile.targetBodyweightKg;
+  openModal({ title: "Target bodyweight", message: "Your lean goal weight at about 10–15% body fat (kg). Protein is figured on this, not on today's total.", mode: "number",
+    value: cur != null ? String(cur) : "", placeholder: "kg", stepEx: { id: "_bodyweight", inc: 0.5 },
+    onSubmit: function(v){ var n = num(v); if(n == null || n <= 0){ toast("Enter a weight above 0"); return; } db.profile.targetBodyweightKg = Math.round(n * 10) / 10; save(); showView(ui.view); } });
 }
 
 /* ---------- page headers: a large title that scrolls away; More's pages get a back control to More ---------- */
@@ -123,92 +173,119 @@ function howToHtml(exId){
     '</div></details>';
 }
 
-/* ---------- LOG = notes ---------- */
+/* ---------- NOTES (view id "log"): a filter by lift, newest first; delete asks first and can be undone ---------- */
 function renderLog(){
   /* keep each note's ORIGINAL index for stable deletion, then show newest-first */
   var notes = (db.notes || []).map(function(n, i){ return { n: n, i: i }; }).reverse();
+  var counts = {}, order = [];
+  notes.forEach(function(o){ var id = o.n.exerciseId; if(!(id in counts)){ counts[id] = 0; order.push(id); } counts[id]++; });
+  var f = (ui.noteFilter && counts[ui.noteFilter]) ? ui.noteFilter : "";
   var h = subHead("Notes", "Per-exercise notes from the Workout — week & weight are stamped automatically as a record.");
-  if(!notes.length) h += '<div class="note dim" style="margin-top:12px">No notes yet. On the <b>Plan</b> tab, tap <b>+ note</b> under any exercise — pain, machine quirks, how it felt — and they collect here with the week and weight.</div>';
-  else h += '<div class="card">' + notes.map(function(o){
-    var n = o.n, ex = exById(n.exerciseId) || { name: n.exerciseId }, rec = [];
-    if(n.week) rec.push("Week " + n.week);
-    if(n.weight) rec.push(n.weight);
-    return '<div class="noteRow"><div class="noteHd"><b>' + esc(ex.name) + '</b><span class="dim">' + esc(n.date) + '</span></div>' +
-      (rec.length ? '<div class="noteRec">' + esc(rec.join(" · ")) + '</div>' : "") +
-      '<div class="noteTx">' + esc(n.text) + '</div>' +
-      '<button class="noteDel" data-act="delnote" data-idx="' + o.i + '">Delete</button></div>';
-  }).join("") + '</div>';
+  if(!notes.length) h += '<div class="card emptyCard">' + icon("note", "xl") + '<div class="emptyT">No notes yet</div><div class="note">On the Workout, tap <b>Note</b> on any lift: pain, machine settings, how it felt. They collect here with the week and the weight.</div></div>';
+  else {
+    h += '<div class="chips scroll noteFilter"><button class="chip' + (!f ? " sel" : "") + '" data-act="notefilter" data-ex="">All · ' + notes.length + '</button>' +
+      order.map(function(id){ return '<button class="chip' + (f === id ? " sel" : "") + '" data-act="notefilter" data-ex="' + esc(id) + '">' + esc((exById(id) || { name: id }).name) + ' · ' + counts[id] + '</button>'; }).join("") + '</div>';
+    h += '<div class="card noteList">' + notes.filter(function(o){ return !f || o.n.exerciseId === f; }).map(function(o){
+      var n = o.n, ex = exById(n.exerciseId) || { name: n.exerciseId }, rec = [];
+      if(n.week) rec.push("Week " + n.week);
+      if(n.weight) rec.push(n.weight);
+      return '<div class="noteRow"><div class="noteHd"><b>' + esc(ex.name) + '</b><span class="dim">' + esc(shortDate(n.date)) + '</span></div>' +
+        (rec.length ? '<div class="noteRec">' + esc(rec.join(" · ")) + '</div>' : "") +
+        '<div class="noteTx">' + esc(n.text) + '</div>' +
+        '<button class="noteDel" data-act="delnote" data-idx="' + o.i + '" aria-label="Delete this note">' + icon("trash", "sm") + 'Delete</button></div>';
+    }).join("") + '</div>';
+  }
   $("#view-log").innerHTML = h;
 }
 
-/* ---------- NUTRITION ---------- */
+/* ---------- FUEL (view id "nutrition") ---------- */
 function renderNutrition(){
   var bw = db.profile.targetBodyweightKg, lo = bw ? Math.round(bw * NUTRITION.targetLow) : null, hi = bw ? Math.round(bw * NUTRITION.targetHigh) : null;
-  var h = subHead("Fuel", "Protein on your TARGET lean bodyweight + GERD-safe timing") + '<div class="card"><div class="sectH" style="margin-top:0">Daily protein target</div>';
-  if(bw) h += '<div class="bigNum">' + lo + '–' + hi + ' g</div><div class="note">' + NUTRITION.targetLow + '–' + NUTRITION.targetHigh + ' g/kg of your ' + bw + ' kg lean target · ' + NUTRITION.mealsPerDay[0] + '–' + NUTRITION.mealsPerDay[1] + ' meals (≥' + Math.round(bw * NUTRITION.perMealMinGPerKg) + ' g each) · ceiling ~' + Math.round(bw * NUTRITION.ceiling) + ' g.</div>';
-  else h += '<div class="warnBox">Set your <b>target lean bodyweight</b> (Settings) to compute the gram target — figuring protein on total mass over-counts.</div>';
-  h += '</div><div class="sectH">Timing rules</div><div class="card kvs">' + NUTRITION.rules.map(function(r){ return '<div style="flex-direction:column;align-items:flex-start;gap:3px;border-bottom:1px solid var(--line)"><b style="font-size:12.5px">' + esc(r.when) + '</b><span class="muted" style="font-size:12.5px">' + esc(r.how) + '</span></div>'; }).join("") + '</div>';
-  h += '<div class="sectH">GERD safety</div><div class="card"><ul style="margin:0;padding-left:18px;font-size:13px;color:#c6d2dd">' + NUTRITION.gerd.map(function(g){ return '<li style="margin-bottom:5px">' + esc(g) + '</li>'; }).join("") + '</ul></div>';
-  h += '<div class="note" style="margin:8px 2px"><b>' + esc(NUTRITION.oneLine) + '</b></div>';
+  var h = subHead("Fuel", "Protein on your TARGET lean bodyweight, and reflux-safe (GERD) timing.");
+  if(bw) h += '<div class="card fuelHero"><div class="sectH">Daily protein</div><div class="bigNum">' + lo + '–' + hi + ' g</div>' +
+    '<div class="note">' + NUTRITION.targetLow + '–' + NUTRITION.targetHigh + ' g/kg of your ' + bw + ' kg lean target · ' + NUTRITION.mealsPerDay[0] + '–' + NUTRITION.mealsPerDay[1] + ' meals (≥' + Math.round(bw * NUTRITION.perMealMinGPerKg) + ' g each) · ceiling ~' + Math.round(bw * NUTRITION.ceiling) + ' g.</div></div>';
+  else h += bwPrompt("Set your <b>target lean bodyweight</b> to work out your protein: figuring it on total mass over-counts.");
+  h += '<div class="sectH">Timing rules</div><div class="list">' + NUTRITION.rules.map(function(r){
+    return '<div class="li ruleRow"><span class="liI">' + icon("timer") + '</span><span class="liB"><span class="liT">' + esc(r.when) + '</span><span class="liS">' + esc(r.how) + '</span></span></div>'; }).join("") + '</div>';
+  h += '<div class="sectH">Reflux (GERD) safety</div><div class="list">' + NUTRITION.gerd.map(function(g){
+    return '<div class="li gerdRow"><span class="liI">' + icon("check") + '</span><span class="liB">' + esc(g) + '</span></div>'; }).join("") + '</div>';
+  h += '<div class="card fuelLine">' + icon("fork") + '<span>' + esc(NUTRITION.oneLine) + '</span></div>';
   $("#view-nutrition").innerHTML = h;
 }
 
-/* ---------- PROGRAMS (the library + switcher) ---------- */
+/* ---------- PROGRAMS (view id "library": the program library + switcher) ---------- */
+/* a progress ring, 0-100 % */
+function ringHtml(pct){
+  var C = 2 * Math.PI * 20, v = Math.max(0, Math.min(100, pct)) / 100 * C;
+  return '<div class="ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="rTrack" cx="24" cy="24" r="20"></circle>' +
+    (v > 0 ? '<circle class="rVal" cx="24" cy="24" r="20" stroke-dasharray="' + v.toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 24 24)"></circle>' : '') + '</svg><span class="ringPct">' + pct + '%</span></div>';
+}
 function renderLibrary(){
   var h = subHead("Programs", "Your training programs. The active one drives Today and the Workout. Tap one to preview it or start training — your strength carries forward.");
-  h += '<div class="card">' + PROGRAM_ORDER.map(function(pid){
+  h += PROGRAM_ORDER.map(function(pid){
     var P = db.programLib[pid]; if(!P) return "";
-    var ps = db.programState[pid] || {progress:{}};
+    var ps = db.programState[pid] || { progress: {} };
     var active = pid === db.activeProgram;
     var totalWk = P.days.length * P.weeks;
-    var doneWk = P.days.reduce(function(s,d){ return s + ((((ps.progress||{})[d]||{}).weeksDone||[]).length); }, 0);
-    var pctDone = totalWk ? Math.round(doneWk/totalWk*100) : 0;
+    var doneWk = P.days.reduce(function(s, d){ return s + ((((ps.progress || {})[d] || {}).weeksDone || []).length); }, 0);
+    var pctDone = totalWk ? Math.round(doneWk / totalWk * 100) : 0;
     var dirBadge = P.direction === "reverse" ? "Reverse · reps 6→15" : "Forward · reps 15→6";
     var curMode = ps.rateMode || "plateau";
     /* climb-rate picker on EVERY program — forward steps the weight up faster, reverse rides a higher/lower bank */
-    var paceHtml = '<div class="paceRow"><div class="paceLbl">Climb rate</div><div class="paceChips">' +
+    var paceHtml = '<div class="paceRow"><div class="paceLbl">Climb rate</div><div class="paceChips seg">' +
         PROGRESSION_MODE_ORDER.map(function(m){ var M = PROGRESSION_MODES[m]; return '<button class="paceChip' + (m === curMode ? " sel" : "") + '" data-act="setpace" data-prog="' + esc(pid) + '" data-mode="' + m + '" title="' + esc(M.hint) + '">' + esc(M.label) + '</button>'; }).join("") +
-        '</div><div class="paceHint dim">' + esc((PROGRESSION_MODES[curMode] || PROGRESSION_MODES.plateau).hint) + '</div></div>';
-    return '<div class="progItem' + (active ? " active" : "") + '">' +
-      '<div class="progNm">' + esc(P.name) + (active ? ' <span class="progActive">ACTIVE</span>' : '') + (ps.completedAt ? ' <span class="progDoneB">✓ done</span>' : '') + '</div>' +
+        '</div><div class="paceHint">' + esc((PROGRESSION_MODES[curMode] || PROGRESSION_MODES.plateau).hint) + '</div></div>';
+    return '<div class="card progItem' + (active ? " active" : "") + '"><div class="piTop">' + ringHtml(pctDone) + '<div class="piHead"><div class="progNm">' + esc(P.name) + '</div>' +
+      '<div class="piBadges">' + (active ? '<span class="pill acc progActive">ACTIVE</span>' : '') + (ps.completedAt ? '<span class="pill progDoneB">' + icon("check", "sm") + 'done</span>' : '') + '</div></div></div>' +
       '<div class="progDesc">' + esc(P.desc) + '</div>' +
-      '<div class="progMeta">' + P.weeks + ' weeks · ' + esc(dirBadge) + ' · ' + doneWk + '/' + totalWk + ' day-weeks done (' + pctDone + '%)</div>' +
-      '<div class="progBarWrap"><div class="progBar" style="width:' + pctDone + '%"></div></div>' +
+      '<div class="progMeta">' + P.weeks + ' weeks · ' + esc(dirBadge) + ' · ' + doneWk + '/' + totalWk + ' day-weeks done</div>' +
       paceHtml +
-      (active ? '<div class="note dim" style="margin-top:8px">Active — open it on the <b>Plan</b> tab.</div>'
-              : '<button class="btn block sm" data-act="switchprogram" data-prog="' + esc(pid) + '" style="margin-top:8px">Switch to ' + esc(P.name) + '</button>') +
-      '</div>';
-  }).join("") + '</div>';
-  h += '<div class="note dim" style="margin:8px 2px">More programs as you build them. Your strength carries forward — starting a new program picks up from your last completed week (+ one step).</div>';
+      (active ? '<button class="btn tonal block" data-view="programs">' + icon("dumbbell") + 'Open the Workout</button>'
+              : '<button class="btn block" data-act="switchprogram" data-prog="' + esc(pid) + '">' + icon("swap") + 'Switch to ' + esc(P.name) + '</button>') + '</div>';
+  }).join("");
+  h += '<div class="note footNote">More programs as you build them. Your strength carries forward — starting a new program picks up from your last completed week (+ one step).</div>';
   $("#view-library").innerHTML = h;
 }
 
-/* ---------- SETTINGS ---------- */
+/* ---------- SETTINGS: Android-style grouped lists ---------- */
 function field(label, type, path, val, hint){
   return '<div class="field"><label>' + label + '</label><input type="' + type + '"' + (type === "number" ? ' inputmode="decimal" step="any"' : "") + ' data-path="' + path + '" value="' + esc(val == null ? "" : val) + '">' + (hint ? '<div class="note dim" style="margin-top:3px">' + hint + '</div>' : "") + '</div>';
 }
+/* one list row with its input on the right */
+function rowField(label, type, path, val, hint){
+  return '<label class="li fieldRow"><span class="liB"><span class="liT">' + label + '</span>' + (hint ? '<span class="liS">' + hint + '</span>' : '') + '</span>' +
+    '<input class="rowIn" type="' + type + '"' + (type === "number" ? ' inputmode="decimal" step="any"' : "") + ' data-path="' + path + '" value="' + esc(val == null ? "" : val) + '"></label>';
+}
+var ZONE_NAMES = { z1: "Recovery", z2: "Easy endurance (Zone 2)", z3: "Tempo", z4: "Threshold", z5: "Max" };
+function zoneRowsHtml(){
+  var p = db.profile;
+  return ["z1","z2","z3","z4","z5"].map(function(z){ return '<div class="li zoneRow"><span class="zK">' + z.toUpperCase() + '</span><span class="liB">' + ZONE_NAMES[z] + '</span><span class="zV">' + p.hrZones[z][0] + '–' + p.hrZones[z][1] + '</span></div>'; }).join("");
+}
 function renderSettings(){
   var p = db.profile;
-  var h = subHead("Settings") + '<div class="card"><div class="sectH" style="margin-top:0">Profile</div>' +
-    field("Name", "text", "p.name", p.name) +
-    field("Target bodyweight (kg)", "number", "p.targetBodyweightKg", p.targetBodyweightKg, "Your lean goal weight at ~10–15% body fat — protein is figured on this, not current total mass.") +
-    field("Max HR (bpm)", "number", "p.maxHr", p.maxHr, "Editing this regenerates the HR zones below.") +
-    '<div class="row">' + field("Protein low g/kg", "number", "p.proteinTargetGPerKg.low", p.proteinTargetGPerKg.low) + field("Protein high g/kg", "number", "p.proteinTargetGPerKg.high", p.proteinTargetGPerKg.high) + '</div></div>';
-  h += '<div class="card"><div class="sectH" style="margin-top:0">HR zones (max ' + p.maxHr + ')</div><div class="kvs">' +
-    ["z1","z2","z3","z4","z5"].map(function(z){ return '<div><span class="muted">' + z.toUpperCase() + '</span><b>' + p.hrZones[z][0] + '–' + p.hrZones[z][1] + '</b></div>'; }).join("") + '</div></div>';
-  h += '<div class="card"><div class="sectH" style="margin-top:0">Data</div><div class="btnRow"><button class="btn" data-act="export">Export JSON</button><button class="btn" data-act="import">Import JSON</button></div>' +
-    '<div class="note dim" style="margin-top:8px">Schema v' + db.schemaVersion + ' · last export ' + (db.settings.lastExportAt ? db.settings.lastExportAt.slice(0, 10) : "never") + '</div>' +
-    '<button class="btn ghost block sm" data-act="reset" style="margin-top:10px;color:var(--bad)">Reset all data</button></div>';
+  var h = subHead("Settings");
+  if(!p.targetBodyweightKg) h += bwPrompt("Set your <b>target lean bodyweight</b>: Fuel works out your daily protein from it.");
+  h += '<div class="setGroup"><div class="sectH">Profile</div><div class="list">' +
+    rowField("Name", "text", "p.name", p.name) +
+    rowField("Target bodyweight (kg)", "number", "p.targetBodyweightKg", p.targetBodyweightKg, "Lean goal at ~10–15% body fat; protein is figured on this") +
+    rowField("Max HR (bpm)", "number", "p.maxHr", p.maxHr, "Changing it rebuilds the zones below") +
+    rowField("Protein low (g/kg)", "number", "p.proteinTargetGPerKg.low", p.proteinTargetGPerKg.low) +
+    rowField("Protein high (g/kg)", "number", "p.proteinTargetGPerKg.high", p.proteinTargetGPerKg.high) + '</div></div>';
+  h += '<div class="setGroup"><div class="sectH">Heart-rate zones</div><div class="list zoneList">' + zoneRowsHtml() + '</div><div class="note setNote">From your max heart rate of ' + p.maxHr + ' bpm.</div></div>';
   /* weight steps grouped by equipment category — only categories actually used (e.g. kettlebell stays hidden until a program adds one) */
   var catsUsed = {}; STRENGTH_DAYS.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat) catsUsed[x.cat]=true; }); });
-  h += '<div class="card"><div class="sectH" style="margin-top:0">Weight steps</div>' +
-    '<div class="note dim" style="margin-bottom:4px">Smallest jump per equipment type — set it to match your gym. On the Plan, tap a lift\'s <b>⚙</b> chip to override just that one.</div>' +
+  h += '<div class="setGroup"><div class="sectH">Weight steps</div><div class="note setNote">The smallest jump per equipment type — set it to match your gym. On a Workout card, the step chip overrides just that lift.</div><div class="list">' +
     EQUIP_CAT_ORDER.filter(function(c){ return catsUsed[c]; }).map(function(cat){
       var c=EQUIP_CATS[cat], o=db.gearByCat[cat]||c, lbl=(o.equip==="db")?"DB grid":((o.inc||c.inc)+" kg"), lifts=[];
       STRENGTH_DAYS.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat===cat) lifts.push(x.name); }); });
-      return '<div class="catRow" data-act="setcatstep" data-cat="'+esc(cat)+'"><div class="catTop"><span class="catName">'+esc(c.label)+'</span><span class="catStep">'+esc(lbl)+' ✎</span></div><div class="catLifts">'+esc(lifts.join(" · "))+'</div></div>';
-    }).join("") + '</div>';
-  h += '<div class="note dim" style="margin:8px 2px">Tested weights live on the <b>Plan</b> (tap a lift to enter/adjust). Rest time + reps are per-exercise. Barbell = 20 kg standard.</div>';
+      return '<button class="li catRow" data-act="setcatstep" data-cat="'+esc(cat)+'"><span class="liI">' + icon("cog") + '</span><span class="liB"><span class="liT catName">'+esc(c.label)+'</span><span class="liS catLifts">'+esc(lifts.join(" · "))+'</span></span><span class="liV catStep">'+esc(lbl)+'</span>' + icon("chevR", "chev") + '</button>';
+    }).join("") + '</div></div>';
+  h += '<div class="setGroup"><div class="sectH">Data</div><div class="list">' +
+    '<button class="li" data-act="export"><span class="liI">' + icon("upload") + '</span><span class="liB"><span class="liT">Export a backup</span><span class="liS">The whole record as one file, through the share sheet</span></span>' + icon("chevR", "chev") + '</button>' +
+    '<button class="li" data-act="import"><span class="liI">' + icon("download") + '</span><span class="liB"><span class="liT">Import a backup</span><span class="liS">Replaces what is on this phone (asks first)</span></span>' + icon("chevR", "chev") + '</button>' +
+    '<button class="li dangerRow" data-act="reset"><span class="liI">' + icon("trash") + '</span><span class="liB"><span class="liT">Reset all data</span><span class="liS">Erases everything on this phone (asks first)</span></span></button></div>' +
+    '<div class="note setNote">Schema v' + db.schemaVersion + ' · last export ' + (db.settings.lastExportAt ? db.settings.lastExportAt.slice(0, 10) : "never") + '</div></div>';
+  h += '<div class="note footNote">Tested weights live on the Workout (tap a lift\'s weight to enter or adjust it). Rest time and reps are per exercise. Barbell = 20 kg standard.</div>';
   $("#view-settings").innerHTML = h;
 }
 function setPath(path, val){ var o = path.indexOf("p.") === 0 ? db.profile : db.settings, parts = path.slice(2).split("."); for(var i = 0; i < parts.length - 1; i++) o = o[parts[i]]; o[parts[parts.length - 1]] = val; }

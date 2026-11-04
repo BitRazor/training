@@ -237,6 +237,7 @@ document.addEventListener("click",function(e){
   if(act==="kpkey"){ kpPress(t.getAttribute("data-k")); return; }
   if(act==="kpdel"){ kpDel(); return; }
   if(act==="kpplus"||act==="kpminus"){ kpStep(act==="kpplus"?1:-1); return; }
+  if(act==="notifyask"){ onNotifyAsk(); return; }
   if(act==="notifyallow"){ closeModal(); if(window.Native&&Native.notifyPermission) Native.notifyPermission("request").then(function(s){ if(s==="granted"&&restState()) scheduleAlert(); }); return; }
   if(act==="setw"){ onSetWeight(t); return; }
   if(act==="setstep"){ onSetStep(t); return; }

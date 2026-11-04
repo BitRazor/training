@@ -2,7 +2,7 @@
   "appId": "io.github.bitrazor.training",
   "appName": "Training",
   "webDir": "www",
-  "backgroundColor": "#0c0f12",
+  "backgroundColor": "#0B0D10",
   "plugins": {
     "SystemBars": {
       "insetsHandling": "css",
@@ -10,7 +10,11 @@
     },
     "StatusBar": {
       "style": "DARK",
-      "backgroundColor": "#0c0f12"
+      "backgroundColor": "#0B0D10"
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_rest",
+      "iconColor": "#C8F542"
     }
   }
 }

@@ -280,6 +280,9 @@ function renderSettings(){
       STRENGTH_DAYS.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat===cat) lifts.push(x.name); }); });
       return '<button class="li catRow" data-act="setcatstep" data-cat="'+esc(cat)+'"><span class="liI">' + icon("cog") + '</span><span class="liB"><span class="liT catName">'+esc(c.label)+'</span><span class="liS catLifts">'+esc(lifts.join(" · "))+'</span></span><span class="liV catStep">'+esc(lbl)+'</span>' + icon("chevR", "chev") + '</button>';
     }).join("") + '</div></div>';
+  /* in the Android app: the rest-timer alert permission, which can be asked again here (the first prompt comes once) */
+  if(window.Native && Native.isApp) h += '<div class="setGroup"><div class="sectH">Rest timer</div><div class="list"><button class="li alertRow" data-act="notifyask"><span class="liI">' + icon("bell") + '</span>' +
+    '<span class="liB"><span class="liT">Rest-timer alerts</span><span class="liS">Checking…</span></span>' + icon("chevR", "chev") + '</button></div></div>';
   h += '<div class="setGroup"><div class="sectH">Data</div><div class="list">' +
     '<button class="li" data-act="export"><span class="liI">' + icon("upload") + '</span><span class="liB"><span class="liT">Export a backup</span><span class="liS">The whole record as one file, through the share sheet</span></span>' + icon("chevR", "chev") + '</button>' +
     '<button class="li" data-act="import"><span class="liI">' + icon("download") + '</span><span class="liB"><span class="liT">Import a backup</span><span class="liS">Replaces what is on this phone (asks first)</span></span>' + icon("chevR", "chev") + '</button>' +
@@ -287,6 +290,13 @@ function renderSettings(){
     '<div class="note setNote">Schema v' + db.schemaVersion + ' · last export ' + (db.settings.lastExportAt ? db.settings.lastExportAt.slice(0, 10) : "never") + '</div></div>';
   h += '<div class="note footNote">Tested weights live on the Workout (tap a lift\'s weight to enter or adjust it). Rest time and reps are per exercise. Barbell = 20 kg standard.</div>';
   $("#view-settings").innerHTML = h;
+  if(window.Native && Native.isApp && Native.notifyPermission) Native.notifyPermission("check").then(alertRowState);
+}
+var ALERT_STATE = { granted: "On: a notification when your rest is over", denied: "Blocked: allow notifications in Android's app settings" };
+function alertRowState(s){ var r = $("#view-settings .alertRow .liS"); if(r) r.textContent = ALERT_STATE[s] || (s === "unavailable" ? "Not available on this phone" : "Off: tap to allow"); }
+function onNotifyAsk(){
+  if(!window.Native || !Native.notifyPermission) return;
+  Native.notifyPermission("request").then(function(s){ alertRowState(s); if(s === "granted" && typeof restState === "function" && restState()) scheduleAlert(); });
 }
 function setPath(path, val){ var o = path.indexOf("p.") === 0 ? db.profile : db.settings, parts = path.slice(2).split("."); for(var i = 0; i < parts.length - 1; i++) o = o[parts[i]]; o[parts[parts.length - 1]] = val; }
 function regenZones(){ var m = db.profile.maxHr || 193; db.profile.hrZones = { z1:[Math.round(.5*m),Math.round(.6*m)], z2:[Math.round(.6*m),Math.round(.7*m)], z3:[Math.round(.7*m),Math.round(.8*m)], z4:[Math.round(.8*m),Math.round(.9*m)], z5:[Math.round(.9*m),m] }; }

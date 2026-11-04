@@ -163,7 +163,7 @@ function renderRest(){
   bar.hidden = false; bar.classList.toggle("done", done);
   bar.querySelector(".restLbl").textContent = done ? "Rest done" : "Rest";
   bar.querySelector(".restTime").textContent = done ? "" : mmss(Math.ceil(leftMs / 1000));
-  bar.querySelector(".restNext").textContent = "Next: " + rest.name + (rest.set ? " · set " + rest.set : "");
+  bar.querySelector(".restNext").textContent = "Next: " + (rest.set ? "set " + rest.set + " · " : "") + rest.name;   /* the set first: a long name is what gets cut */
   bar.querySelector(".restTrack > i").style.width = (done ? 0 : Math.round(leftMs / (rest.total * 1000) * 100)) + "%";
   if(nb) nb.hidden = true;
   syncPillClass();

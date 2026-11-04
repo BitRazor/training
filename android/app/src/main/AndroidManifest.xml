@@ -39,4 +39,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- The rest timer's "Rest done" alert must arrive on time with the phone locked: an exact alarm. Android grants
+         USE_EXACT_ALARM at install to timer apps (Android 13+), so the notifications plugin never has to send the user
+         to the "Alarms & reminders" settings screen in the middle of a workout. -->
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
 </manifest>

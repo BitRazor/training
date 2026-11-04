@@ -166,6 +166,9 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
   opacity:0; transform:translateY(14px); transition:opacity .2s ease, transform .2s ease; pointer-events:none}
 .toast.show{opacity:1; transform:none; pointer-events:auto}
 .pillOn .toast{bottom:calc(var(--navH) + 98px + var(--safeB))}
+/* while a sheet is open the toast moves to the top, so it never covers the sheet's text or buttons */
+#modal.open ~ .toast{top:calc(env(safe-area-inset-top,0px) + 12px); bottom:auto; transform:translateY(-14px)}
+#modal.open ~ .toast.show{transform:none}
 .toastMsg{flex:1; min-width:0; padding:8px 0}
 .toastUndo{flex:none; display:flex; align-items:center; gap:6px; min-height:44px; padding:0 14px; border:0; border-radius:12px; background:none; color:var(--acc); font:700 14.5px var(--font)}
 .toastUndo .ic{width:18px; height:18px}

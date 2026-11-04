@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The app's background (the bg colour variable in tracker.css). Shown behind the status and
+    <!-- The app's background (the bg colour token in tracker.css, #0B0D10 since the version 2 look). Shown behind the status and
          navigation bars and at launch. Change it together with the web colours (needs a new APK). -->
-    <color name="appBackground">#0C0F12</color>
+    <color name="appBackground">#0B0D10</color>
 </resources>

@@ -3,7 +3,7 @@
    immediately when online (cache is only the offline fallback); CACHE-FIRST for images
    /manifest (rarely change → fast, saves data). Bump CACHE on each release. */
 "use strict";
-var CACHE = "training-2026-11-03b";   /* bump on every release so returning phones evict the old shell */
+var CACHE = "training-2026-11-04-v2ui";   /* bump on every release so returning phones evict the old shell (v2 look, 2026-11-04) */
 var CORE = [
   "./", "./index.html", "./tracker.css", "./boot.js", "./native.js",
   "./tracker-seed.js", "./tracker-engine.js", "./tracker-desc.js", "./ui-icons.js", "./tracker-views.js", "./tracker-plan.js",

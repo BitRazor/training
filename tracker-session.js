@@ -3,10 +3,14 @@
    - set ticks: db.sets[doneKey] = [bool…], one per set of the entry (additive; version 1 ignores it). The lift's
      done state stays in db.done exactly as in v1 (applyMark writes the frozen diary): ticking the last set marks it
      full, un-ticking a set of a full lift un-marks it; ✓ ticks every set, ◐ leaves them and marks partial;
-   - the session: the first tick of a day-track and week today starts db.session {start, last}; Finish clears it;
-   - the rest timer: one at a time, kept on its end time (localStorage "training-tracker:v1:rest"), so a re-render,
-     a restart or a locked phone shows the right time; ±15 s, Skip; at zero a beep (only while visible), a buzz
-     and a flash; an Android alert scheduled for the end time (native.js, @capacitor/local-notifications);
+   - the session: the first tick of a day-track and week today starts db.session {start, last, ticks}; Finish clears
+     it; ticks = the time each set was ticked (for the superset rest below);
+   - the rest timer (the smart rule of 2026-11-04, see restPlan): each lift rests its own restSec; a superset breathes
+     20 s between its lifts and, after the round's last lift, rests until the round's first lift is ready again; no
+     timer after a lift's last set. One at a time, kept on its end time (localStorage "training-tracker:v1:rest"), so
+     a re-render, a restart or a locked phone shows the right time; ±15 s, Skip; at zero a beep (only while visible),
+     a buzz and a flash; an Android alert for rests of 45 s or more, scheduled for the end time (native.js,
+     @capacitor/local-notifications);
    - keep awake while a tick is under 20 minutes old and the Workout is open;
    - Undo: a toast with Undo for 5 s after a set or lift tick and a week finish (the whole db as it was);
    - Finish week: the v1 week-done, then a summary sheet (full, partial, time, today's bests, the next session).
@@ -15,6 +19,7 @@
 /* the app's clock (tests replace it) */
 function nowMs(){ return Date.now(); }
 var REST_KEY = STORE_KEY + ":rest", REST_NOTE_ID = 4711, AWAKE_MS = 20 * 60000;
+var BREATH_SEC = 20, ALERT_MIN_SEC = 45;   /* the superset breath; the shortest rest that gets an Android alert */
 var rest = null, tickTimer = null, awakeOn = null, audioCtx = null;
 function mmss(sec){ sec = Math.max(0, Math.floor(sec)); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s); }
 
@@ -37,13 +42,14 @@ function onSetTick(t){
   db.sets[doneKey(prog, week, exId)] = arr;
   if(on){ touchSession(prog, week); if(arr.every(Boolean) && st0 !== "full") applyMark(prog, week, exId, "full"); }
   else if(st0 === "full") applyMark(prog, week, exId, "full");   /* un-ticking a set of a full lift un-marks it (v1 untick) */
+  noteTick(prog, week, exId, i, on);
   save();
   var st = doneState(prog, week, exId), ex = exById(exId) || { name: exId };
   ui.nowPrompt = null;
   if(on){
-    var b = blockOf(prog, exId), sec = restSecondsFor(prog, exId);
+    var b = blockOf(prog, exId), plan = restPlan(prog, week, exId, i);
     if(b && b.kind === "ss" && b.idx < b.entries.length - 1) ui.nowPrompt = { prog: prog, week: week, exId: b.entries[b.idx + 1].exerciseId, tag: b.n + String.fromCharCode(66 + b.idx) };
-    else if(sec > 0){ var nx = nextAfterRest(prog, week, exId); if(nx) startRest(sec, nx); }
+    if(plan) startRest(plan); else stopRest();   /* a lift's last set: no timer, and a running one stops */
     Native.haptic(st === "full" && st0 !== "full" ? "success" : "light");
   }
   refreshCardState(prog, week, exId, i);
@@ -82,7 +88,7 @@ function popEl(el){ el.classList.remove("pop"); void el.offsetWidth; el.classLis
 /* ---------- the session (first tick → last tick, one day-track and week, today) ---------- */
 function touchSession(prog, week){
   var now = nowMs(), today = todayISO(), s = db.session;
-  if(!s || s.prog !== prog || s.week !== week || s.date !== today || s.program !== db.activeProgram) db.session = { program: db.activeProgram, prog: prog, week: week, date: today, start: now, last: now };
+  if(!s || s.prog !== prog || s.week !== week || s.date !== today || s.program !== db.activeProgram) db.session = { program: db.activeProgram, prog: prog, week: week, date: today, start: now, last: now, ticks: {} };
   else s.last = Math.max(s.last || now, now);   /* a clock that steps back never shortens the session below zero */
   save();
 }
@@ -95,24 +101,62 @@ function refreshSessionUi(){
   if(s){ var c = chip.querySelector(".shClock"); if(c) c.textContent = mmss((nowMs() - s.start) / 1000); ensureTicker(); }
 }
 
-/* ---------- rest durations (design §5) ---------- */
-/* alone or finisher: the entry's restSec; a superset rests only after its last lift, for the group's longest
-   restSec (none between 1A and 1B); home entries without one: 60 s; warm-up moves: none */
+/* ---------- rest durations: the smart rule (2026-11-04; it replaced design §5's "a superset rests only after its
+   last lift, for the group's longest restSec, with nothing between 1A and 1B") ---------- */
+/* a lift's own rest need: its entry's restSec (home entries without one: 60 s), never its superset's longest;
+   warm-up moves and lifts not on the day: none */
 function restSecondsFor(prog, exId){
   if(!exId || exId.indexOf("wu:") === 0) return 0;
-  var P = db.programs[prog], b = blockOf(prog, exId); if(!P || !b) return 0;
-  if(b.kind === "ss"){ if(b.idx < b.entries.length - 1) return 0; return Math.max.apply(null, b.entries.map(function(e){ return e.restSec || 0; })) || 60; }
-  return b.entry.restSec || 60;
+  var en = progEntry(prog, exId); if(!en) return 0;
+  return en.restSec || 60;
 }
 function firstOpenSet(prog, week, id){ var a = setTicks(prog, week, id); for(var i = 0; i < a.length; i++) if(!a[i]) return i; return -1; }
-/* what comes after this rest: the next open set in the lift (a superset: the round's first lift with sets left),
-   else the next lift not done; null when the day is done (then no timer) */
-function nextAfterRest(prog, week, exId){
-  var b = blockOf(prog, exId), cand = (b && b.kind === "ss") ? b.entries.map(function(e){ return e.exerciseId; }) : [exId];
-  for(var i = 0; i < cand.length; i++){ if(isDone(prog, week, cand[i])) continue; var k = firstOpenSet(prog, week, cand[i]); if(k >= 0) return { exId: cand[i], set: k + 1 }; }
-  var n = nextUndoneLift(prog, week); if(!n) return null;
-  var k2 = firstOpenSet(prog, week, n);
-  return { exId: n, set: k2 >= 0 ? k2 + 1 : 1 };
+function nextSetNo(prog, week, id){ var k = firstOpenSet(prog, week, id); return k >= 0 ? k + 1 : null; }
+/* the time each set was ticked, kept in today's session (db.session.ticks["<lift>:<set index>"] = ms), so the
+   superset rest survives a screen change and an app restart; un-ticking a set forgets its time */
+function noteTick(prog, week, exId, i, on){
+  var s = sessionFor(prog, week); if(!s) return;
+  if(!s.ticks || typeof s.ticks !== "object") s.ticks = {};
+  if(on) s.ticks[exId + ":" + i] = nowMs(); else delete s.ticks[exId + ":" + i];
+}
+/* when set i of a lift was ticked; null when it is not ticked now or its time is unknown (ticked on another day,
+   or in a session saved before tick times were kept) */
+function tickedAt(prog, week, exId, i){
+  var s = sessionFor(prog, week), t = (s && s.ticks) ? s.ticks[exId + ":" + i] : null;
+  return (typeof t === "number" && isFinite(t) && setTicks(prog, week, exId)[i]) ? t : null;
+}
+/* what the timer does right after set i of a lift was ticked: null = no timer, else
+   {kind, start, end, total, exId, set, tag} for the lift that comes next. kind "rest": "Next: set 2 · <lift>";
+   "ready": "1A <lift> ready in m:ss"; "breath": "then 1B <lift>".
+   - the lift is now done (its last set; in a superset this includes the final round): no timer;
+   - alone, a finisher, any lift outside a superset: its own rest before its next set;
+   - a superset, after a lift that is not the round's last: a 20 s breath, then the round's next lift;
+   - a superset, after the round's last lift: a rest until the round's first lift is ready again = its own rest
+     counted from its tick in this round (its full rest when that time is unknown), never less than the breath;
+     with only the breath left, the breath before the first lift. After the final round: no timer.
+   Out-of-order ticks: when the lift's partners are done, its next set is its own, so it rests its own time. */
+function restPlan(prog, week, exId, i){
+  if(!exId || exId.indexOf("wu:") === 0) return null;
+  var b = blockOf(prog, exId); if(!b || setTicks(prog, week, exId).every(Boolean)) return null;
+  var now = nowMs();
+  var plan = function(kind, end, id, tag){ return { kind: kind, start: now, end: end, total: Math.ceil((end - now) / 1000), exId: id, set: nextSetNo(prog, week, id), tag: tag || null }; };
+  var own = function(){ return plan("rest", now + restSecondsFor(prog, exId) * 1000, exId, null); };
+  if(b.kind !== "ss") return own();
+  var ids = b.entries.map(function(e){ return e.exerciseId; });
+  var tagOf = function(id){ return b.n + String.fromCharCode(65 + ids.indexOf(id)); };
+  var open = function(id){ return !isDone(prog, week, id); };
+  /* round i = the group's lifts that have a set i, in order */
+  var round = ids.filter(function(id){ return setCount(prog, id) > i; }), k = round.indexOf(exId);
+  if(k < round.length - 1){
+    var nx = round.slice(k + 1).filter(open)[0];
+    return nx ? plan("breath", now + BREATH_SEC * 1000, nx, tagOf(nx)) : own();
+  }
+  if(i >= Math.max.apply(null, ids.map(function(id){ return setCount(prog, id); })) - 1) return null;   /* the final round is over */
+  var first = round[0];
+  if(first === exId || !open(first) || setCount(prog, first) <= i + 1) return own();
+  var t = tickedAt(prog, week, first, i), full = restSecondsFor(prog, first) * 1000;
+  var ready = Math.min(now + full, (t == null ? now : t) + full);   /* a clock that stepped back never makes it longer than the full rest */
+  return ready - now > BREATH_SEC * 1000 ? plan("ready", ready, first, tagOf(first)) : plan("breath", now + BREATH_SEC * 1000, first, tagOf(first));
 }
 
 /* ---------- the rest timer ---------- */
@@ -122,14 +166,21 @@ function loadRest(){
   try { var r = JSON.parse(localStorage.getItem(REST_KEY) || "null"); rest = (r && r.end && r.total && nowMs() < r.end + 5000) ? r : null; if(!rest) localStorage.removeItem(REST_KEY); } catch(e){ rest = null; }
 }
 function alertText(){ return "Next is " + rest.name + (rest.set ? " (set " + rest.set + ")" : ""); }
-function scheduleAlert(){ if(rest && window.Native && Native.notifyAt) Native.notifyAt(REST_NOTE_ID, rest.end, "Rest done", alertText()); }
+/* the Android alert is for real rests: 45 s or more from the tick to the end (±15 s included), never a breath.
+   A timer stored before 2026-11-04 has no kind and no start: a rest of its total length */
+function alertWanted(r){ return !!r && r.kind !== "breath" && r.end - (r.start != null ? r.start : r.end - r.total * 1000) >= ALERT_MIN_SEC * 1000; }
+function scheduleAlert(){ if(alertWanted(rest) && window.Native && Native.notifyAt) Native.notifyAt(REST_NOTE_ID, rest.end, "Rest done", alertText()); }
 function cancelAlert(){ if(window.Native && Native.cancelNotify) Native.cancelNotify(REST_NOTE_ID); }
-function startRest(sec, nx){
+/* start the one timer from a restPlan */
+function startRest(p){
   if(rest) cancelAlert();
-  var ex = exById(nx.exId) || { name: nx.exId };
-  rest = { end: nowMs() + sec * 1000, total: sec, exId: nx.exId, set: nx.set, name: ex.name };
-  saveRest(); scheduleAlert(); renderRest(); ensureTicker(); askNotifyOnce();
+  var ex = exById(p.exId) || { name: p.exId };
+  rest = { kind: p.kind, start: p.start, end: p.end, total: p.total, exId: p.exId, set: p.set, tag: p.tag, name: ex.name };
+  saveRest(); scheduleAlert(); renderRest(); ensureTicker();
+  if(alertWanted(rest)) askNotifyOnce();   /* the permission sheet promises alerts, so it comes with the first timer that has one */
 }
+/* stop the timer without a word (a lift's last set): the Next pill comes back */
+function stopRest(){ if(!rest) return; cancelAlert(); rest = null; saveRest(); renderRest(); }
 function addRest(d){
   if(!rest || rest.doneAt) return;
   var now = nowMs(); rest.end = Math.max(now + 1000, rest.end + d * 1000); rest.total = Math.max(rest.total, Math.ceil((rest.end - now) / 1000));
@@ -137,7 +188,7 @@ function addRest(d){
 }
 function skipRest(){
   if(!rest) return;
-  cancelAlert(); rest = null; saveRest(); renderRest();
+  stopRest();
   if(ui.view === "programs") updateNextBar(ui.planProg, ui.planWeek);
 }
 function restoreRest(r){
@@ -146,24 +197,35 @@ function restoreRest(r){
   if(rest) scheduleAlert();
   saveRest(); renderRest();
 }
-/* the floating rest pill (every screen while it runs): "Rest 1:24", the next set, a draining bar, −15 s, +15 s, Skip */
+/* the line under the time: "Next: set 2 · <lift>" (alone: the set first, a long name is what gets cut),
+   "1A <lift> ready in 1:20" (after a superset's round) or "then 1B <lift>" (a breath) */
+function restLine(r, leftSec, done){
+  var tag = r.tag ? r.tag + " " : "";
+  if(r.kind === "breath") return "then " + tag + r.name;
+  if(r.kind === "ready") return tag + r.name + (done ? " ready" : " ready in " + mmss(leftSec));
+  return "Next: " + (r.set ? "set " + r.set + " · " : "") + r.name;
+}
+/* the floating rest pill (every screen while it runs): "Rest 1:24" or "Breath 0:20", the line above, a draining bar,
+   −15 s, +15 s, Skip; a breath wears the superset violet */
 function renderRest(){
   var bar = $("#restBar"), nb = $("#nextBar"); if(!bar) return;
   if(!rest){
-    if(!bar.hidden || bar.innerHTML){ bar.hidden = true; bar.innerHTML = ""; bar.classList.remove("done"); }
+    if(!bar.hidden || bar.innerHTML){ bar.hidden = true; bar.innerHTML = ""; bar.classList.remove("done", "breath"); }
     if(nb && ui.view === "programs" && nb.innerHTML && !previewing()) nb.hidden = false;
     syncPillClass(); return;
   }
   var leftMs = Math.max(0, rest.end - nowMs()), done = !!rest.doneAt;
   if(!bar.querySelector(".restTime")){
-    bar.innerHTML = '<div class="restTrack"><i></i></div><div class="restRow"><button class="restMain" data-act="restgo" aria-label="Go to the workout"><span class="restLbl"></span><span class="restTime"></span><span class="restNext"></span></button>' +
+    /* the line under the time runs the pill's full width, so "1A <lift> ready in 1:20" fits on a phone */
+    bar.innerHTML = '<div class="restTrack"><i></i></div><div class="restRow"><button class="restMain" data-act="restgo" aria-label="Go to the workout"><span class="restLbl"></span><span class="restTime"></span></button>' +
       '<button class="rbtn" data-act="restminus" aria-label="15 seconds less">−15 s</button><button class="rbtn" data-act="restplus" aria-label="15 seconds more">+15 s</button>' +
-      '<button class="rbtn skip" data-act="restskip" aria-label="Skip the rest">' + icon("skip", "sm") + 'Skip</button></div>';
+      '<button class="rbtn skip" data-act="restskip" aria-label="Skip the rest">' + icon("skip", "sm") + 'Skip</button></div><div class="restNext" data-act="restgo"></div>';
   }
-  bar.hidden = false; bar.classList.toggle("done", done);
-  bar.querySelector(".restLbl").textContent = done ? "Rest done" : "Rest";
-  bar.querySelector(".restTime").textContent = done ? "" : mmss(Math.ceil(leftMs / 1000));
-  bar.querySelector(".restNext").textContent = "Next: " + (rest.set ? "set " + rest.set + " · " : "") + rest.name;   /* the set first: a long name is what gets cut */
+  var breath = rest.kind === "breath", leftSec = Math.ceil(leftMs / 1000);
+  bar.hidden = false; bar.classList.toggle("done", done); bar.classList.toggle("breath", breath);
+  bar.querySelector(".restLbl").textContent = (breath ? "Breath" : "Rest") + (done ? " done" : "");
+  bar.querySelector(".restTime").textContent = done ? "" : mmss(leftSec);
+  bar.querySelector(".restNext").textContent = restLine(rest, leftSec, done);
   bar.querySelector(".restTrack > i").style.width = (done ? 0 : Math.round(leftMs / (rest.total * 1000) * 100)) + "%";
   if(nb) nb.hidden = true;
   syncPillClass();

@@ -104,6 +104,8 @@ function normalize(){
      Version 1 ignores both, so a v2 export still imports there. */
   if(!db.sets || typeof db.sets!=="object" || Array.isArray(db.sets)) db.sets={};
   if(db.session===undefined || (db.session!==null && typeof db.session!=="object")) db.session=null;
+  /* the smart rest timer (2026-11-04) keeps each set's tick time in the session; a session saved before has none */
+  if(db.session && (!db.session.ticks || typeof db.session.ticks!=="object" || Array.isArray(db.session.ticks))) db.session.ticks={};
   if(!db.profile.hrZones||!db.profile.hrZones.z1) regenZones();
   migrate();
 }

@@ -5,7 +5,7 @@
 "use strict";
 var CACHE = "training-2026-11-03b";   /* bump on every release so returning phones evict the old shell */
 var CORE = [
-  "./", "./index.html", "./tracker.css",
+  "./", "./index.html", "./tracker.css", "./boot.js", "./native.js",
   "./tracker-seed.js", "./tracker-engine.js", "./tracker-desc.js", "./tracker-views.js", "./tracker-plan.js", "./tracker-actions.js", "./tracker.js",
   "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"
 ];

@@ -41,7 +41,9 @@ function currentWeek(prog){
 function progEntry(prog, exId){ var P = db.programs[prog]; if(!P) return null; for(var i = 0; i < P.entries.length; i++) if(P.entries[i].exerciseId === exId) return P.entries[i]; return null; }
 /* prescription for one entry at a given week. `weight` = the raw prescribed kg (or null for
    untested / timed) — the single source the note-stamp + UI both read, so they can't diverge. */
-function prescFor(en, week){
+function prescFor(en, week, prog){
+  /* Part 2: a smart program prescribes from the lift's current target (tracker-smart.js), not from the week */
+  if(typeof smartOn === "function" && smartOn()) return smartPresc(en, prog, week);
   var ex = exById(en.exerciseId) || {}, tested = shownAnchor(en.exerciseId), side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
   // home exercises: the dose text IS the prescription (every set by effort, near failure) — no weight maths
   if(en.dose) return { text: en.dose, tested: true, kind: "effort", weight: null };
@@ -68,7 +70,8 @@ function prescFor(en, week){
 }
 /* one set's target, short, for the set rows and a collapsed card: "75 kg × 10", "16 kg × 45 s/arm",
    "+5 kg × 12–20", "BW × 12–20", "20 s/side"; "" for the home doses (the dose text above says it all) */
-function setTargetText(en, week){
+function setTargetText(en, week, prog){
+  if(typeof smartOn === "function" && smartOn()) return smartSetText(prog, week, en, 0);   /* Part 2: the target (or today's weight used) */
   var ex = exById(en.exerciseId) || {}, t = shownAnchor(en.exerciseId), side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
   if(en.dose) return "";
   if(en.exerciseId === "copenhagen-plank") return holdSec(week) + " s/side";
@@ -136,9 +139,9 @@ function renderPlan(){
   h += '<div class="daySwitch"><div class="progTabs">' + STRENGTH_DAYS.map(dayTab).join("") + '</div>' +
     (typeof HOME_DAYS !== "undefined" ? '<div class="progTabs home">' + HOME_DAYS.filter(function(id){ return !!db.programs[id]; }).map(dayTab).join("") + '</div>' : '') + '</div>';
   /* one quiet phase line; the speed rule in full and the soreness rule sit behind the i chip */
-  var rmA = shownRateMode(), rmM = PROGRESSION_MODES[rmA];
-  var paceNote = (rmA !== "plateau" && rmM) ? ' · <span class="accT">' + esc(rmM.label) + ' pace</span>' : '';
-  var phaseLbl = SP.direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
+  var rmA = shownRateMode(), rmM = PROGRESSION_MODES[rmA], smart = SP.smart === true;
+  var paceNote = (!smart && rmA !== "plateau" && rmM) ? ' · <span class="accT">' + esc(rmM.label) + ' pace</span>' : '';
+  var phaseLbl = smart ? "Smart" : SP.direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
   h += '<div class="phaseBanner' + (P.home ? " home" : "") + '"><div class="phaseTx"><div class="phaseName"><b>' + (P.home ? "Home" : esc(phaseLbl)) + '</b> · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span>' + paceNote + '</div>' +
     '<div class="phaseCue">' + (P.home ? "Every set near failure · no weights to calculate" : "Lower 3 s · lift firmly 1–2 s · no bounce") + '</div></div>' +
     '<button class="iChip" data-act="phaseinfo" aria-label="About this week">' + icon("info") + '</button></div>';
@@ -178,17 +181,20 @@ function renderPlan(){
        (weekIsDone ? icon("check") + "Week " + w + " · " + esc(shortName(prog)) + " finished · tap to reopen" : icon("trophy") + "Finish week " + w + " · " + esc(shortName(prog))) + '</button></div>';
   /* the gym supersets run 2 or 3 rounds (the head of each says which); the home day keeps its own wording */
   var roundsTx = P.home ? "3 rounds" : "as many rounds as the header says";
-  h += '<div class="note footNote">Superset: one set of 1A, then one set of 1B, back to 1A — ' + roundsTx + '. Tick each lift\'s sets as you go: the rest timer starts, and the card folds away after its last set. Heavy lifts auto-calculate; tap a weight to log what you actually lifted. Notes collect on the Notes page.</div>';
+  h += '<div class="note footNote">Superset: one set of 1A, then one set of 1B, back to 1A — ' + roundsTx + '. Tick each lift\'s sets as you go: the rest timer starts, and the card folds away after its last set. ' +
+    (smart ? 'A tick means you did the target; tap a set\'s reps to log more or fewer, and the weight to log what you really lifted. After the last set, tap Easy, Good or Hard.' : 'Heavy lifts auto-calculate; tap a weight to log what you actually lifted.') + ' Notes collect on the Notes page.</div>';
   $("#view-programs").innerHTML = h;
   updateNextBar(prog, w);
   if(typeof refreshSessionUi === "function") refreshSessionUi();
 }
 /* one lift's card. `tag` = its superset slot ("1A", "1B" …) or null */
 function planCardHtml(prog, w, en, tag){
-  var exId = en.exerciseId, ex = exById(exId) || { name: exId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold" && pr.kind !== "effort");
+  var exId = en.exerciseId, ex = exById(exId) || { name: exId }, pr = prescFor(en, w, prog), tappable = (pr.kind !== "timed" && pr.kind !== "hold" && pr.kind !== "effort");
   var st = doneState(prog, w, exId), exd = !!st, hist = historyFor(exId), lt = hist.length ? hist[hist.length - 1] : null;
-  var ticks = setTicks(prog, w, exId), tgt = setTargetText(en, w), home = !!en.dose;
-  var note = latestNoteFor(exId);
+  var smart = !!pr.smart, ticks = setTicks(prog, w, exId), tgt = smart ? smartDoneText(prog, w, en) : setTargetText(en, w), home = !!en.dose;
+  var note = latestNoteFor(exId), rng = smart ? smartRangeText(en) : "";
+  /* the ramp-up tip: a smart lift's own target reps, else the week's ladder reps */
+  var rampReps = smart ? pr.reps : clampReps(repForWeekIn(shownProg(), w), ex);
   var rate = pr.rate === "push" ? '<span class="rateTag up" title="pushing harder — stuck adding reps">' + icon("arrowUp", "sm") + '</span>' : pr.rate === "ease" ? '<span class="rateTag down" title="easing — paying back the push">' + icon("arrowDown", "sm") + '</span>' : '';
   var h = '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + (home ? " homeCard" : "") + '">' +
     '<div class="planTop"><button class="exThumb" data-act="exsheet" data-ex="' + exId + '" aria-label="' + esc(ex.name) + ': picture and how-to">' + thumbHtml(exId) + '</button>' +
@@ -196,15 +202,21 @@ function planCardHtml(prog, w, en, tag){
     '<div class="exName">' + esc(ex.name) + '</div><div class="doneLine">' + esc(tgt) + '</div></div>' +
     '<div class="ptL"><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" aria-label="done — partial" title="did it, but not fully">' + icon("half") + '</button>' +
     '<button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" aria-label="done — full (all sets)">' + icon("check") + '</button></div></div>' +
+    (smart ? effortRowHtml(prog, w, en) : '') +   /* Part 2: Easy · Good · Hard, shown once the lift is done (tracker.css) */
     '<div class="planBody"><div class="pbIn">' +
     '<div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + exId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + rate + (tappable ? ' <span class="editi">' + icon("edit", "sm") + '</span>' : '') + '</div>' +
-    (lt ? '<div class="lastTime">Last time: <b>' + lt.kg + ' kg × ' + lt.reps + '</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
+    (rng ? '<div class="smartRange">' + esc(rng) + '</div>' : '') +
+    (smart && pr.kind === "hold" && en.dose ? '<div class="doseLine">' + esc(en.dose) + '</div>' : '') +
+    (lt ? '<div class="lastTime">Last time: <b>' + esc(lastTimeText(lt)) + '</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
     /* ramp-up (owner 2026-10-13: the minimum): only the split squat and the deadlift, only in weeks where THAT lift's own reps are 11 or fewer
        (2026-10-17: its own window, so the deadlift's 10-rep start shows the tip from week 1) */
-    (en.ramp && clampReps(repForWeekIn(shownProg(), w), ex) <= 11 ? '<div class="rampTip">' + icon("trendUp", "sm") + '<span>Ramp-up first: 1 light set, about half the weight, <span class="nw">6–8 reps</span></span></div>' : '') +
+    (en.ramp && rampReps != null && rampReps <= 11 ? '<div class="rampTip">' + icon("trendUp", "sm") + '<span>Ramp-up first: 1 light set, about half the weight, <span class="nw">6–8 reps</span></span></div>' : '') +
     (note ? '<button class="stickyNote" data-act="exsheet" data-ex="' + exId + '" data-sec="notes">' + icon("note", "sm") + '<span class="snTx">' + esc(note.text) + '</span><span class="snWhen">' + esc(shortDate(note.date)) + '</span></button>' : '') +
     '<div class="setRows">' + ticks.map(function(on, i){
-      return '<div class="setRow' + (on ? " on" : "") + (home ? " plain" : "") + '"><span class="setNo">' + (home ? "Set " + (i + 1) : (i + 1)) + '</span><span class="setTgt">' + esc(tgt) + '</span>' +
+      /* a smart set's reps is a button: the ± stepper (tracker-smart.js) */
+      var lbl = smart ? '<button class="setTgt setReps" data-act="setreps" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" data-set="' + i + '">' + esc(smartRowLabel(prog, w, en, i)) + '</button>'
+                      : '<span class="setTgt">' + esc(tgt) + '</span>';
+      return '<div class="setRow' + (on ? " on" : "") + (home ? " plain" : "") + '"><span class="setNo">' + (home ? "Set " + (i + 1) : (i + 1)) + '</span>' + lbl +
         '<button class="setTick' + (on ? " on" : "") + '" data-act="settick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" data-set="' + i + '" aria-label="Set ' + (i + 1) + ' done">' + icon("check") + '</button></div>';
     }).join("") + '</div>' +
     '<div class="exChips chips">' +
@@ -297,9 +309,13 @@ function openWeekSheet(){
 function openPhaseInfo(){
   var prog = ui.planProg, P = db.programs[prog], w = ui.planWeek || 1, SP = shownProg();
   var rmA = shownRateMode(), rmM = PROGRESSION_MODES[rmA], pace = (rmA !== "plateau" && rmM) ? " · " + rmM.label + " pace" : "";
+  var smart = SP.smart === true;
   var lines = P.home ? ["Every set near failure: holds until your form is about to break; knee work stops 1–2 reps short. No weights to calculate."]
+    : smart ? ["Reps as on each card · lower in about 3 s, then lift firmly in about 1–2 s, no jerk or bounce · each card's target comes from what you really did last time",
+               "A tick means you did the target. Tap a set's reps to log more or fewer; after the last set tap Easy, Good or Hard (no tap = Good). The next session suggests the next step.",
+               "Still very sore 3+ days after a session? Do 2 sets of everything that day."]
     : ["Reps as on each card · lower in about 3 s, then lift firmly in about 1–2 s, no jerk or bounce · heavy weights are calculated from your tested 15RM" + pace,
        "Still very sore 3+ days after a session? Do 2 sets of everything that day."];
-  openSheet(P.home ? shortName(prog) : "Week " + w + " · " + (SP.direction === "reverse" ? "Back-off wave" : phaseForWeek(w)),
+  openSheet(P.home ? shortName(prog) : "Week " + w + " · " + (smart ? "Smart" : SP.direction === "reverse" ? "Back-off wave" : phaseForWeek(w)),
     '<div class="infoLines">' + lines.map(function(l){ return '<div class="phaseReps">' + esc(l) + '</div>'; }).join("") + '</div>');
 }

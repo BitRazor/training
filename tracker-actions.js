@@ -150,6 +150,8 @@ function startTraining(pid){
 /* ---------- plan actions (weight / step / note edits) ---------- */
 function onSetWeight(t){
   var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
+  /* Part 2: in a smart program the weight is today's weight used (or a new lift's starting weight), tracker-smart.js */
+  if(typeof smartOn==="function" && smartOn()){ onSmartWeight(ui.planProg, w, exId); return; }
   /* body-weight lift (45° back extension): the number is the plate he holds, stored as typed; 0 = body weight */
   if(ex.loadType==="bodyweight"){
     openModal({ title:"Plate · "+ex.name, message:"Body weight until 25 clean reps, then hold a 2.5–5 kg plate. Enter the plate's kg (0 = body weight).", mode:"number", value:cur!=null?String(cur):"", placeholder:"kg", stepEx:ex,
@@ -199,7 +201,7 @@ function onNote(t){
       /* auto-stamp the week + the prescribed weight at the moment of the note, as its own record. From a sheet the
          button names its day and week (data-prog / data-week); on the Workout card they are the shown ones. */
       var prog=t.getAttribute("data-prog")||ui.planProg||todayProgram()||"strength-a", week=(+t.getAttribute("data-week"))||ui.planWeek||1;
-      var en=progEntry(prog,exId), pr=en?prescFor(en,week):null;
+      var en=progEntry(prog,exId), pr=en?prescFor(en,week,prog):null;
       var weight=(pr&&pr.weight!=null)?(pr.weight+" kg"):((pr&&pr.kind==="timed")?"timed":"");
       db.notes.push({date:todayISO(), week:week, exerciseId:exId, weight:weight, text:txt.trim()});
       save(); toast("Note saved ✓"); } });

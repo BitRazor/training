@@ -1,20 +1,21 @@
 {
-  "version": "2026.11.04.8",
+  "version": "2026.11.04.9",
   "files": {
-    "index.html": "79e80d11bbc1d230807832524d89d7528f984f7f396f2cb4f53d5a4c3ddb871c",
-    "tracker.css": "3a56367c0094cb523557985a4be532f5022658bfe5c553b7d482c3f6092a16e8",
+    "index.html": "38d9023f5f31e6613872acc8957d8bebc0ccd4d9e7385525985596bf193886cf",
+    "tracker.css": "0fc5eb4ec187e34fb187806ef5a2f728f488a34e0a98db4a6ff0913e5b536e4e",
     "native.js": "0918b2a96d5cb20ec53f008b9359d114a4981cc82098b73e11cb0a9294a1cd7c",
     "tracker-seed.js": "e80297b0aeab7f4e12a0ecc5c36b06a24be1b84ad0e01a99514ef944f9015493",
     "tracker-engine.js": "6544eee0ec8ecfd268b9480d0fdd22f096d1b70c46dd7184023119ce7386bc30",
     "tracker-desc.js": "54f9e60bc3ffd04049a282cdb6e89f703ced899f73674f8109c5c7b2d7dd1a92",
     "ui-icons.js": "fa7be9c2279583f64f4f5e2bf32f413a44b96eab2f5d61b9fe24585c8f1fa629",
-    "tracker-views.js": "c20b41e2eb9132c877dfcfb682bdcb2637efbd810fa172cc75975472d0ac8902",
-    "tracker-plan.js": "c162fef6692bb7c25849f347e56d5339243a878c3b35c333b5c44a0315984eca",
-    "tracker-session.js": "a285eca1ce5ba04173043bf97bbf13fea57999976261e18deeeab651f41f2cf3",
-    "tracker-progress.js": "c94dd820a20f8ae4a053bf8e511116ed335b8e597714495d7930244b9a34f972",
+    "tracker-views.js": "fe8585b07a75cd00c581e64107cefcc1855d2274b66ebcf7c1a2116421e68a37",
+    "tracker-plan.js": "0efdc37a0b46eb0aef73c1f5f6c5ebdb0433b802f648f85bc082dc8268902fd7",
+    "tracker-session.js": "8ac60453056ea08bf0c4fbeb47b1e390adc17ed4d06b416d9d4858783be4c299",
+    "tracker-progress.js": "dadc81b0ebc89df92a5d1ed65427dc55838d1849328a8fca7411e17b3b4a4b20",
     "tracker-week.js": "7005a113decfd43f5c8e757e6b3033b96eece0721ca0f244349c98472f1bb27b",
-    "tracker-actions.js": "f6ebcb84ab1dc2bd21641555a9871e30f5a8e549fc090066e579b8ab6918d5c1",
-    "tracker.js": "aa5aedc94052f746fe9512c8d298503ca30c77a30caede9c791ae089a4b12aba"
+    "tracker-smart.js": "8fbdc07f8ca540f013f097b89a97b044a95a4b68fd7e8ab018570008224d67e9",
+    "tracker-actions.js": "8f6ec5a3cd46898de4097f52671f4ebd24266fdec5d603c54d2994994fd41a19",
+    "tracker.js": "8da201a343787133b6d811ff869116722693b717a7775be54e64bfdd2750d172"
   },
   "assets": {
     "gifs/atg.gif": "c0d086c9d4c11045f252fb74091d0ec4d0133f46ba9d84f19185db88cd2725cb",

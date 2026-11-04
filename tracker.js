@@ -26,7 +26,7 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, schedule:null, dayNames:{}, settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, schedule:null, dayNames:{}, logs:{}, targets:{}, settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -116,6 +116,9 @@ function normalize(){
      migrate, which refreshes the day tracks they are checked against. Version 1 ignores both. */
   db.dayNames=cleanNames(db.dayNames);
   db.schedule=cleanSchedule(db.schedule);
+  /* Part 2 (2026-11-04), additive: the smart session log (db.logs) and the targets (db.targets), tracker-smart.js.
+     Version 1 ignores both. */
+  if(typeof cleanSmartStores==="function") cleanSmartStores();
 }
 function load(){
   try{var raw=localStorage.getItem(STORE_KEY); db=raw?JSON.parse(raw):seedDb();}catch(e){db=seedDb();}
@@ -153,6 +156,7 @@ function doneState(prog,week,item){if(previewing())return null;var v=db.done[don
 function recordHistory(prog,week,exId,quality){
   if(!exId||exId.indexOf("wu:")===0) return;
   if(!progEntry(prog,exId)) return;
+  if(typeof smartActive==="function"&&smartActive()){ recordSmartHistory(prog,week,exId,quality); return; }   /* Part 2: the weight used and each set's reps */
   var ex=exById(exId)||{}, tested=db.tested[exId]; if(tested==null) return;
   if(ex.loadType==="bodyweight") return;   /* body weight + an optional plate: no laddered kg to freeze */
   var p=ladderFor(tested,ex,getProgram(db.activeProgram),activeRateMode())[week]; if(!p||p.kg==null) return;
@@ -160,6 +164,17 @@ function recordHistory(prog,week,exId,quality){
   for(var i=0;i<db.history.length;i++){ var h=db.history[i];
     if(h.program===db.activeProgram&&(h.cycle||1)===cyc&&h.day===prog&&h.week===week&&h.exId===exId){ h.ts=ts; h.kg=p.kg; h.reps=p.reps; h.quality=quality; save(); return; } }
   db.history.push({ts:ts,program:db.activeProgram,cycle:cyc,day:prog,week:week,exId:exId,kg:p.kg,reps:p.reps,quality:quality}); save();
+}
+/* a smart program's diary entry (tracker-smart.js smartHistoryEntry): the same keys as above, kg = the weight used,
+   reps = the fewest reps of any set, plus done / effort / target (additive; version 1 reads kg × reps) */
+function recordSmartHistory(prog,week,exId,quality){
+  var e=smartHistoryEntry(prog,week,exId); if(!e) return;
+  var ts=todayISO(), cyc=cycleOf(db.activeProgram), h=null;
+  for(var i=0;i<db.history.length;i++){ var x=db.history[i]; if(x.program===db.activeProgram&&(x.cycle||1)===cyc&&x.day===prog&&x.week===week&&x.exId===exId){ h=x; break; } }
+  if(!h){ h={ts:ts,program:db.activeProgram,cycle:cyc,day:prog,week:week,exId:exId}; db.history.push(h); }
+  h.ts=ts; h.kg=e.kg; h.reps=e.reps; h.quality=quality; h.done=e.done; h.target=e.target;
+  if(e.effort) h.effort=e.effort; else delete h.effort;
+  save();
 }
 /* entries carry their program CYCLE (missing = 1), so a restarted program's week never touches the last run's */
 function removeHistory(prog,week,exId){ var cyc=cycleOf(db.activeProgram); db.history=db.history.filter(function(h){ return !(h.program===db.activeProgram&&(h.cycle||1)===cyc&&h.day===prog&&h.week===week&&h.exId===exId); }); save(); }
@@ -233,7 +248,8 @@ document.addEventListener("click",function(e){
   if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ if(pid===db.activeProgram) showView("programs"); else openSwitchModal(pid); } return; }
   if(act==="previewstart"){ startTraining(t.getAttribute("data-prog")); return; }
   if(act==="previewreturn"){ clearPreview(); ui.planWeek=null; ui.planLastProg=null; renderPlan(); return; }
-  if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick|settick)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
+  if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick|settick|setreps|effort)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
+  if(typeof smartClick==="function" && smartClick(act, t)) return;   /* Part 2: the rep stepper, the effort chips (tracker-smart.js) */
   if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); if($("#modal.open")) closeModal(); renderPlan(); return; }
   if(act==="weekdone"){ onWeekDone(t); return; }   /* v1 week-done, then the summary (tracker-session.js) */

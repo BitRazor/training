@@ -39,9 +39,19 @@ function setTicks(prog, week, exId){
 function allSets(prog, exId, on){ var a = []; for(var i = 0, n = setCount(prog, exId); i < n; i++) a.push(!!on); return a; }
 function onSetTick(t){
   var prog = t.getAttribute("data-prog"), week = +t.getAttribute("data-week"), exId = t.getAttribute("data-item"), i = +t.getAttribute("data-set");
-  if(!progEntry(prog, exId)) return;
+  var en = progEntry(prog, exId); if(!en) return;
   primeAudio();
-  var undo = undoPoint(), before = tickKeys(prog, week), arr = setTicks(prog, week, exId), on = !arr[i], st0 = doneState(prog, week, exId);
+  /* Part 2: a smart lift without a target asks for its starting weight first (tracker-smart.js), then the tick goes on */
+  if(typeof smartOn === "function" && smartOn() && !setTicks(prog, week, exId)[i] && needsStartWeight(en)){
+    onSmartWeight(prog, week, exId, function(undo){ renderPlan(); tickSet(prog, week, exId, i, undo); });
+    return;
+  }
+  tickSet(prog, week, exId, i);
+}
+/* tick or untick set i of a lift (undo0: an Undo point taken before an earlier step of the same action, e.g. a logged set) */
+function tickSet(prog, week, exId, i, undo0){
+  if(!progEntry(prog, exId)) return;
+  var undo = undo0 || undoPoint(), before = tickKeys(prog, week), arr = setTicks(prog, week, exId), on = !arr[i], st0 = doneState(prog, week, exId);
   arr[i] = on;
   if(!db.sets) db.sets = {};
   db.sets[doneKey(prog, week, exId)] = arr;
@@ -89,6 +99,7 @@ function refreshCardState(prog, week, exId, popped){
   var fb = c.querySelector('[data-act="donetick"]'), pb = c.querySelector('[data-act="partialtick"]');
   if(fb) fb.classList.toggle("on", st === "full"); if(pb) pb.classList.toggle("on", st === "partial");
   [].slice.call(c.querySelectorAll(".setRow")).forEach(function(r, i){ var on = !!a[i], b = r.querySelector(".setTick"); r.classList.toggle("on", on); if(b){ b.classList.toggle("on", on); if(i === popped && on) popEl(b); } });
+  if(typeof smartOn === "function" && smartOn()) smartRefreshCard(c, prog, week, exId);   /* Part 2: logged reps on the rows and the folded line */
 }
 function popEl(el){ el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
 

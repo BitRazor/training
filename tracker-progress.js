@@ -44,7 +44,7 @@ function histListHtml(hist){
 function openExSheet(exId, sec){
   var ex = exById(exId) || { name: exId }, hist = historyFor(exId);
   var day = (ui.view === "programs" && ui.planProg && progEntry(ui.planProg, exId)) ? ui.planProg : dayOfAny(exId), en = day ? progEntry(day, exId) : null;
-  var w = (day && day === ui.planProg && ui.planWeek) ? ui.planWeek : (day ? shownCurrentWeek(day) : 1), pr = en ? prescFor(en, w) : null;
+  var w = (day && day === ui.planProg && ui.planWeek) ? ui.planWeek : (day ? shownCurrentWeek(day) : 1), pr = en ? prescFor(en, w, day) : null;
   var notes = notesFor(exId);
   var h = '<div class="exSheet"><div class="exBig">' + bigPicHtml(exId, ex.name) + '</div>' +
     (en ? '<div class="exNow"><div class="exNowTop"><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + esc(en.block) + '</span><span class="dim">' + esc(shortName(day)) + ' · week ' + w + '</span></div><div class="exNowT">' + pr.text + '</div></div>' : '') +

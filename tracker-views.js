@@ -11,7 +11,7 @@ var WEEKDAY_LONG = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday
 var MONTHS_LONG = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 var DAY_ICON = { strength: "dumbbell", cardio: "heart", hiit: "bolt", rest: "moon", home: "house" };
 /* a lift's target for the hero preview: "10 kg × 10/side", a home dose's set count, or the 15RM prompt */
-function previewTarget(en, w){ var t = setTargetText(en, w); if(t) return t; if(en.dose) return en.sets + (en.sets === 1 ? " set" : " sets"); return "enter your 15RM"; }
+function previewTarget(en, w, prog){ var t = setTargetText(en, w, prog); if(t) return t; if(en.dose) return en.sets + (en.sets === 1 ? " set" : " sets"); return (typeof smartActive === "function" && smartActive()) ? "set a starting weight" : "enter your 15RM"; }
 function renderToday(){
   var plan = weekPlan(), i = weekdayIdx(), today = plan[i], now = new Date();
   var h = mainHead("Today", WEEKDAY_LONG[i] + " · " + now.getDate() + " " + MONTHS_LONG[now.getMonth()]);
@@ -22,7 +22,7 @@ function renderToday(){
       '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home · " : (cn ? "" : esc(shortName(ref)) + " · ")) + 'Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
       '<div class="todayTitle">' + esc(cn || today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
       '<div class="heroPreview">' + E.slice(0, 4).map(function(en){
-        return '<div class="hpRow"><span class="hpName">' + esc((exById(en.exerciseId) || { name: en.exerciseId }).name) + '</span><span class="hpTgt">' + esc(previewTarget(en, cw)) + '</span></div>';
+        return '<div class="hpRow"><span class="hpName">' + esc((exById(en.exerciseId) || { name: en.exerciseId }).name) + '</span><span class="hpTgt">' + esc(previewTarget(en, cw, ref)) + '</span></div>';
       }).join("") + (E.length > 4 ? '<div class="hpMore">+ ' + (E.length - 4) + ' more</div>' : '') + '</div>' +
       '<button class="btn primary big block" data-act="gotoplan" data-prog="' + ref + '">' + icon("play") + 'Start workout</button></div>';
   } else {
@@ -283,10 +283,11 @@ function renderLibrary(){
     var totalWk = P.days.length * P.weeks;
     var doneWk = P.days.reduce(function(s, d){ return s + ((((ps.progress || {})[d] || {}).weeksDone || []).length); }, 0);
     var pctDone = totalWk ? Math.round(doneWk / totalWk * 100) : 0;
-    var dirBadge = P.direction === "reverse" ? "Reverse · reps 6→15" : "Forward · reps 15→6";
+    var dirBadge = P.smart ? "Smart · next step suggested each session" : P.direction === "reverse" ? "Reverse · reps 6→15" : "Forward · reps 15→6";
     var curMode = ps.rateMode || "plateau";
-    /* climb-rate picker on EVERY program — forward steps the weight up faster, reverse rides a higher/lower bank */
-    var paceHtml = '<div class="paceRow"><div class="paceLbl">Climb rate</div><div class="paceChips seg">' +
+    /* climb-rate picker on every 12-week program — forward steps the weight up faster, reverse rides a higher/lower bank.
+       A smart program (Part 2) has no climb rate: its steps come from what you did */
+    var paceHtml = P.smart ? '' : '<div class="paceRow"><div class="paceLbl">Climb rate</div><div class="paceChips seg">' +
         PROGRESSION_MODE_ORDER.map(function(m){ var M = PROGRESSION_MODES[m]; return '<button class="paceChip' + (m === curMode ? " sel" : "") + '" data-act="setpace" data-prog="' + esc(pid) + '" data-mode="' + m + '" title="' + esc(M.hint) + '">' + esc(M.label) + '</button>'; }).join("") +
         '</div><div class="paceHint">' + esc((PROGRESSION_MODES[curMode] || PROGRESSION_MODES.plateau).hint) + '</div></div>';
     return '<div class="card progItem' + (active ? " active" : "") + '"><div class="piTop">' + ringHtml(pctDone) + '<div class="piHead"><div class="progNm">' + esc(P.name) + '</div>' +

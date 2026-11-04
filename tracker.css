@@ -338,6 +338,31 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 .setTick{width:56px; height:56px; flex:none; padding:0; border-radius:999px; border:2px solid #39404B; background:transparent; color:var(--tx3); display:flex; align-items:center; justify-content:center; transition:background .15s ease, border-color .15s ease, color .15s ease}
 .setTick .ic{width:26px; height:26px; stroke-width:2.5}
 .setTick.on{background:var(--acc); border-color:var(--acc); color:var(--onAcc)}
+/* Part 2 (2026-11-04), smart programs: a set's reps is a button (the ± stepper), the range line, a hold's how-to line,
+   Easy · Good · Hard on the folded card */
+.setReps{align-self:stretch; display:flex; align-items:center; min-height:56px; padding:0 10px; margin:0 -10px; border:0; border-radius:14px; background:none; color:var(--tx); text-align:left; font:700 19px var(--font); letter-spacing:-.01em}
+.setReps:active{background:var(--high)}
+.setReps:empty::before{content:"–"; color:var(--tx3)}
+.setRow.plain .setReps{font-size:16px; font-weight:600; color:var(--tx2)}
+.setRow.on .setReps{color:var(--tx)}
+.smartRange{margin:4px 2px 0; font-size:13px; color:var(--tx3)}
+.doseLine{margin:8px 2px 0; font-size:14px; line-height:1.45; color:var(--tx2); text-wrap:pretty}
+.harder{color:var(--acc); font-weight:700}
+.effortRow{display:none}
+.planCard.done .effortRow{display:flex; align-items:center; gap:10px; margin:8px 0 0}
+.effLbl{flex:none; font-size:13px; font-weight:600; color:var(--tx2)}
+.effChips{flex:1; padding:3px}
+.effChips > button.effChip{min-height:40px; font-size:13.5px}
+.effChips > button.effChip.sel{background:var(--accTint); color:var(--acc)}
+.repSheet{padding:4px 0 2px}
+.repRow{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:6px 0 4px}
+.repBtn{width:72px; height:72px; flex:none; border:0; border-radius:999px; background:var(--high); color:var(--tx); display:flex; align-items:center; justify-content:center}
+.repBtn .ic{width:30px; height:30px; stroke-width:2.5}
+.repBtn:active{background:var(--line)}
+.repVal{flex:1; display:flex; flex-direction:column; align-items:center}
+.repNum{font-size:56px; font-weight:800; letter-spacing:-.03em; line-height:1.05}
+.repUnit{font-size:14px; font-weight:600; color:var(--tx2)}
+.repHint{margin:6px 0 16px; text-align:center; font-size:14px; color:var(--tx2)}
 /* the card's actions in one row: icon over a short label, equal widths */
 .exChips{display:grid; grid-auto-flow:column; grid-auto-columns:minmax(0,1fr); gap:6px; margin-top:14px}
 .exChips .chip{flex-direction:column; justify-content:center; gap:4px; min-height:58px; padding:6px 2px; border-radius:16px; font-size:12px; font-weight:600; white-space:nowrap}

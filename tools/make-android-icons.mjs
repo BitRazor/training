@@ -8,8 +8,8 @@ import { writeFileSync } from "fs";
 import { join } from "path";
 import { ROOT } from "./app-files.mjs";
 
-const BG = [12, 15, 18];      /* #0c0f12, tracker.css --bg */
-const FG = [52, 211, 153];    /* #34d399, tracker.css --acc */
+const BG = [11, 13, 16];      /* #0B0D10, the version-2 background (design.md §2) */
+const FG = [200, 245, 66];    /* #C8F542, the version-2 volt-lime accent */
 const ART = [[0.27, 0.455, 0.73, 0.545], [0.28, 0.34, 0.37, 0.66], [0.63, 0.34, 0.72, 0.66]];   /* bar + two caps */
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 

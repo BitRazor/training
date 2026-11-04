@@ -24,8 +24,86 @@ function renderToday(){
     return '<div class="wrow' + (j === i ? " today" : "") + '"' + (target ? ' data-act="gotoplan" data-prog="' + target + '" style="cursor:pointer"' : "") + '>' +
            '<span class="wd">' + d.day + '</span><span class="dot ' + d.type + '"></span><span class="wt">' + esc(d.label) + (d.home ? ' <span class="dim">+ home core</span>' : '') + '</span>' + (target ? '<span class="goarrow">›</span>' : "") + '</div>';
   }).join("") + '</div>';
-  $("#headMeta").innerHTML = (db.profile.targetBodyweightKg ? db.profile.targetBodyweightKg + " kg" : '<span class="dim">set target BW</span>');
   $("#view-today").innerHTML = h;
+}
+
+/* ---------- page headers: a large title that scrolls away; More's pages get a back control to More ---------- */
+function mainHead(title, overline){ return (overline ? '<div class="overline">' + overline + '</div>' : '') + '<div class="viewH">' + esc(title) + '</div>'; }
+function subHead(title, sub){
+  return '<div class="pageTop"><button class="backBtn" data-view="more" aria-label="Back to More">' + icon("chevL") + '</button></div>' +
+    '<div class="viewH">' + esc(title) + '</div>' + (sub ? '<div class="viewSub">' + sub + '</div>' : '');
+}
+
+/* ---------- MORE: the tiles to the pages that left the bottom bar ---------- */
+function renderMore(){
+  var P = getProgram(db.activeProgram), n = (db.notes || []).length, bw = db.profile.targetBodyweightKg;
+  var ver = (window.__boot && window.__boot.version) || "";
+  var moves = (typeof libraryGroups === "function") ? libraryGroups().reduce(function(s, g){ return s + g.items.length; }, 0) : 0;
+  var tiles = [
+    { view:"library",   ic:"layers",   t:"Programs",        s: esc(P.name) + " is active" },
+    { view:"exercises", ic:"dumbbell", t:"Exercises",       s: moves + " moves, with how-tos" },
+    { view:"log",       ic:"note",     t:"Notes",           s: n ? n + (n === 1 ? " note" : " notes") : "No notes yet" },
+    { view:"nutrition", ic:"fork",     t:"Fuel",            s: bw ? Math.round(bw * NUTRITION.targetLow) + "–" + Math.round(bw * NUTRITION.targetHigh) + " g protein a day" : "Set your target weight" },
+    { view:"settings",  ic:"sliders",  t:"Settings",        s: "Profile, heart-rate zones, data" },
+    { act:"appinfo",    ic:"phone",    t:"App and updates", s: ver ? "Version " + esc(ver) : "Version and updates" }
+  ];
+  $("#view-more").innerHTML = mainHead("More") + '<div class="moreGrid">' + tiles.map(function(x){
+    return '<button class="moreTile" ' + (x.view ? 'data-view="' + x.view + '"' : 'data-act="' + x.act + '"') + '>' +
+      '<span class="tileI">' + icon(x.ic) + '</span><span class="tileT">' + x.t + '</span><span class="tileS">' + x.s + '</span></button>';
+  }).join("") + '</div>';
+}
+
+/* ---------- App and updates (a sheet; reads window.__boot from boot.js) ---------- */
+/* the newest update-check line of boot.js's log, without its time stamp: {msg, when} */
+function lastUpdateCheck(log){
+  for(var i = (log || []).length - 1; i >= 0; i--){
+    var m = /^(\S+)\s+(.*)$/.exec(String(log[i]));
+    if(m && /^(up to date|update \S+ downloaded|update check failed|not taking|\S+ needs app build|APK build)/.test(m[2])){
+      var d = new Date(m[1]), when = isNaN(d) ? "" : (d.toDateString() === new Date().toDateString() ? "today " : d.getDate() + " " + MONTHS[d.getMonth()] + " ") + pad2(d.getHours()) + ":" + pad2(d.getMinutes());
+      return { msg: m[2], when: when };
+    }
+  }
+  return null;
+}
+var MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function pad2(n){ n = String(n); return n.length < 2 ? "0" + n : n; }
+function appLastHtml(){
+  var b = window.__boot || {}, log = []; try { log = typeof b.log === "function" ? b.log() : []; } catch(e){}
+  var last = lastUpdateCheck(log);
+  return last ? '<div class="sectH" style="margin:18px 0 6px">Last check' + (last.when ? ' · ' + esc(last.when) : '') + '</div><div class="appLast note">' + esc(last.msg) + '</div>' : '';
+}
+function openAppSheet(){
+  var b = window.__boot || {}, nat = !!b.native;
+  var src = !nat ? "Web version" : (b.source === "downloaded" ? "Downloaded update" : "Built into the app");
+  var h = '<div class="kv"><span>Version</span><b class="appVer">' + esc(b.version || "—") + '</b></div>' +
+          '<div class="kv"><span>Running</span><b class="appSrc">' + src + '</b></div>' +
+          '<div id="appLastBox">' + appLastHtml() + '</div>' +
+          '<div class="appLine">Updates come with each start of the app' + (nat ? ', checked against GitHub.' : '.') + '</div>' +
+          (typeof b.checkNow === "function" ? '<div class="btnRow"><button class="btn tonal" data-act="checknow">' + icon("refresh") + 'Check now</button></div>' : '') +
+          '<div id="apkLink"></div>';
+  openSheet("App and updates", h);
+  if(!b.version && typeof fetch === "function"){   /* a browser: read the version next to index.html */
+    fetch("version.json", { cache: "no-store" }).then(function(r){ return r.json(); }).then(function(v){ var el = $("#modal .appVer"); if(el && v && v.version) el.textContent = v.version; }).catch(function(){});
+  }
+  if(nat) offerApkLink();
+}
+/* the link to a newer APK when the update source's version.json names one (the same rule as boot.js's banner) */
+function offerApkLink(){
+  var cap = window.Capacitor, base = "https://raw.githubusercontent.com/BitRazor/training/v2/";
+  try { var o = localStorage.getItem("tt-update-base"); if(o && /^https?:\/\//.test(o)) base = o.charAt(o.length - 1) === "/" ? o : o + "/"; } catch(e){}
+  if(typeof fetch !== "function" || !cap || !cap.Plugins || !cap.Plugins.App) return;
+  Promise.all([fetch(base + "version.json?t=" + Date.now(), { cache: "no-store" }).then(function(r){ return r.json(); }), cap.Plugins.App.getInfo()]).then(function(r){
+    var a = r[0] && r[0].apk, mine = parseInt(r[1] && r[1].build, 10) || 0, box = $("#apkLink");
+    if(box && a && /^https:\/\//.test(a.url || "") && (parseInt(a.build, 10) || 0) > mine)
+      box.innerHTML = '<a class="btn primary block" style="margin-top:12px" href="' + esc(a.url) + '">' + icon("download") + 'Get the new app (' + esc(a.version || a.build) + ')</a>';
+  }).catch(function(){});
+}
+function onCheckNow(t){
+  var b = window.__boot; if(!b || typeof b.checkNow !== "function") return;
+  t.disabled = true; t.innerHTML = icon("refresh") + "Checking…";
+  var done = function(label){ t.disabled = false; t.innerHTML = icon("refresh") + label; var box = $("#appLastBox"); if(box) box.innerHTML = appLastHtml(); };
+  var p; try { p = b.checkNow(); } catch(e){ p = Promise.reject(e); }
+  Promise.resolve(p).then(function(){ done("Check again"); }, function(){ done("Could not check · try again"); });
 }
 
 /* ---------- shared: gif + How-to (used by the Plan) ---------- */
@@ -49,7 +127,7 @@ function howToHtml(exId){
 function renderLog(){
   /* keep each note's ORIGINAL index for stable deletion, then show newest-first */
   var notes = (db.notes || []).map(function(n, i){ return { n: n, i: i }; }).reverse();
-  var h = '<div class="viewH">Notes</div><div class="viewSub">Per-exercise notes from the Plan — week & weight are stamped automatically as a record.</div>';
+  var h = subHead("Notes", "Per-exercise notes from the Workout — week & weight are stamped automatically as a record.");
   if(!notes.length) h += '<div class="note dim" style="margin-top:12px">No notes yet. On the <b>Plan</b> tab, tap <b>+ note</b> under any exercise — pain, machine quirks, how it felt — and they collect here with the week and weight.</div>';
   else h += '<div class="card">' + notes.map(function(o){
     var n = o.n, ex = exById(n.exerciseId) || { name: n.exerciseId }, rec = [];
@@ -66,7 +144,7 @@ function renderLog(){
 /* ---------- NUTRITION ---------- */
 function renderNutrition(){
   var bw = db.profile.targetBodyweightKg, lo = bw ? Math.round(bw * NUTRITION.targetLow) : null, hi = bw ? Math.round(bw * NUTRITION.targetHigh) : null;
-  var h = '<div class="viewH">Fuel</div><div class="viewSub">Protein on your TARGET lean bodyweight + GERD-safe timing</div><div class="card"><div class="sectH" style="margin-top:0">Daily protein target</div>';
+  var h = subHead("Fuel", "Protein on your TARGET lean bodyweight + GERD-safe timing") + '<div class="card"><div class="sectH" style="margin-top:0">Daily protein target</div>';
   if(bw) h += '<div class="bigNum">' + lo + '–' + hi + ' g</div><div class="note">' + NUTRITION.targetLow + '–' + NUTRITION.targetHigh + ' g/kg of your ' + bw + ' kg lean target · ' + NUTRITION.mealsPerDay[0] + '–' + NUTRITION.mealsPerDay[1] + ' meals (≥' + Math.round(bw * NUTRITION.perMealMinGPerKg) + ' g each) · ceiling ~' + Math.round(bw * NUTRITION.ceiling) + ' g.</div>';
   else h += '<div class="warnBox">Set your <b>target lean bodyweight</b> (Settings) to compute the gram target — figuring protein on total mass over-counts.</div>';
   h += '</div><div class="sectH">Timing rules</div><div class="card kvs">' + NUTRITION.rules.map(function(r){ return '<div style="flex-direction:column;align-items:flex-start;gap:3px;border-bottom:1px solid var(--line)"><b style="font-size:12.5px">' + esc(r.when) + '</b><span class="muted" style="font-size:12.5px">' + esc(r.how) + '</span></div>'; }).join("") + '</div>';
@@ -77,7 +155,7 @@ function renderNutrition(){
 
 /* ---------- PROGRAMS (the library + switcher) ---------- */
 function renderLibrary(){
-  var h = '<div class="viewH">Programs</div><div class="viewSub">Your training programs. The active one drives Today and the Plan. Tap one to preview it or start training — your strength carries forward.</div>';
+  var h = subHead("Programs", "Your training programs. The active one drives Today and the Workout. Tap one to preview it or start training — your strength carries forward.");
   h += '<div class="card">' + PROGRAM_ORDER.map(function(pid){
     var P = db.programLib[pid]; if(!P) return "";
     var ps = db.programState[pid] || {progress:{}};
@@ -111,7 +189,7 @@ function field(label, type, path, val, hint){
 }
 function renderSettings(){
   var p = db.profile;
-  var h = '<div class="viewH">Settings</div><div class="card"><div class="sectH" style="margin-top:0">Profile</div>' +
+  var h = subHead("Settings") + '<div class="card"><div class="sectH" style="margin-top:0">Profile</div>' +
     field("Name", "text", "p.name", p.name) +
     field("Target bodyweight (kg)", "number", "p.targetBodyweightKg", p.targetBodyweightKg, "Your lean goal weight at ~10–15% body fat — protein is figured on this, not current total mass.") +
     field("Max HR (bpm)", "number", "p.maxHr", p.maxHr, "Editing this regenerates the HR zones below.") +

@@ -5,33 +5,62 @@
    these at runtime, and these call back into the core's state/router (db, ui, save, showView,
    progStateFor…) at runtime — every cross-reference resolves once all scripts have loaded. */
 
-/* ---------- in-app modal (replaces the browser's native prompt / confirm / alert) ---------- */
+/* ---------- in-app sheet (replaces the browser's native prompt / confirm / alert) ----------
+   Version 2: every modal is a bottom sheet (#modal, slides up). Modes: "chips", "text", "number" (the keypad,
+   tracker-plan.js keypadHtml), "sheet" (any html, closed with its Close button, the backdrop or Android back).
+   The v1 hooks stay: #modal.open, #mNum / #mText, data-act modalok / modalcancel / modalchip / modalcustom. */
 var modalState = null;
 function openModal(o){
-  modalState = { onSubmit: o.onSubmit };
+  modalState = { onSubmit: o.onSubmit, onClose: o.onClose };
   var body = "";
   if(o.mode === "chips"){
-    body = '<div class="mChips">' + (o.chips||[]).map(function(c){ return '<button class="mChip" data-act="modalchip" data-val="' + esc(String(c.value)) + '">' + esc(c.label) + '</button>'; }).join("") +
+    body = '<div class="mChips">' + (o.chips||[]).map(function(c){ return '<button class="mChip' + (c.sel ? " sel" : "") + '" data-act="modalchip" data-val="' + esc(String(c.value)) + '">' + esc(c.label) + '</button>'; }).join("") +
       (o.noCustom ? '' : '<button class="mChip alt" data-act="modalcustom">Custom…</button>') + '</div>' +
       (o.noCustom ? '' : '<div class="mCustom" hidden><input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" placeholder="kg"><button class="btn primary sm" data-act="modalok">Set</button></div>');
   } else if(o.mode === "text"){
     body = '<textarea class="mInput mArea" id="mText" placeholder="' + esc(o.placeholder||"") + '">' + esc(o.value||"") + '</textarea>';
   } else if(o.mode === "number"){
-    body = '<input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" value="' + esc(o.value==null?"":o.value) + '" placeholder="' + esc(o.placeholder||"kg") + '">';
+    body = (typeof keypadHtml === "function") ? keypadHtml(o)
+      : '<input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" value="' + esc(o.value==null?"":o.value) + '" placeholder="' + esc(o.placeholder||"kg") + '">';
+  } else if(o.mode === "sheet"){
+    body = o.html || "";
   }
-  var ok = (o.mode === "chips") ? "" : '<button class="btn primary" data-act="modalok">' + esc(o.okLabel||"Save") + '</button>';
-  $("#modal").innerHTML = '<div class="mBack" data-act="modalcancel"></div><div class="mCard">' +
+  var ok = (o.mode === "chips" || o.mode === "sheet") ? "" : '<button class="btn primary" data-act="modalok">' + esc(o.okLabel||"Save") + '</button>';
+  var cancel = o.noCancel ? "" : '<button class="btn" data-act="modalcancel">' + esc(o.mode === "sheet" ? (o.closeLabel || "Close") : "Cancel") + '</button>';
+  $("#modal").innerHTML = '<div class="mBack" data-act="modalcancel"></div><div class="mCard' + (o.cls ? " " + o.cls : "") + '" role="dialog" aria-modal="true">' +
     '<div class="mTitle">' + esc(o.title||"") + '</div>' + (o.message ? '<div class="mMsg">' + esc(o.message) + '</div>' : "") +
-    body + '<div class="mActions"><button class="btn ghost" data-act="modalcancel">Cancel</button>' + ok + '</div></div>';
+    body + ((cancel || ok) ? '<div class="mActions">' + cancel + ok + '</div>' : '') + '</div>';
   $("#modal").classList.add("open");
-  setTimeout(function(){ var f = $("#mText") || (o.mode==="number" ? $("#mNum") : null); if(f && f.focus) f.focus(); }, 60);
+  if(o.mode === "text") setTimeout(function(){ var f = $("#mText"); if(f && f.focus) f.focus(); }, 60);   /* the keypad never opens the phone keyboard */
 }
-function closeModal(){ var m=$("#modal"); if(m){ m.classList.remove("open"); m.innerHTML=""; } modalState=null; }
-function modalSubmit(v){ var fn = modalState && modalState.onSubmit; closeModal(); if(fn) fn(v); }
+/* a read-only sheet: title + any html + a Close button */
+function openSheet(title, html, extra){ var o = { mode:"sheet", title:title, html:html }; for(var k in (extra||{})) o[k] = extra[k]; openModal(o); }
+function closeModal(){ var m=$("#modal"), fn=modalState && modalState.onClose; if(m){ m.classList.remove("open"); m.innerHTML=""; } modalState=null; if(fn) fn(); }
+function modalSubmit(v){ var fn = modalState && modalState.onSubmit; if(modalState) modalState.onClose = null; closeModal(); if(fn) fn(v); }
 function confirmModal(title, message, onYes){ openModal({ title:title, message:message, okLabel:"Yes, do it", onSubmit:function(){ onYes(); } }); }
-function toast(msg){ var d=document.createElement("div"); d.className="toast"; d.textContent=msg; document.body.appendChild(d);
+/* toast: one at a time (a new one replaces the last). opts.undo = a function -> an Undo button for 5 s
+   (design §5: after a set or exercise tick, a note delete or a week finish). */
+var toastTimer = null;
+function toast(msg, opts){
+  opts = opts || {};
+  $$(".toast").forEach(function(t){ if(t.parentNode) t.parentNode.removeChild(t); });
+  clearTimeout(toastTimer);
+  var d = document.createElement("div"), m = document.createElement("span");
+  d.className = "toast"; d.setAttribute("role", "status");
+  m.className = "toastMsg"; m.textContent = msg; d.appendChild(m);
+  var gone = function(){ if(d.parentNode) d.parentNode.removeChild(d); };
+  var hide = function(){ d.classList.remove("show"); setTimeout(gone, 250); };
+  if(typeof opts.undo === "function"){
+    var b = document.createElement("button"), fn = opts.undo;
+    b.type = "button"; b.className = "toastUndo"; b.innerHTML = icon("undo") + "Undo";
+    b.addEventListener("click", function(e){ e.stopPropagation(); clearTimeout(toastTimer); gone(); var f = fn; fn = null;
+      if(f){ if(window.Native) Native.haptic("warning"); f(); } });
+    d.appendChild(b);
+  }
+  document.body.appendChild(d);
   setTimeout(function(){ d.classList.add("show"); }, 10);
-  setTimeout(function(){ d.classList.remove("show"); setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); }, 300); }, 1800); }
+  toastTimer = setTimeout(hide, opts.ms || (opts.undo ? 5000 : 2200));
+}
 
 /* ---------- program switch: preview ("just looking") vs commit ("start training" + carry strength) ---------- */
 /* which strength day-track a lift lives in (each lift is in exactly one) */

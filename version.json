@@ -1,16 +1,18 @@
 {
-  "version": "2026.11.04.1",
+  "version": "2026.11.04.2",
   "files": {
-    "index.html": "2eb4d3f33d51f0785edfa78c59d9641e7eb847e5bee3ac9e5d385ee2c16ec55d",
-    "tracker.css": "f9810ce9126e650016c5e0d3a4fbd31a11ede1c9a88ebdb51ef0c5564ebf513e",
-    "native.js": "40d026b6db13a211c439d65db075bc0529892a397789eee721262d9f72b66b75",
+    "index.html": "b8bf2fe6af25a0c23749ae74c28415c0b437d3cade18fcf3b815a947b2e39c94",
+    "tracker.css": "00fca7e6e7a48c5fa5332ffbd7be337cb3870751f1ff83332801a27103c9b94d",
+    "native.js": "07009b7b8d7d2193ce478b87b386894ea058437b66c18d7fdd38a6912f911623",
     "tracker-seed.js": "e80297b0aeab7f4e12a0ecc5c36b06a24be1b84ad0e01a99514ef944f9015493",
     "tracker-engine.js": "6544eee0ec8ecfd268b9480d0fdd22f096d1b70c46dd7184023119ce7386bc30",
     "tracker-desc.js": "54f9e60bc3ffd04049a282cdb6e89f703ced899f73674f8109c5c7b2d7dd1a92",
-    "tracker-views.js": "758c1f1af16f9f3ebaf5075eb9ba487a50c2a3d96b328e66d15325b83256536a",
+    "ui-icons.js": "96629c5eb07f8f8349f0c26e655aab91b9ae603c290ec002b3a501f3d4f96ade",
+    "tracker-views.js": "1d8bb15e09e54cb2b54364bff1cc11b824487a9d17c0be3316b16c9849c060c6",
     "tracker-plan.js": "6c02968077ff57bcc948f76a02ec2333a642766fb52e77847754e5c6eb42eb75",
-    "tracker-actions.js": "98723c0ac8c2e0d360c39713837df8c3a8cec6e866ef18ce1adc332a1bbb4a4f",
-    "tracker.js": "3fdb0e4c69ffcb15e814ad99a772893704212f10a930551a6bc6deb7e23798e0"
+    "tracker-progress.js": "49e58c520b7a75fada06c462a0e0fb9f5fd15b55632dd14345e4bdcc17277155",
+    "tracker-actions.js": "66eb4ff571f1d8b4347987d3167318529a96d4d547a305324b4156fcd3f1da4b",
+    "tracker.js": "b599a703f20068bc53e0125812414bd2cb4ea347ce92300520372837bc717b90"
   },
   "assets": {
     "gifs/atg.gif": "c0d086c9d4c11045f252fb74091d0ec4d0133f46ba9d84f19185db88cd2725cb",

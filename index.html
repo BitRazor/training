@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0c0f12">
+<meta name="theme-color" content="#0B0D10">
 <!-- boot.js counts the app as started once this element has content (see the convention in boot.js) -->
 <meta name="app-health" content="#view-today">
 <title>Training Tracker</title>
@@ -14,35 +14,35 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Training">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230c0f12'/><path d='M7 16h18M11 11v10M21 11v10' stroke='%2334d399' stroke-width='3' fill='none' stroke-linecap='round'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230B0D10'/><path d='M7 16h18M11 11v10M21 11v10' stroke='%23C8F542' stroke-width='3' fill='none' stroke-linecap='round'/></svg>">
 <!-- app stylesheets and scripts are inert tags that boot.js loads in order (built-in or a downloaded update) -->
 <link data-app-href="tracker.css">
 <script src="boot.js"></script>
 </head>
 <body>
-<header class="appHead">
-  <div class="appTitle">Training Tracker</div>
-  <div class="headMeta" id="headMeta"></div>
-</header>
-
 <main>
+  <!-- the four destinations of the bottom bar: Today, Workout (view id "programs"), Progress, More -->
   <section class="view" id="view-today"></section>
   <section class="view" id="view-programs" hidden></section>
+  <section class="view" id="view-progress" hidden></section>
+  <section class="view" id="view-more" hidden></section>
+  <!-- the pages reached from More: Programs ("library"), Exercises, Notes ("log"), Fuel ("nutrition"), Settings -->
   <section class="view" id="view-library" hidden></section>
+  <section class="view" id="view-exercises" hidden></section>
   <section class="view" id="view-log" hidden></section>
   <section class="view" id="view-nutrition" hidden></section>
   <section class="view" id="view-settings" hidden></section>
 </main>
 
+<!-- floating above the bottom bar: the rest timer while resting, else the Next pill on the Workout screen -->
+<div id="restBar" class="restBar" hidden></div>
 <div id="nextBar" class="nextBar" hidden></div>
 
-<nav class="tabbar">
-  <button class="tab sel" data-view="today"><span class="ti">▣</span>Today</button>
-  <button class="tab" data-view="programs"><span class="ti">▤</span>Plan</button>
-  <button class="tab" data-view="library"><span class="ti">🗂</span>Programs</button>
-  <button class="tab" data-view="log"><span class="ti">✎</span>Notes</button>
-  <button class="tab" data-view="nutrition"><span class="ti">🍴</span>Fuel</button>
-  <button class="tab more" data-view="settings" aria-label="Settings" title="Settings"><span class="ti">⋯</span></button>
+<nav class="tabbar" aria-label="Main">
+  <button class="tab sel" data-view="today"><span class="ti" data-icon="today"></span><span class="tl">Today</span></button>
+  <button class="tab" data-view="programs"><span class="ti" data-icon="dumbbell"></span><span class="tl">Workout</span></button>
+  <button class="tab" data-view="progress"><span class="ti" data-icon="chart"></span><span class="tl">Progress</span></button>
+  <button class="tab" data-view="more"><span class="ti" data-icon="grid"></span><span class="tl">More</span></button>
 </nav>
 
 <input type="file" id="importFile" accept="application/json,.json" hidden>
@@ -52,8 +52,10 @@
 <script type="text/plain" data-app-src="tracker-seed.js"></script>
 <script type="text/plain" data-app-src="tracker-engine.js"></script>
 <script type="text/plain" data-app-src="tracker-desc.js"></script>
+<script type="text/plain" data-app-src="ui-icons.js"></script>
 <script type="text/plain" data-app-src="tracker-views.js"></script>
 <script type="text/plain" data-app-src="tracker-plan.js"></script>
+<script type="text/plain" data-app-src="tracker-progress.js"></script>
 <script type="text/plain" data-app-src="tracker-actions.js"></script>
 <script type="text/plain" data-app-src="tracker.js"></script>
 </body>

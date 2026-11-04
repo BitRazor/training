@@ -172,17 +172,28 @@ function maybeCompleteActive(){
   if(allDone){ ps.completedAt=nowISO(); }   /* gains now carry when you START the next program (carryFromActive) — no separate auto-bank */
 }
 
-/* ---------- router (6 views; Plan renders into #view-programs) ---------- */
-var VIEWS=["today","programs","library","log","nutrition","settings"];
+/* ---------- router ----------
+   Version 2 (2026-11-04): a bottom bar with four destinations (Today, Workout, Progress, More) and the pages
+   reached from More. The v1 view ids and names stay: "programs" = Workout (the old Plan), "library" = Programs,
+   "log" = Notes, "nutrition" = Fuel. The More tab stays selected while one of its pages is open. */
+var VIEWS=["today","programs","progress","more","library","exercises","log","nutrition","settings"];
+var MORE_PAGES=["library","exercises","log","nutrition","settings"];
+function navOf(name){ return MORE_PAGES.indexOf(name)>=0 ? "more" : name; }
 function showView(name){
-  if(name !== "programs") clearPreview();   /* leaving the Plan auto-reverts a just-looking preview */
+  if(VIEWS.indexOf(name)<0) name="today";
+  if(name !== "programs") clearPreview();   /* leaving the Workout auto-reverts a just-looking preview */
   ui.view=name;
   VIEWS.forEach(function(v){var el=$("#view-"+v); if(el)el.hidden=(v!==name);});
-  $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===name);});
-  if(name!=="programs"){ var nb=$("#nextBar"); if(nb){ nb.hidden=true; nb.innerHTML=""; } }   /* the jump bar lives only on the Plan */
-  ({today:renderToday, programs:renderPlan, library:renderLibrary, log:renderLog, nutrition:renderNutrition, settings:renderSettings}[name])();
+  var nav=navOf(name);
+  $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===nav);});
+  if(name!=="programs"){ var nb=$("#nextBar"); if(nb){ nb.hidden=true; nb.innerHTML=""; } }   /* the Next pill lives only on the Workout */
+  ({today:renderToday, programs:renderPlan, progress:renderProgress, more:renderMore, library:renderLibrary, exercises:renderExercises,
+    log:renderLog, nutrition:renderNutrition, settings:renderSettings}[name])();
+  if(typeof onViewShown==="function") onViewShown(name);   /* the rest pill, keep-awake (tracker-session.js) */
   window.scrollTo(0,0);
 }
+/* the bottom bar's line icons (one icon set, ui-icons.js) */
+function drawNavIcons(){ $$(".tabbar .ti[data-icon]").forEach(function(s){ s.innerHTML=icon(s.getAttribute("data-icon")); }); }
 
 /* ---------- events ---------- */
 document.addEventListener("input",function(e){
@@ -229,6 +240,8 @@ document.addEventListener("click",function(e){
   }
   if(act==="nextex"){ jumpToNext(t.getAttribute("data-ex")); return; }
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }
+  if(act==="appinfo"){ openAppSheet(); return; }
+  if(act==="checknow"){ onCheckNow(t); return; }
   if(act==="export"){ doExport(); return; }
   if(act==="import"){ $("#importFile").click(); return; }
   if(act==="reset"){ confirmModal("Erase all data?", "This wipes everything saved on this device. Export first if you want a backup.", function(){ localStorage.removeItem(STORE_KEY); location.reload(); }); return; }
@@ -244,4 +257,5 @@ $("#importFile").addEventListener("change",function(ev){
 
 /* ---------- init ---------- */
 load();
+drawNavIcons();
 showView("today");

@@ -8,8 +8,9 @@
                            (browsers: navigator.vibrate where it exists)
    Native.keepAwake(on)    keep the screen on (@capacitor-community/keep-awake; browsers: Screen Wake Lock)
    Native.backHandlers     the Android back button asks these in order; the first that returns true has
-                           handled the press. Defaults: close the open modal, else go to Today, else leave
-                           the app. A new overlay can add its own:  Native.backHandlers.unshift(fn)
+                           handled the press. Defaults (version 2): close the open sheet, else go from a page
+                           reached from More back to More, else go to Today, else leave the app.
+                           A new overlay can add its own:  Native.backHandlers.unshift(fn)
    Export   the app's doExport() shares a File through navigator.share. An Android WebView has no Web
             Share, so inside the app this file supplies navigator.share/canShare backed by
             @capacitor/filesystem (writes the file to the app's cache) + @capacitor/share (opens the
@@ -49,6 +50,7 @@
     },
     backHandlers: [
       function () { if (D.querySelector("#modal.open") && typeof W.closeModal === "function") { W.closeModal(); return true; } return false; },
+      function () { var v = W.ui && W.ui.view; if (v && W.MORE_PAGES && W.MORE_PAGES.indexOf(v) >= 0 && typeof W.showView === "function") { W.showView("more"); return true; } return false; },
       function () { if (W.ui && W.ui.view && W.ui.view !== "today" && typeof W.showView === "function") { W.showView("today"); return true; } return false; }
     ]
   };

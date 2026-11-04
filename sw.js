@@ -7,7 +7,7 @@ var CACHE = "training-2026-11-04-v2ui";   /* bump on every release so returning 
 var CORE = [
   "./", "./index.html", "./tracker.css", "./boot.js", "./native.js",
   "./tracker-seed.js", "./tracker-engine.js", "./tracker-desc.js", "./ui-icons.js", "./tracker-views.js", "./tracker-plan.js",
-  "./tracker-session.js", "./tracker-progress.js", "./tracker-week.js", "./tracker-smart.js", "./tracker-actions.js", "./tracker.js",
+  "./tracker-session.js", "./tracker-progress.js", "./tracker-week.js", "./tracker-smart.js", "./tracker-editor.js", "./tracker-actions.js", "./tracker.js",
   "./manifest.webmanifest", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"
 ];
 

@@ -104,7 +104,7 @@ function toast(msg, opts){
 
 /* ---------- program switch: preview ("just looking") vs commit ("start training" + carry strength) ---------- */
 /* which strength day-track a lift lives in (each lift is in exactly one) */
-function dayOf(exId){ for(var i=0;i<STRENGTH_DAYS.length;i++){ var d=STRENGTH_DAYS[i], P=db.programs[d]; if(P){ for(var j=0;j<P.entries.length;j++) if(P.entries[j].exerciseId===exId) return d; } } return null; }
+function dayOf(exId){ var DS=(getProgram(db.activeProgram).days||STRENGTH_DAYS); for(var i=0;i<DS.length;i++){ var d=DS[i], P=db.programs[d]; if(P){ for(var j=0;j<P.entries.length;j++) if(P.entries[j].exerciseId===exId) return d; } } return null; }
 /* highest completed week of a day-track in a program (0 = none) */
 function lastCompletedWeek(pid, day){ var ps=db.programState&&db.programState[pid], wd=ps&&ps.progress&&ps.progress[day]&&ps.progress[day].weeksDone; return (wd&&wd.length)?Math.max.apply(null,wd):0; }
 /* the carried 15RM anchors a NEW program would start from: each lift's strength at the CURRENT active
@@ -147,7 +147,8 @@ function startTraining(pid){
     clearTicks(pid);                                    /* … and no ticks left over from the last run */
     db.activeProgram=pid;
     if(!ps.startedAt) ps.startedAt=nowISO(); ps.completedAt=null;
-    STRENGTH_DAYS.concat(typeof HOME_DAYS!=="undefined"?HOME_DAYS:[]).forEach(function(d){ if(!ps.progress[d]) ps.progress[d]={weeksDone:[]}; else ps.progress[d].weeksDone=[]; });   /* home weeks restart with the cycle too */
+    (getProgram(pid).days||STRENGTH_DAYS).concat(typeof HOME_DAYS!=="undefined"?HOME_DAYS:[]).forEach(function(d){ if(!ps.progress[d]) ps.progress[d]={weeksDone:[]}; else ps.progress[d].weeksDone=[]; });   /* home weeks restart with the cycle too */
+    if(typeof applyDays==="function") applyDays();   /* Part 2: an edited built-in's own days come with it */
     clearPreview(); ui.planWeek=null; ui.planLastProg=null; save(); showView("programs");
   };
   if(hasProg) confirmModal("Restart "+getProgram(pid).name+"?", getProgram(pid).name+" already has training logged. Start a fresh cycle from your current strength? Its ticks and finished weeks will be cleared — your diary keeps every lift.", go);

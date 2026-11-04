@@ -27,20 +27,43 @@ var STRIP_WORD = { cardio: "Zone 2", hiit: "4×4", rest: "Rest" };
 var NAME_MAX = 30;
 
 /* ---------- the week ---------- */
-function workoutDays(){ return STRENGTH_DAYS.concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []); }
+/* Part 2 (2026-11-04): the workout days are the ACTIVE program's (his own programs have their own days), plus the home
+   days; the built-in programs share db.schedule, and each of his programs keeps its own week (db.userPrograms[id].week,
+   null = his days on the built-in week's gym slots in order: its first day where Day A is, its second where Day B is) */
+function progDays(pid){ var P = (pid && typeof getProgram === "function") ? getProgram(pid) : null; return (P && Array.isArray(P.days) && P.days.length) ? P.days.slice() : STRENGTH_DAYS.slice(); }
+function workoutDays(){ return progDays(db && db.activeProgram).concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []); }
+/* every day a built-in program can put on the shared week (a day added to a built-in's edited copy too) */
+function builtinWeekDays(){ var o = []; (typeof BUILTIN_IDS !== "undefined" ? BUILTIN_IDS : PROGRAM_ORDER).forEach(function(id){ progDays(id).forEach(function(d){ if(o.indexOf(d) < 0) o.push(d); }); }); return o.concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []); }
+function dayChoices(days){ return (days || workoutDays()).concat(["z2", "norwegian-4x4", "rest"]); }
 function isWorkoutDay(id){ return workoutDays().indexOf(id) >= 0; }
 function isCardioType(t){ return t === "cardio" || t === "hiit"; }
 function hasWorkout(d){ return !!d && (d.type === "strength" || d.type === "home"); }
-/* what a day is, as one of DAY_CHOICES */
+/* what a day is, as one of the day choices */
 function choiceOf(d){ return (!d || d.type === "rest") ? "rest" : d.ref; }
-function choiceType(c){ return CHOICE_TYPE[c] || (STRENGTH_DAYS.indexOf(c) >= 0 ? "strength" : "home"); }
-/* the week every screen reads */
-function weekPlan(){ return (db && Array.isArray(db.schedule) && db.schedule.length === 7) ? db.schedule : CURRENT_WEEK; }
+function choiceType(c){ return CHOICE_TYPE[c] || ((typeof HOME_DAYS !== "undefined" && HOME_DAYS.indexOf(c) >= 0) ? "home" : "strength"); }
+function ownActive(){ return !!(db && typeof isOwnProg === "function" && isOwnProg(db.activeProgram)); }
+/* his program's week before he edits it: the built-in week with its gym days replaced in order */
+function defaultOwnWeek(){
+  var base = (db && Array.isArray(db.schedule) && db.schedule.length === 7) ? db.schedule : CURRENT_WEEK, days = progDays(db.activeProgram);
+  return base.map(function(d, j){
+    if(d.type !== "strength") return clone(d);
+    var k = STRENGTH_DAYS.indexOf(d.ref), nd = k >= 0 ? days[k] : null;
+    return nd ? { day: d.day, label: dayName(nd), type: "strength", ref: nd, note: "" } : makeDay(j, "rest");
+  });
+}
+/* the week every screen reads: his program's own week, else the shared week (a day another program added shows as rest) */
+function weekPlan(){
+  if(ownActive()){ var up = db.userPrograms[db.activeProgram]; return (Array.isArray(up.week) && up.week.length === 7) ? up.week : defaultOwnWeek(); }
+  var w = (db && Array.isArray(db.schedule) && db.schedule.length === 7) ? db.schedule : CURRENT_WEEK, mine = workoutDays();
+  if(w.every(function(d){ return !d || !hasWorkout(d) || mine.indexOf(d.ref) >= 0; })) return w;
+  return w.map(function(d, j){ return (d && hasWorkout(d) && mine.indexOf(d.ref) < 0) ? makeDay(j, "rest") : d; });
+}
+function weekIsCustom(){ return ownActive() ? Array.isArray(db.userPrograms[db.activeProgram].week) : Array.isArray(db.schedule); }
 /* the entry a choice makes: label and note from the original week where it has a day there */
 function dayTemplate(c){
   var t = null;
   for(var i = 0; i < CURRENT_WEEK.length && !t; i++){ var d = CURRENT_WEEK[i]; if(c === "rest" ? d.type === "rest" : (d.type !== "rest" && d.ref === c)) t = d; }
-  t = t || EXTRA_DAY[c] || (isWorkoutDay(c) ? { label: (db && db.programs && db.programs[c] && db.programs[c].name) || c, type: choiceType(c), ref: c, note: "" } : null);
+  t = t || EXTRA_DAY[c] || ((isWorkoutDay(c) || (db && db.programs && db.programs[c])) ? { label: (typeof isOwnDay === "function" && isOwnDay(c)) ? dayName(c) : ((db && db.programs && db.programs[c] && db.programs[c].name) || c), type: choiceType(c), ref: c, note: "" } : null);
   return t ? { label: t.label, type: t.type, ref: t.ref == null ? null : t.ref, note: t.note || "" } : null;
 }
 function makeDay(j, c, home){
@@ -55,19 +78,20 @@ function sameWeek(a, b){
 /* a stored week made safe (normalize and every edit): 7 entries rebuilt from what each day is; a workout on one day
    only (the first wins); a home workout on top only of a cardio day; anything unknown is rest. The original week,
    or anything that is not 7 days, gives null */
-function cleanSchedule(raw){
+function cleanSchedule(raw, days, original){
   if(!Array.isArray(raw) || raw.length !== 7) return null;
-  var used = {};
+  days = days || builtinWeekDays();   /* the shared week holds every built-in's days (Part 2: his own programs keep their own) */
+  var used = {}, choices = dayChoices(days), isW = function(c){ return days.indexOf(c) >= 0; };
   var out = raw.map(function(e, j){
     var ok = !!e && typeof e === "object", c = ok ? (e.type === "rest" ? "rest" : e.ref) : "rest";
-    if(DAY_CHOICES.indexOf(c) < 0 || (isWorkoutDay(c) && used[c])) c = "rest";
-    if(isWorkoutDay(c)) used[c] = true;
+    if(choices.indexOf(c) < 0 || (isW(c) && used[c])) c = "rest";
+    if(isW(c)) used[c] = true;
     var hm = (ok && typeof HOME_DAYS !== "undefined" && HOME_DAYS.indexOf(e.home) >= 0 && !used[e.home]) ? e.home : null;
     var d = makeDay(j, c, hm);
     if(d.home) used[d.home] = true;
     return d;
   });
-  return sameWeek(out, CURRENT_WEEK) ? null : out;
+  return sameWeek(out, original || CURRENT_WEEK) ? null : out;
 }
 /* where a workout sits: {j, as: "main" | "home"} or null (not on the week) */
 function slotOf(id, plan){
@@ -85,7 +109,9 @@ function whereText(id, plan){
 }
 
 /* ---------- names ---------- */
-function customName(id){ var n = db && db.dayNames && db.dayNames[id]; return (typeof n === "string" && n.trim()) ? n.trim() : null; }
+function customName(id){
+  if(typeof isOwnDay === "function" && isOwnDay(id)) return db.userDays[id].name || null;   /* his own day: the name he gave it (Part 2) */
+  var n = db && db.dayNames && db.dayNames[id]; return (typeof n === "string" && n.trim()) ? n.trim() : null; }
 function defaultDayName(id){
   if(id === "strength-a") return "Day A";
   if(id === "strength-b") return "Day B";
@@ -99,7 +125,7 @@ function namesNow(){ var o = {}; workoutDays().forEach(function(id){ o[id] = day
 function cleanNames(raw){
   var out = {};
   if(!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
-  workoutDays().forEach(function(id){ var v = raw[id]; if(typeof v !== "string") return; v = v.replace(/\s+/g, " ").trim().slice(0, NAME_MAX).trim(); if(v) out[id] = v; });
+  Object.keys(SEED_DAYS).forEach(function(id){ var v = raw[id]; if(typeof v !== "string") return; v = v.replace(/\s+/g, " ").trim().slice(0, NAME_MAX).trim(); if(v) out[id] = v; });   /* the built-in days (his own days keep their names in their definitions) */
   return out;
 }
 /* the Workout's home tab: his name, else the weekday it sits on ("Wed") */
@@ -124,7 +150,7 @@ function renderSchedule(){
   }).join("") + '</div>';
   var off = workoutDays().filter(function(id){ return !slotOf(id, plan); });
   if(off.length) h += '<div class="note schedOff">Not on the week: ' + off.map(function(id){ return esc(dayName(id)); }).join(", ") + '</div>';
-  if(Array.isArray(db.schedule)) h += '<button class="btn block schedReset" data-act="schedreset">' + icon("undo") + 'Reset to the original week</button>';
+  if(weekIsCustom()) h += '<button class="btn block schedReset" data-act="schedreset">' + icon("undo") + 'Reset to the original week</button>';
   h += '<div class="sectH">Workout names</div><div class="list nameList">' + workoutDays().map(function(id){
     var home = isHomeDay(id);
     return '<button class="li nameRow" data-act="rename" data-prog="' + id + '"><span class="dot ' + (home ? "home" : "strength") + '">' + icon(home ? "house" : "dumbbell") + '</span>' +
@@ -152,13 +178,15 @@ function openDaySheet(j){
 }
 /* store an edited week (null when it is the original again) and redraw */
 function commitWeek(wk){
-  db.schedule = cleanSchedule(wk); save();
+  if(ownActive()) db.userPrograms[db.activeProgram].week = cleanSchedule(wk, workoutDays(), defaultOwnWeek());   /* his program's own week */
+  else db.schedule = cleanSchedule(wk);
+  save();
   if(ui.view === "schedule") renderSchedule(); else if(ui.view === "today") renderToday();
 }
 /* day j becomes choice c. A workout moved here leaves its old day as rest (or just leaves the cardio day it rode on);
    what this day held is off the week, except a home workout on top when the day stays cardio */
 function setDayChoice(j, c){
-  var plan = weekPlan(), d = plan[j]; if(!d || DAY_CHOICES.indexOf(c) < 0) return;
+  var plan = weekPlan(), d = plan[j]; if(!d || dayChoices().indexOf(c) < 0) return;
   if(choiceOf(d) === c){ closeModal(); return; }
   var nm = namesNow(), undo = undoPoint(), wk = clone(plan), parts = [], wd = WEEKDAY_LONG[j], gone = [];
   var type = choiceType(c), keep = (isCardioType(type) && d.home && d.home !== c) ? d.home : null;
@@ -195,13 +223,14 @@ function setDayHome(j, hid){
   toast(parts.join(" · "), { undo: undo });
 }
 function resetWeek(){
-  if(!Array.isArray(db.schedule)) return;
-  var undo = undoPoint(); db.schedule = null; save(); renderSchedule();
+  if(!weekIsCustom()) return;
+  var undo = undoPoint(); if(ownActive()) db.userPrograms[db.activeProgram].week = null; else db.schedule = null; save(); renderSchedule();
   toast("Back to the original week", { undo: undo });
 }
 
 /* ---------- renaming ---------- */
 function openRename(id){
+  if(typeof isOwnDay === "function" && isOwnDay(id)){ renameOwnDay(id); return; }   /* his own day: its name in its definition (tracker-editor.js) */
   if(!isWorkoutDay(id)) return;
   var cn = customName(id), def = defaultDayName(id);
   openModal({ title: "Rename workout", mode: "line", value: cn || def, placeholder: def, maxLength: NAME_MAX, cls: "renameSheet",

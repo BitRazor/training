@@ -276,9 +276,13 @@ function ringHtml(pct){
   return '<div class="ring"><svg viewBox="0 0 48 48" aria-hidden="true"><circle class="rTrack" cx="24" cy="24" r="20"></circle>' +
     (v > 0 ? '<circle class="rVal" cx="24" cy="24" r="20" stroke-dasharray="' + v.toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 24 24)"></circle>' : '') + '</svg><span class="ringPct">' + pct + '%</span></div>';
 }
+/* Part 2 (2026-11-04): the built-ins, then his own programs (tracker-editor.js), each with Edit and Duplicate, his own with
+   Delete; "New program" at the top */
 function renderLibrary(){
   var h = subHead("Programs", "Your training programs. The active one drives Today and the Workout. Tap one to preview it or start training — your strength carries forward.");
-  h += PROGRAM_ORDER.map(function(pid){
+  h += '<button class="btn primary block progNew" data-act="prognew">' + icon("plus") + 'New program</button>';
+  var own = Object.keys(db.userPrograms || {}).filter(function(id){ return db.userPrograms[id].own && db.programLib[id]; });
+  h += PROGRAM_ORDER.concat(own).map(function(pid){
     var P = db.programLib[pid]; if(!P) return "";
     var ps = db.programState[pid] || { progress: {} };
     var active = pid === db.activeProgram;
@@ -294,13 +298,16 @@ function renderLibrary(){
         '</div><div class="paceHint">' + esc((PROGRESSION_MODES[curMode] || PROGRESSION_MODES.plateau).hint) + '</div></div>';
     return '<div class="card progItem' + (active ? " active" : "") + '"><div class="piTop">' + ringHtml(pctDone) + '<div class="piHead"><div class="progNm">' + esc(P.name) + '</div>' +
       '<div class="piBadges">' + (active ? '<span class="pill acc progActive">ACTIVE</span>' : '') + (ps.completedAt ? '<span class="pill progDoneB">' + icon("check", "sm") + 'done</span>' : '') + '</div></div></div>' +
-      '<div class="progDesc">' + esc(P.desc) + '</div>' +
+      '<div class="progDesc">' + esc(P.own ? P.days.length + (P.days.length === 1 ? " day: " : " days: ") + P.days.map(function(d){ return dayName(d); }).join(", ") : P.desc + (P.edited ? " Edited by you." : "")) + '</div>' +
       '<div class="progMeta">' + P.weeks + ' weeks · ' + esc(dirBadge) + ' · ' + doneWk + '/' + totalWk + ' day-weeks done</div>' +
       paceHtml +
       (active ? '<button class="btn tonal block" data-view="programs">' + icon("dumbbell") + 'Open the Workout</button>'
-              : '<button class="btn block" data-act="switchprogram" data-prog="' + esc(pid) + '">' + icon("swap") + 'Switch to ' + esc(P.name) + '</button>') + '</div>';
+              : '<button class="btn block" data-act="switchprogram" data-prog="' + esc(pid) + '">' + icon("swap") + 'Switch to ' + esc(P.name) + '</button>') +
+      '<div class="progBtns"><button class="btn sm" data-act="progedit" data-prog="' + esc(pid) + '">' + icon("edit") + 'Edit</button>' +
+      '<button class="btn sm" data-act="progdup" data-prog="' + esc(pid) + '">' + icon("layers") + 'Duplicate</button>' +
+      (P.own ? '<button class="btn sm danger" data-act="progdel" data-prog="' + esc(pid) + '">' + icon("trash") + 'Delete</button>' : '') + '</div></div>';
   }).join("");
-  h += '<div class="note footNote">More programs as you build them. Your strength carries forward — starting a new program picks up from your last completed week (+ one step).</div>';
+  h += '<div class="note footNote">Build your own with New, or Duplicate one to change it. Built-in programs are never deleted: editing one makes your copy, and Reset to original brings it back. Your strength carries forward — starting a new program picks up from your last completed week (+ one step).</div>';
   $("#view-library").innerHTML = h;
 }
 
@@ -330,11 +337,12 @@ function renderSettings(){
     rowField("Protein high (g/kg)", "number", "p.proteinTargetGPerKg.high", p.proteinTargetGPerKg.high) + '</div></div>';
   h += '<div class="setGroup"><div class="sectH">Heart-rate zones</div><div class="list zoneList">' + zoneRowsHtml() + '</div><div class="note setNote">From your max heart rate of ' + p.maxHr + ' bpm.</div></div>';
   /* weight steps grouped by equipment category — only categories actually used (e.g. kettlebell stays hidden until a program adds one) */
-  var catsUsed = {}; STRENGTH_DAYS.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat) catsUsed[x.cat]=true; }); });
+  var gymDays = (getProgram(db.activeProgram) || {}).days || STRENGTH_DAYS;   /* Part 2: the active program's days */
+  var catsUsed = {}; gymDays.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat) catsUsed[x.cat]=true; }); });
   h += '<div class="setGroup"><div class="sectH">Weight steps</div><div class="note setNote">The smallest jump per equipment type — set it to match your gym. On a Workout card, the step chip overrides just that lift.</div><div class="list">' +
     EQUIP_CAT_ORDER.filter(function(c){ return catsUsed[c]; }).map(function(cat){
       var c=EQUIP_CATS[cat], o=db.gearByCat[cat]||c, lbl=(o.equip==="db")?"DB grid":((o.inc||c.inc)+" kg"), lifts=[];
-      STRENGTH_DAYS.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat===cat) lifts.push(x.name); }); });
+      gymDays.forEach(function(pp){ ((db.programs[pp]||{}).entries||[]).forEach(function(en){ var x=exById(en.exerciseId); if(x&&x.cat===cat) lifts.push(x.name); }); });
       return '<button class="li catRow" data-act="setcatstep" data-cat="'+esc(cat)+'"><span class="liI">' + icon("cog") + '</span><span class="liB"><span class="liT catName">'+esc(c.label)+'</span><span class="liS catLifts">'+esc(lifts.join(" · "))+'</span></span><span class="liV catStep">'+esc(lbl)+'</span>' + icon("chevR", "chev") + '</button>';
     }).join("") + '</div></div>';
   /* in the Android app: the rest-timer alert permission, which can be asked again here (the first prompt comes once) */

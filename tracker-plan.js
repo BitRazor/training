@@ -112,8 +112,13 @@ function thumbHtml(exId){
 }
 
 /* ---------- the Workout ---------- */
+/* the warm-up of a day: its own list; a day of his own program gets the shared gym warm-up (Part 2) */
+function warmupFor(prog){ return (typeof WARMUP_BY_PROG !== "undefined" && WARMUP_BY_PROG[prog]) || ((typeof isOwnDay === "function" && isOwnDay(prog)) ? WARMUP_SHARED : []); }
+/* the gym days the Workout shows: the shown program's days (Part 2: his programs have their own) */
+function shownDays(){ var P = shownProg(); return (P && Array.isArray(P.days) && P.days.length) ? P.days : STRENGTH_DAYS; }
 function renderPlan(){
-  if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";
+  var sd = shownDays(), td = todayProgram();
+  if(!ui.planProg || !db.programs[ui.planProg] || (sd.indexOf(ui.planProg) < 0 && !isHomeDay(ui.planProg))){ ui.planProg = (td && db.programs[td] && (sd.indexOf(td) >= 0 || isHomeDay(td))) ? td : sd[0]; ui.planWeek = null; }
   var existingWarm = document.querySelector(".warmSec"); if(existingWarm) ui.warmOpen = existingWarm.open;   /* keep warm-up open across re-renders */
   var prog = ui.planProg, P = db.programs[prog], cur = shownCurrentWeek(prog), done = shownWeeksDone(prog);
   if(!ui.planWeek || ui.planLastProg !== prog){ ui.planWeek = cur; ui.planLastProg = prog; }
@@ -136,7 +141,7 @@ function renderPlan(){
      weekday it sits on in his week) */
   var dayTab = function(id){ var home = isHomeDay(id);
     return '<button class="progTab' + (id === prog ? " sel" : "") + '" data-act="prog" data-prog="' + id + '">' + (home ? icon("house", "sm") + '<span class="sr">Home </span>' : '') + '<span class="ptName">' + esc(home ? homeTabLabel(id) : shortName(id)) + '</span></button>'; };
-  h += '<div class="daySwitch"><div class="progTabs">' + STRENGTH_DAYS.map(dayTab).join("") + '</div>' +
+  h += '<div class="daySwitch"><div class="progTabs">' + shownDays().map(dayTab).join("") + '</div>' +
     (typeof HOME_DAYS !== "undefined" ? '<div class="progTabs home">' + HOME_DAYS.filter(function(id){ return !!db.programs[id]; }).map(dayTab).join("") + '</div>' : '') + '</div>';
   /* one quiet phase line; the speed rule in full and the soreness rule sit behind the i chip */
   var rmA = shownRateMode(), rmM = PROGRESSION_MODES[rmA], smart = SP.smart === true;
@@ -149,7 +154,7 @@ function renderPlan(){
   var waiting = (smart && !previewing()) ? pendingOn(prog, w).length : 0;
   if(waiting) h += '<button class="btn tonal block sugAll" data-act="suguseall">' + icon("check") + 'Use all suggestions (' + waiting + ')</button>';
   /* ---- warm-up: its own amber card, a row per move (picture, name, detail, tick), collapsible from the bottom ---- */
-  var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
+  var wu = warmupFor(prog), wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
   h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary><span class="wuIc">' + icon("flame") + '</span><span class="wuHead">Warm-up · ' + warmTime(prog) + ' · ' + wuDone + '/' + wu.length + '</span>' + icon("chevD", "wuChev") + '</summary><div class="secBody">' +
        wu.map(function(m){
          var g = m.gif.indexOf(".") >= 0 ? m.gif : m.gif + ".gif", wd = isDone(prog, w, "wu:" + m.gif);
@@ -244,7 +249,7 @@ function updateDoneCounts(prog, week){
   var ct = document.querySelector("#view-programs .phaseName .doneCt"); if(ct) ct.textContent = n + "/" + total + " done";
   var lh = document.querySelector("#view-programs .liftsHead"); if(lh) lh.textContent = liftsWord(prog) + " · " + n + "/" + total + " done";
   var bar = document.querySelector("#view-programs .shBar > i"); if(bar) bar.style.width = Math.round(n / (total || 1) * 100) + "%";
-  var wu = WARMUP_BY_PROG[prog] || [], wn = doneCount(prog, week, wu.map(function(m){ return "wu:" + m.gif; }));
+  var wu = warmupFor(prog), wn = doneCount(prog, week, wu.map(function(m){ return "wu:" + m.gif; }));
   var ws = document.querySelector("#view-programs .warmSec > summary .wuHead"); if(ws) ws.textContent = "Warm-up · " + warmTime(prog) + " · " + wn + "/" + wu.length;
 }
 

@@ -716,3 +716,51 @@ button.wrow:active{background:var(--raised)}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important}
 }
+
+/* ===================== Part 2 (2026-11-04): Programs actions and the program editor ===================== */
+.progNew{margin:4px 0 6px}
+.progBtns{display:flex; gap:8px; margin-top:10px}
+.progBtns .btn{flex:1; min-height:44px; padding:0 8px; font-size:13.5px; background:var(--raised)}
+.progBtns .btn .ic{width:18px; height:18px}
+.edNameRow{display:flex; align-items:center; gap:10px; width:100%; margin:4px 0 8px; padding:6px 4px; border:0; border-radius:14px; background:none; color:var(--tx); text-align:left}
+.edNameRow:active{background:var(--raised)}
+.edName{font-size:30px; font-weight:800; letter-spacing:-.02em; line-height:1.15}
+.edNameIc{color:var(--tx3); width:22px; height:22px}
+.edBuiltin,.edNote{margin:2px 4px 10px}
+.edReset{margin-bottom:6px}
+.edDay,.edEx{padding:4px 6px 4px 8px; gap:4px}
+.edDay.sel{background:var(--accTint)}
+.edDay.sel .edDayName{color:var(--acc)}
+.edPick{flex:1; min-width:0; display:flex; align-items:center; gap:10px; min-height:56px; padding:6px 8px; border:0; border-radius:12px; background:none; color:var(--tx); text-align:left; font:inherit}
+.edPick:active{background:var(--raised)}
+.edUD{flex:none; display:flex; flex-direction:column; gap:2px}
+.edUD{order:-1}   /* the move handles on the left of a day and of an exercise alike */
+.udBtn{width:40px; height:30px; border:0; border-radius:10px; background:var(--raised); color:var(--tx2); display:flex; align-items:center; justify-content:center}
+.udBtn:disabled{opacity:.3}
+.udBtn .ic{width:18px; height:18px}
+.edDaySec{margin-top:22px}
+.edDayHead{display:flex; align-items:center; gap:10px; margin:0 4px 8px}
+.edDayTitle{flex:1; min-width:0; font-size:22px; font-weight:800; letter-spacing:-.01em}
+.edDayBtns{display:flex; gap:8px}
+.edDayBtns .btn{min-height:40px; background:var(--raised)}
+.edEx.paired{box-shadow:inset 3px 0 0 var(--ss)}
+.edExName{font-weight:600}
+.edPair{margin-left:6px; padding:1px 7px; font-size:11px; vertical-align:2px}
+.edEmpty{margin:8px 4px 12px}
+.edWeek{margin-top:16px}
+.pickList{margin-top:8px; max-height:58vh; overflow-y:auto}
+.pickRow{min-height:64px; padding:8px 12px 8px 8px}
+.pickRow .liS{display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
+.pickEmpty{margin:12px 4px}
+.edRow{min-height:64px}
+.edStepper{flex:none; display:flex; align-items:center; gap:6px}
+.edSt{width:44px; height:44px; border:0; border-radius:999px; background:var(--high); color:var(--tx); display:flex; align-items:center; justify-content:center}
+.edSt:active{background:var(--line)}
+.edVal{min-width:48px; text-align:center; font-size:20px; font-weight:800}
+.edToggle{cursor:pointer}
+.edToggle:disabled{opacity:.45}
+.sw{flex:none; position:relative; width:52px; height:32px; border-radius:999px; background:var(--high); transition:background .15s ease}
+.sw i{position:absolute; top:4px; left:4px; width:24px; height:24px; border-radius:999px; background:var(--tx2); transition:transform .18s var(--spring), background .15s ease}
+.sw.on{background:var(--acc)}
+.sw.on i{transform:translateX(20px); background:var(--onAcc)}
+.edRm{margin-top:12px}

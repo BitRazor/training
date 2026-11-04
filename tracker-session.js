@@ -110,7 +110,7 @@ function tickKeys(prog, week){
   P.entries.forEach(function(en){ var id = en.exerciseId, st = doneState(prog, week, id);
     if(st) out.push(id + ":" + st);
     setTicks(prog, week, id).forEach(function(on, i){ if(on) out.push(id + ":" + i); }); });
-  (WARMUP_BY_PROG[prog] || []).forEach(function(m){ if(isDone(prog, week, "wu:" + m.gif)) out.push("wu:" + m.gif); });
+  warmupFor(prog).forEach(function(m){ if(isDone(prog, week, "wu:" + m.gif)) out.push("wu:" + m.gif); });
   return out;
 }
 /* a tick: the first one of a day-track and week today (or the first after the clock was stopped) starts a session;
@@ -354,6 +354,7 @@ function undoPoint(){
     var o = JSON.parse(before);
     Object.keys(db).forEach(function(k){ if(!(k in o)) delete db[k]; });
     for(var k in o) db[k] = o[k];   /* in place: anything holding db keeps seeing the live state */
+    if(typeof syncPrograms === "function"){ syncPrograms(); applyDays(); }   /* Part 2: his programs and days as they were */
     save();
     restoreRest(r);
     ui.planWeek = u.planWeek; ui.planProg = u.planProg; ui.planLastProg = u.planLastProg; ui.nowPrompt = u.nowPrompt;

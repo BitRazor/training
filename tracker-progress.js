@@ -12,13 +12,13 @@ function libraryGroups(){
     var D = db.programs[d]; if(!D) return;
     groups.push({ id: d, title: dayTitle(d), items: D.entries.map(function(en){ return { id: en.exerciseId, kind: "lift", day: d, name: (exById(en.exerciseId) || { name: en.exerciseId }).name }; }) });
   });
-  days.forEach(function(d){ (WARMUP_BY_PROG[d] || []).forEach(function(m){ if(seen[m.gif]) return; seen[m.gif] = 1; wu.push({ id: "wu:" + m.gif, kind: "warm", day: d, name: m.name, move: m }); }); });
+  days.forEach(function(d){ warmupFor(d).forEach(function(m){ if(seen[m.gif]) return; seen[m.gif] = 1; wu.push({ id: "wu:" + m.gif, kind: "warm", day: d, name: m.name, move: m }); }); });
   if(wu.length) groups.push({ id: "warmup", title: "Warm-up", items: wu });
   return groups;
 }
 /* ---------- the exercise sheet: big picture, how-to, this lift's chart and history, its notes, step, Add note ---------- */
 /* the day a lift lives on (gym days first, then home); null for a lift on no day */
-function dayOfAny(exId){ var ds = STRENGTH_DAYS.concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []); for(var i = 0; i < ds.length; i++) if(progEntry(ds[i], exId)) return ds[i]; return null; }
+function dayOfAny(exId){ var ds = ((getProgram(db.activeProgram) || {}).days || STRENGTH_DAYS).concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []); for(var i = 0; i < ds.length; i++) if(progEntry(ds[i], exId)) return ds[i]; return null; }
 function bigPicHtml(exId, alt){
   var pend = (typeof EX_GIF_PENDING !== "undefined") ? EX_GIF_PENDING[exId] : null;
   if(pend) return '<div class="exFig pending big">' + icon("camera", "xl") + '<span class="pendTx">Picture to come</span><span class="pendFile">gifs/' + esc(pend) + '.gif</span></div>';

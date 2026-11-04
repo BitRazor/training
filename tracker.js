@@ -111,7 +111,11 @@ function normalize(){
   if(db.session && db.session.base!==undefined && !(Array.isArray(db.session.base) && db.session.base.every(function(k){ return typeof k==="string"; }))) delete db.session.base;
   if(db.session && db.session.stoppedAt!==undefined && !(typeof db.session.stoppedAt==="number" && isFinite(db.session.stoppedAt))) delete db.session.stoppedAt;
   if(!db.profile.hrZones||!db.profile.hrZones.z1) regenZones();
+  /* Part 2 (2026-11-04), additive: his own programs and days (tracker-editor.js), registered before migrate checks the
+     active program; his days go into the day tracks after migrate rebuilds them from the seed */
+  if(typeof cleanUserPrograms==="function"){ cleanUserPrograms(); syncPrograms(); }
   migrate();
+  if(typeof applyDays==="function") applyDays();
   /* Part 1, additive: the week schedule (null = the original week) and the workout names (tracker-week.js). After
      migrate, which refreshes the day tracks they are checked against. Version 1 ignores both. */
   db.dayNames=cleanNames(db.dayNames);
@@ -144,7 +148,7 @@ function cycleOf(pid){ var ps=db.programState&&db.programState[pid]; return (ps&
 /* has this program been used in its current cycle — weeks marked done, ticks, or diary entries? */
 function programTrained(pid){
   var ps=db.programState&&db.programState[pid], pr=(ps&&ps.progress)||{}, cyc=cycleOf(pid);
-  if(STRENGTH_DAYS.some(function(d){ return ((pr[d]||{}).weeksDone||[]).length>0; })) return true;
+  if(((getProgram(pid).days)||STRENGTH_DAYS).some(function(d){ return ((pr[d]||{}).weeksDone||[]).length>0; })) return true;   /* its own days (Part 2: his programs) */
   for(var k in db.done){ if(k.indexOf(pid+":")===0) return true; }
   return db.history.some(function(h){ return h.program===pid&&(h.cycle||1)===cyc; });
 }
@@ -210,11 +214,11 @@ function maybeCompleteActive(){
    Version 2 (2026-11-04): a bottom bar with four destinations (Today, Workout, Progress, More) and the pages
    reached from More. The v1 view ids and names stay: "programs" = Workout (the old Plan), "library" = Programs,
    "log" = Notes, "nutrition" = Fuel. The More tab stays selected while one of its pages is open. */
-var VIEWS=["today","programs","progress","more","library","exercises","log","nutrition","settings","schedule"];
+var VIEWS=["today","programs","progress","more","library","exercises","log","nutrition","settings","schedule","progedit"];
 var MORE_PAGES=["library","exercises","log","nutrition","settings"];
 /* the week schedule editor (2026-11-04) is opened from Today or from More: that tab stays selected, and its back
    control (and Android back, tracker-week.js) returns there */
-function navOf(name){ if(name==="schedule") return ui.schedFrom==="today" ? "today" : "more"; return MORE_PAGES.indexOf(name)>=0 ? "more" : name; }
+function navOf(name){ if(name==="schedule") return ui.schedFrom==="today" ? "today" : "more"; if(name==="progedit") return "more"; return MORE_PAGES.indexOf(name)>=0 ? "more" : name; }
 function showView(name){
   if(VIEWS.indexOf(name)<0) name="today";
   if(name==="schedule" && ui.view!=="schedule") ui.schedFrom=(ui.view==="today") ? "today" : "more";
@@ -225,7 +229,7 @@ function showView(name){
   $$(".tab").forEach(function(b){b.classList.toggle("sel",b.getAttribute("data-view")===nav);});
   if(name!=="programs"){ var nb=$("#nextBar"); if(nb){ nb.hidden=true; nb.innerHTML=""; } }   /* the Next pill lives only on the Workout */
   ({today:renderToday, programs:renderPlan, progress:renderProgress, more:renderMore, library:renderLibrary, exercises:renderExercises,
-    log:renderLog, nutrition:renderNutrition, settings:renderSettings, schedule:renderSchedule}[name])();
+    log:renderLog, nutrition:renderNutrition, settings:renderSettings, schedule:renderSchedule, progedit:renderProgEdit}[name])();
   if(typeof onViewShown==="function") onViewShown(name);   /* the rest pill, keep-awake (tracker-session.js) */
   window.scrollTo(0,0);
 }
@@ -255,6 +259,7 @@ document.addEventListener("click",function(e){
   if(act==="previewreturn"){ clearPreview(); ui.planWeek=null; ui.planLastProg=null; renderPlan(); return; }
   if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick|settick|setreps|effort)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
   if(typeof smartClick==="function" && smartClick(act, t)) return;   /* Part 2: the rep stepper, the effort chips (tracker-smart.js) */
+  if(typeof editorClick==="function" && editorClick(act, t)) return;   /* Part 2: Programs and the program editor (tracker-editor.js) */
   if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); if($("#modal.open")) closeModal(); renderPlan(); return; }
   if(act==="weekdone"){ onWeekDone(t); return; }   /* v1 week-done, then the summary (tracker-session.js) */

@@ -119,6 +119,8 @@ function normalize(){
   /* Part 2 (2026-11-04), additive: the smart session log (db.logs) and the targets (db.targets), tracker-smart.js.
      Version 1 ignores both. */
   if(typeof cleanSmartStores==="function") cleanSmartStores();
+  /* the default switch to Smart HSR with his strength, weeks and ticks: once per data file (db.settings.smartSince) */
+  if(typeof smartMigrate==="function") smartMigrate();
 }
 function load(){
   try{var raw=localStorage.getItem(STORE_KEY); db=raw?JSON.parse(raw):seedDb();}catch(e){db=seedDb();}
@@ -156,7 +158,8 @@ function doneState(prog,week,item){if(previewing())return null;var v=db.done[don
 function recordHistory(prog,week,exId,quality){
   if(!exId||exId.indexOf("wu:")===0) return;
   if(!progEntry(prog,exId)) return;
-  if(typeof smartActive==="function"&&smartActive()){ recordSmartHistory(prog,week,exId,quality); return; }   /* Part 2: the weight used and each set's reps */
+  /* Part 2: a smart program records the weight used and each set's reps, and works out the next session's suggestion */
+  if(typeof smartActive==="function"&&smartActive()){ smartSuggestAfter(prog,week,exId,quality); recordSmartHistory(prog,week,exId,quality); save(); return; }
   var ex=exById(exId)||{}, tested=db.tested[exId]; if(tested==null) return;
   if(ex.loadType==="bodyweight") return;   /* body weight + an optional plate: no laddered kg to freeze */
   var p=ladderFor(tested,ex,getProgram(db.activeProgram),activeRateMode())[week]; if(!p||p.kg==null) return;
@@ -177,7 +180,9 @@ function recordSmartHistory(prog,week,exId,quality){
   save();
 }
 /* entries carry their program CYCLE (missing = 1), so a restarted program's week never touches the last run's */
-function removeHistory(prog,week,exId){ var cyc=cycleOf(db.activeProgram); db.history=db.history.filter(function(h){ return !(h.program===db.activeProgram&&(h.cycle||1)===cyc&&h.day===prog&&h.week===week&&h.exId===exId); }); save(); }
+function removeHistory(prog,week,exId){ var cyc=cycleOf(db.activeProgram); db.history=db.history.filter(function(h){ return !(h.program===db.activeProgram&&(h.cycle||1)===cyc&&h.day===prog&&h.week===week&&h.exId===exId); });
+  if(typeof smartActive==="function"&&smartActive()) smartUnsuggest(prog,week,exId);   /* Part 2: an un-marked lift takes this session's suggestion with it */
+  save(); }
 /* set/clear a lift's state; full<->partial are mutually exclusive; keep the diary in sync */
 function applyMark(prog,week,item,mark){
   var key=doneKey(prog,week,item);

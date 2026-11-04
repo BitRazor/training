@@ -380,7 +380,8 @@ function summaryData(pr, wk){
   var ids = db.programs[pr].entries.map(function(e){ return e.exerciseId; }), full = 0, part = 0;
   ids.forEach(function(id){ var s = doneState(pr, wk, id); if(s === "full") full++; else if(s === "partial") part++; });
   var s = sessionFor(pr, wk);
-  return { title: "Week " + wk + " · " + shortName(pr) + " done", full: full, part: part, total: ids.length, mins: s ? Math.max(0, Math.round((s.last - s.start) / 60000)) : null, pbs: bestsToday(ids), next: nextSessionText(pr) };
+  return { title: "Week " + wk + " · " + shortName(pr) + " done", full: full, part: part, total: ids.length, mins: s ? Math.max(0, Math.round((s.last - s.start) / 60000)) : null, pbs: bestsToday(ids), next: nextSessionText(pr),
+    sugs: (typeof sessionSugs === "function") ? sessionSugs(pr, wk) : [] };   /* Part 2: the new suggestions of this session */
 }
 function fmtDur(m){ return m == null ? "—" : m < 60 ? m + " min" : Math.floor(m / 60) + " h " + pad2(m % 60) + " min"; }
 /* a lift's personal best today: today's heaviest beats every earlier diary entry (a first-ever session is not one) */
@@ -408,6 +409,7 @@ function openSummary(S){
     '<div class="sumStat"><b class="sumPartial">' + S.part + '</b><span>partial</span></div>' +
     '<div class="sumStat"><b class="sumTime">' + fmtDur(S.mins) + '</b><span>time</span></div></div>' +
     (S.pbs.length ? '<div class="sectH">Personal bests today</div><ul class="pbList">' + S.pbs.map(function(p){ return '<li class="pbItem">' + icon("trophy") + '<span class="pbName">' + esc(p.name) + '</span><b class="pbKg">' + p.kg + ' kg</b></li>'; }).join("") + '</ul>' : '') +
+    (S.sugs && S.sugs.length ? '<div class="sectH">New suggestions</div><ul class="sugList">' + S.sugs.map(function(g){ return '<li class="sugItem"><span class="sugName">' + esc(g.name) + '</span><b class="sugTo">' + esc(g.to) + '</b></li>'; }).join("") + '</ul>' : '') +
     (S.next ? '<div class="sumNext">' + icon("calendar") + '<span>' + esc(S.next) + '</span></div>' : '') + '</div>';
   openSheet(S.title, h, { cls: "sumCard", closeLabel: "Done" });
 }

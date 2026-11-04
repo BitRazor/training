@@ -145,6 +145,9 @@ function renderPlan(){
   h += '<div class="phaseBanner' + (P.home ? " home" : "") + '"><div class="phaseTx"><div class="phaseName"><b>' + (P.home ? "Home" : esc(phaseLbl)) + '</b> · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span>' + paceNote + '</div>' +
     '<div class="phaseCue">' + (P.home ? "Every set near failure · no weights to calculate" : "Lower 3 s · lift firmly 1–2 s · no bounce") + '</div></div>' +
     '<button class="iChip" data-act="phaseinfo" aria-label="About this week">' + icon("info") + '</button></div>';
+  /* Part 2: every waiting suggestion of this day at once (tracker-smart.js) */
+  var waiting = (smart && !previewing()) ? pendingOn(prog, w).length : 0;
+  if(waiting) h += '<button class="btn tonal block sugAll" data-act="suguseall">' + icon("check") + 'Use all suggestions (' + waiting + ')</button>';
   /* ---- warm-up: its own amber card, a row per move (picture, name, detail, tick), collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
   h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary><span class="wuIc">' + icon("flame") + '</span><span class="wuHead">Warm-up · ' + warmTime(prog) + ' · ' + wuDone + '/' + wu.length + '</span>' + icon("chevD", "wuChev") + '</summary><div class="secBody">' +
@@ -192,7 +195,7 @@ function planCardHtml(prog, w, en, tag){
   var exId = en.exerciseId, ex = exById(exId) || { name: exId }, pr = prescFor(en, w, prog), tappable = (pr.kind !== "timed" && pr.kind !== "hold" && pr.kind !== "effort");
   var st = doneState(prog, w, exId), exd = !!st, hist = historyFor(exId), lt = hist.length ? hist[hist.length - 1] : null;
   var smart = !!pr.smart, ticks = setTicks(prog, w, exId), tgt = smart ? smartDoneText(prog, w, en) : setTargetText(en, w), home = !!en.dose;
-  var note = latestNoteFor(exId), rng = smart ? smartRangeText(en) : "";
+  var note = latestNoteFor(exId), rng = smart ? smartRangeText(en) : "", sug = smart ? sugLineHtml(prog, w, en) : "";
   /* the ramp-up tip: a smart lift's own target reps, else the week's ladder reps */
   var rampReps = smart ? pr.reps : clampReps(repForWeekIn(shownProg(), w), ex);
   var rate = pr.rate === "push" ? '<span class="rateTag up" title="pushing harder — stuck adding reps">' + icon("arrowUp", "sm") + '</span>' : pr.rate === "ease" ? '<span class="rateTag down" title="easing — paying back the push">' + icon("arrowDown", "sm") + '</span>' : '';
@@ -207,7 +210,8 @@ function planCardHtml(prog, w, en, tag){
     '<div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + exId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + rate + (tappable ? ' <span class="editi">' + icon("edit", "sm") + '</span>' : '') + '</div>' +
     (rng ? '<div class="smartRange">' + esc(rng) + '</div>' : '') +
     (smart && pr.kind === "hold" && en.dose ? '<div class="doseLine">' + esc(en.dose) + '</div>' : '') +
-    (lt ? '<div class="lastTime">Last time: <b>' + esc(lastTimeText(lt)) + '</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
+    sug +   /* Part 2: the next step from last time, Use it / Keep (it says what he did, so it stands in for "Last time") */
+    (lt && !sug ? '<div class="lastTime">Last time: <b>' + esc(lastTimeText(lt)) + '</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
     /* ramp-up (owner 2026-10-13: the minimum): only the split squat and the deadlift, only in weeks where THAT lift's own reps are 11 or fewer
        (2026-10-17: its own window, so the deadlift's 10-rep start shows the tip from week 1) */
     (en.ramp && rampReps != null && rampReps <= 11 ? '<div class="rampTip">' + icon("trendUp", "sm") + '<span>Ramp-up first: 1 light set, about half the weight, <span class="nw">6–8 reps</span></span></div>' : '') +

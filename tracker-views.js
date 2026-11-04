@@ -22,7 +22,9 @@ function renderToday(){
       '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home · " : (cn ? "" : esc(shortName(ref)) + " · ")) + 'Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
       '<div class="todayTitle">' + esc(cn || today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
       '<div class="heroPreview">' + E.slice(0, 4).map(function(en){
-        return '<div class="hpRow"><span class="hpName">' + esc((exById(en.exerciseId) || { name: en.exerciseId }).name) + '</span><span class="hpTgt">' + esc(previewTarget(en, cw, ref)) + '</span></div>';
+        /* Part 2: a waiting suggestion shows here too, with its arrow (tracker-smart.js) */
+        var sg = (typeof heroSug === "function" && smartActive()) ? heroSug(ref, cw, en) : null;
+        return '<div class="hpRow"><span class="hpName">' + esc((exById(en.exerciseId) || { name: en.exerciseId }).name) + '</span><span class="hpTgt' + (sg ? " sug" : "") + '">' + esc(sg || previewTarget(en, cw, ref)) + '</span></div>';
       }).join("") + (E.length > 4 ? '<div class="hpMore">+ ' + (E.length - 4) + ' more</div>' : '') + '</div>' +
       '<button class="btn primary big block" data-act="gotoplan" data-prog="' + ref + '">' + icon("play") + 'Start workout</button></div>';
   } else {

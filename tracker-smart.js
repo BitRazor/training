@@ -111,7 +111,12 @@ function smartKind(en, ex){
   if(ex.loadType === "carry") return "carry";
   return "lift";
 }
-function smartTarget(exId){ var t = db && db.targets && db.targets[exId]; return (t && typeof t === "object") ? t : null; }
+/* the stored target (while just looking at a smart program from a 12-week one: the targets it would start from) */
+function smartTarget(exId){
+  var src = (typeof ui !== "undefined" && ui && ui.preview && ui.preview.targets) ? ui.preview.targets : (db && db.targets);
+  var t = src && src[exId]; return (t && typeof t === "object") ? t : null;
+}
+function lowerFirst(s){ return s.charAt(0).toLowerCase() + s.slice(1); }
 /* the target an entry trains at: the stored one; a body-weight lift or a hold without one starts at its floor (a body-weight
    lift with its version 1 plate, db.tested, if it has one); a lift without one needs its starting weight (null) */
 function entryTarget(en){
@@ -176,6 +181,9 @@ function smartDoneText(prog, week, en){
 /* a card's texts brought in line in place (after a tick or a logged set), so the tick still pops and the card folds */
 function smartRefreshCard(c, prog, week, exId){
   var en = progEntry(prog, exId); if(!c || !en) return;
+  /* a suggestion line comes or goes with the lift's first tick of the week: draw the Workout again (the count on "Use all"
+     changes with it) */
+  if(!!c.querySelector(".sugLine") !== !!sugFor(prog, week, exId)){ renderPlan(); return; }
   [].slice.call(c.querySelectorAll(".setRow .setReps")).forEach(function(b){ b.textContent = smartRowLabel(prog, week, en, +b.getAttribute("data-set")); });
   var dl = c.querySelector(".doneLine"); if(dl) dl.textContent = smartDoneText(prog, week, en);
 }
@@ -278,6 +286,8 @@ function onSmartWeight(prog, week, exId, then){
         var undo = undoPoint();
         if(!db.targets || typeof db.targets !== "object") db.targets = {};
         db.targets[exId] = { kg: r2(n), reps: smartRange(en, ex).lo, misses: 0, at: todayISO() };
+        if(!Array.isArray(db.targetLog)) db.targetLog = [];
+        db.targetLog.push({ exId: exId, date: todayISO(), from: {}, to: { kg: r2(n), reps: smartRange(en, ex).lo }, how: "start" });
         save();
         if(then) then(undo); else { renderPlan(); toast(ex.name + ": starting at " + smartPresc(en, prog, week).text.replace(/<[^>]+>/g, ""), { undo: undo }); } } });
     return;
@@ -311,21 +321,217 @@ function smartRefreshDone(prog, week, exId){
 /* "Last time: 65 kg × 12, 11 · 7 days ago" (a smart entry carries each set's reps) */
 function lastTimeText(lt){ return lt.kg + " kg × " + (Array.isArray(lt.done) && lt.done.length ? lt.done.join(", ") : lt.reps); }
 
+/* ===================== 4. carrying the strength into a smart program ===================== */
+var SMART_SINCE = "2026-11-04";   /* db.settings.smartSince: the default switch below has run on this data */
+/* stronger = a higher estimated 1RM (a hold: a higher level, then more seconds) */
+function weakerTarget(cur, cand, kind){
+  if(kind === "hold") return (cur.level || 0) < (cand.level || 0) || ((cur.level || 0) === (cand.level || 0) && cur.reps < cand.reps);
+  if(cur.kg == null) return true;
+  return smartE1(cur.kg, cur.reps) < smartE1(cand.kg, cand.reps) - 1e-9;
+}
+/* each lift's target from the ACTIVE 12-week program: the weight and reps it prescribes for the lift's current week (reps
+   inside the smart range); the Copenhagen hold from its seconds that week. A target already there stays when it is
+   stronger, so a round trip through a 12-week program loses nothing. into = an object to fill instead of db.targets (the
+   "Just looking" preview). Runs while srcPid is still the active program (currentWeek reads it). */
+function carryTargetsFrom(srcPid, into){
+  var P = getProgram(srcPid), mode = (db.programState && db.programState[srcPid] && db.programState[srcPid].rateMode) || DEFAULT_RATE_MODE;
+  var out = into || (db.targets = (db.targets && typeof db.targets === "object") ? db.targets : {}), today = todayISO();
+  (P.days || []).concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []).forEach(function(d){
+    var Dy = db.programs[d]; if(!Dy) return;
+    var w = currentWeek(d);
+    Dy.entries.forEach(function(en){
+      var ex = exById(en.exerciseId); if(!ex) return;
+      var k = smartKind(en, ex), cand = null;
+      if(k === "hold"){ if(en.exerciseId === "copenhagen-plank") cand = { kg: null, reps: holdStart(holdSec(w)), misses: 0, level: 0 }; }
+      else if(k === "lift" || k === "carry"){
+        var t = db.tested[en.exerciseId]; if(t == null) return;
+        var p = (ladderFor(t, ex, P, mode) || {})[w]; if(!p || p.kg == null) return;
+        var r = smartRange(en, ex); cand = { kg: p.kg, reps: Math.max(r.lo, Math.min(r.hi, p.reps)), misses: 0 };
+      }
+      if(!cand) return;
+      var cur = out[en.exerciseId] || (into ? smartTarget(en.exerciseId) : null);
+      if(cur && !weakerTarget(cur, cand, k)){ if(into && !out[en.exerciseId]) out[en.exerciseId] = cur; return; }
+      cand.at = today;
+      out[en.exerciseId] = cand;
+    });
+  });
+  return out;
+}
+/* the default switch (once per data file, normalize): a phone on a 12-week program moves to Smart HSR with its strength
+   (targets), its weeks and its ticks, so his rhythm goes on where it was. HSR Base 12's own state is left untouched, and
+   a choice of a 12-week program later is never undone (the flag) */
+function smartMigrate(){
+  if(!db.settings || db.settings.smartSince === SMART_SINCE) return;
+  db.settings.smartSince = SMART_SINCE;
+  var from = db.activeProgram, to = SMART_PROGRAM_ID;
+  if(isSmartProg(from)) return;
+  carryTargetsFrom(from);
+  var ps = progStateFor(to), src = progStateFor(from);
+  Object.keys(src.progress || {}).forEach(function(d){ ps.progress[d] = { weeksDone: (((src.progress[d] || {}).weeksDone) || []).slice() }; });
+  if(!ps.startedAt) ps.startedAt = src.startedAt || nowISO();
+  ["done", "sets"].forEach(function(f){ var o = db[f] || {}; Object.keys(o).forEach(function(k){ if(k.indexOf(from + ":") === 0){ var nk = to + k.slice(from.length); if(o[nk] === undefined) o[nk] = clone(o[k]); } }); });
+  if(db.session && db.session.program === from) db.session.program = to;
+  db.activeProgram = to;
+}
+/* leaving a smart program for a 12-week one: each lift's 15RM anchor from its target's strength (estimated 1RM at the
+   15-rep mark, placed on the lift's grid; bank = the exact value), the engine's carry shape {load, bank} */
+function smartCarryOut(){
+  var out = { load: {}, bank: {} };
+  for(var i = 0; i < db.exercises.length; i++){
+    var ex = db.exercises[i], t = smartTarget(ex.id), k = smartKind(null, ex);
+    if(t && (k === "lift" || k === "carry") && t.kg > 0){ var a = roundTo(smartE1(t.kg, t.reps) * pct(15), 0.25); out.load[ex.id] = snapNearest(a, ex); out.bank[ex.id] = a; continue; }
+    if(t && k === "bw"){ out.load[ex.id] = t.kg > 0 ? t.kg : null; out.bank[ex.id] = null; continue; }
+    out.load[ex.id] = db.tested[ex.id] == null ? null : db.tested[ex.id]; out.bank[ex.id] = db.bank[ex.id] == null ? null : db.bank[ex.id];
+  }
+  return out;
+}
+
+/* ===================== 5. suggestions ===================== */
+/* db.suggest[exId] (additive) = the suggestion from the lift's last session: {program, cycle, day, week, date, from:{kg,
+   reps(, level)}, to: the rule's result, did: [reps per set], kg (when the weight used differed), effort, partial}. It waits
+   for Use it / Keep (OK for a hold) on the next session's card; one never answered counts as kept when the lift is done
+   again. db.targetLog (additive) = [{exId, date, from, to, how}]: every real change ("use", "all", "start") */
+function sameSession(s, prog, week){ return !!s && s.program === db.activeProgram && s.day === prog && s.week === week && (s.cycle || 1) === cycleOf(db.activeProgram); }
+/* the misses a kept suggestion leaves on the target: a declined step back keeps counting (the next miss suggests it again) */
+function keepMisses(to){ return to.kind === "back" ? 1 : (to.misses || 0); }
+function smartSuggestAfter(prog, week, exId, quality){
+  var en = progEntry(prog, exId); if(!en) return;
+  var ex = exById(exId) || {}, k = smartKind(en, ex); if(k === "effort") return;
+  if(!db.suggest || typeof db.suggest !== "object" || Array.isArray(db.suggest)) db.suggest = {};
+  var old = db.suggest[exId];
+  if(old && !sameSession(old, prog, week)){   /* an earlier one never answered: kept */
+    var et = entryTarget(en); if(et){ var kept = clone(et); kept.misses = keepMisses(old.to); db.targets[exId] = kept; }
+    delete db.suggest[exId];
+  }
+  var t = entryTarget(en); if(!t) return;
+  var n = setCount(prog, exId), did = [], l = smartLog(prog, week, exId) || {}, used = smartKg(prog, week, en);
+  for(var i = 0; i < n; i++) did.push(smartSetReps(prog, week, en, i));
+  var to = smartNext(t, { reps: did, kg: used, effort: l.effort, partial: quality === "partial" }, smartOpts(en, ex));
+  var from = { kg: t.kg, reps: t.reps }; if(k === "hold") from.level = t.level || 0;
+  var s = { program: db.activeProgram, cycle: cycleOf(db.activeProgram), day: prog, week: week, date: todayISO(), from: from, to: to, did: did };
+  if(used != null && used !== t.kg) s.kg = used;
+  if(l.effort) s.effort = l.effort;
+  if(quality === "partial") s.partial = true;
+  db.suggest[exId] = s;
+}
+/* a lift un-marked in the same session takes its suggestion with it */
+function smartUnsuggest(prog, week, exId){ var s = db.suggest && db.suggest[exId]; if(sameSession(s, prog, week)) delete db.suggest[exId]; }
+/* the suggestion a card shows: one is waiting and the lift has no tick yet this week (once a set is ticked the session
+   runs on the target shown) */
+function sugFor(prog, week, exId){
+  var s = db.suggest && db.suggest[exId];
+  if(!s || !s.to || previewing() || !isSmartProg(db.activeProgram)) return null;
+  if(doneState(prog, week, exId) || setTicks(prog, week, exId).some(Boolean) || sameSession(s, prog, week)) return null;
+  return s;
+}
+/* "↑" + "67.5 kg × 8"; a hold "=", a step back "↓" */
+function sugParts(s, en){
+  var ex = exById(en.exerciseId) || {}, k = smartKind(en, ex), side = sideOf(ex), to = s.to, what;
+  var glyph = to.kind === "hold" ? "=" : to.kind === "back" ? "↓" : "↑";
+  if(k === "hold") what = (to.kind === "harder" ? "Harder version · " : "") + to.reps + " s" + side;
+  else if(k === "carry") what = to.kg + " kg × " + (to.reps * 3) + " s/arm";
+  else what = smartWeightText(k, to.kg) + " × " + to.reps + (k === "lift" ? side : "");
+  var did = (s.did || []).map(function(x){ return k === "carry" ? x * 3 : x; }).join(", ");
+  return { glyph: glyph, what: what, did: "you did " + did + " last time" + (s.effort === "hard" ? ", Hard" : s.effort === "easy" ? ", Easy" : "") + (s.partial ? ", partial" : "") };
+}
+/* the card's line: "↑ 67.5 kg × 8 · you did 12, 12 last time" with Use it and Keep (a hold: OK) */
+function sugLineHtml(prog, week, en){
+  var s = sugFor(prog, week, en.exerciseId); if(!s) return "";
+  var p = sugParts(s, en), id = esc(en.exerciseId), hold = s.to.kind === "hold";
+  return '<div class="sugLine' + (hold ? " hold" : s.to.kind === "back" ? " back" : "") + '"><div class="sugTx"><span class="sugG">' + p.glyph + '</span> <b>' + esc(p.what) + '</b> · ' + esc(p.did) + '</div>' +
+    '<div class="sugBtns">' + (hold ? '' : '<button class="btn primary sm" data-act="suguse" data-ex="' + id + '">' + icon("check") + 'Use it</button>') +
+    '<button class="btn sm" data-act="sugkeep" data-ex="' + id + '">' + (hold ? "OK" : "Keep") + '</button></div></div>';
+}
+/* the lifts of a day whose suggestion shows now (program order) */
+function pendingOn(prog, week){ var D = db.programs[prog]; return D ? D.entries.filter(function(en){ return !!sugFor(prog, week, en.exerciseId); }) : []; }
+/* Today's hero: the suggested target with its arrow, for a lift whose target would change */
+function heroSug(prog, week, en){ var s = sugFor(prog, week, en.exerciseId); if(!s || s.to.kind === "hold") return null; var p = sugParts(s, en); return p.glyph + " " + p.what; }
+/* the week summary: the suggestions made in this session, in workout order */
+function sessionSugs(prog, week){
+  var D = db.programs[prog]; if(!D || !isSmartProg(db.activeProgram)) return [];
+  return D.entries.filter(function(en){ return sameSession(db.suggest && db.suggest[en.exerciseId], prog, week); }).map(function(en){
+    var p = sugParts(db.suggest[en.exerciseId], en); return { name: (exById(en.exerciseId) || { name: en.exerciseId }).name, to: p.glyph + " " + p.what }; });
+}
+/* the target in words: "65 kg × 12", "45 s", "BW × 14" */
+function targetWords(t, en){
+  var ex = exById(en.exerciseId) || {}, k = smartKind(en, ex);
+  if(k === "hold") return t.reps + " s" + sideOf(ex);
+  if(k === "carry") return t.kg + " kg × " + (t.reps * 3) + " s/arm";
+  return smartWeightText(k, t.kg) + " × " + t.reps;
+}
+/* one target change in words: "Target 65 → 67.5 kg", "Target 11 → 12 reps", "Target 25 → 30 s", "Harder version (20 s)" */
+function changeWords(from, to, en){
+  var k = smartKind(en, exById(en.exerciseId) || {});
+  if((to.level || 0) !== (from.level || 0)) return "Harder version" + (to.level > 1 ? " " + to.level : "") + " (" + to.reps + " s)";
+  if(k === "hold") return "Target " + from.reps + " → " + to.reps + " s";
+  if(from.kg !== to.kg) return k === "bw" ? "Plate " + (from.kg || 0) + " → " + (to.kg || 0) + " kg" : "Target " + from.kg + " → " + to.kg + " kg";
+  return "Target " + (k === "carry" ? (from.reps * 3) + " → " + (to.reps * 3) + " s" : from.reps + " → " + to.reps + " reps");
+}
+/* apply one suggestion: "use" takes its target, "keep" keeps the current one (the misses still count). Records a real
+   change in db.targetLog. Returns {name, cur, next, changed, en} */
+function applySuggestion(exId, how){
+  var s = db.suggest && db.suggest[exId]; if(!s) return null;
+  var en = progEntry(s.day, exId) || { exerciseId: exId }, ex = exById(exId) || { name: exId };
+  var cur = entryTarget(en) || { kg: s.from.kg, reps: s.from.reps, misses: 0 }, next = clone(cur), changed = false;
+  if(how !== "keep"){
+    next.kg = s.to.kg; next.reps = s.to.reps; next.misses = s.to.misses; if(s.to.level != null) next.level = s.to.level;
+    changed = next.kg !== cur.kg || next.reps !== cur.reps || (next.level || 0) !== (cur.level || 0);
+  } else next.misses = keepMisses(s.to);
+  if(!db.targets || typeof db.targets !== "object") db.targets = {};
+  if(changed){
+    next.at = todayISO();
+    var f = { kg: cur.kg, reps: cur.reps }, tt = { kg: next.kg, reps: next.reps };
+    if(next.level != null || cur.level != null){ f.level = cur.level || 0; tt.level = next.level || 0; }
+    if(!Array.isArray(db.targetLog)) db.targetLog = [];
+    db.targetLog.push({ exId: exId, date: todayISO(), from: f, to: tt, how: how });
+  }
+  db.targets[exId] = next; delete db.suggest[exId];
+  return { name: ex.name, cur: cur, next: next, changed: changed, en: en };
+}
+function onSugUse(exId, how){
+  var undo = undoPoint(), r = applySuggestion(exId, how); if(!r) return;
+  save(); renderPlan();
+  toast(r.name + ": " + (how === "keep" ? "kept " + targetWords(r.cur, r.en) : r.changed ? lowerFirst(changeWords(r.cur, r.next, r.en)) : "same target, " + targetWords(r.next, r.en)), { undo: undo });
+  if(window.Native) Native.haptic("light");
+}
+function onSugAll(){
+  var prog = ui.planProg, week = ui.planWeek, list = pendingOn(prog, week); if(!list.length) return;
+  var undo = undoPoint(), changed = 0;
+  list.forEach(function(en){ var r = applySuggestion(en.exerciseId, "all"); if(r && r.changed) changed++; });
+  save(); renderPlan();
+  toast(list.length + (list.length === 1 ? " suggestion" : " suggestions") + " used · " + changed + (changed === 1 ? " target" : " targets") + " changed", { undo: undo });
+  if(window.Native) Native.haptic("success");
+}
+/* the exercise sheet's "Target changes": newest first, "Target 65 → 67.5 kg on 4 Nov" */
+function targetHistoryHtml(exId){
+  var L = (Array.isArray(db.targetLog) ? db.targetLog : []).filter(function(x){ return x && x.exId === exId; }); if(!L.length) return "";
+  var en = progEntry(dayOfAny(exId) || "", exId) || { exerciseId: exId };
+  return '<div class="sheetSec tlSec"><div class="sectH">Target changes</div><div class="tlList">' + L.slice().reverse().slice(0, 12).map(function(x){
+    var line = x.how === "start" ? "Started at " + targetWords(x.to, en) : changeWords(x.from || {}, x.to || {}, en);
+    return '<div class="tlRow">' + esc(line + " on " + shortDate(x.date)) + '</div>'; }).join("") + '</div></div>';
+}
+
 /* ---------- clicks (routed here by the core) ---------- */
 function smartClick(act, t){
   if(act === "setreps"){ openRepSheet(t.getAttribute("data-prog"), +t.getAttribute("data-week"), t.getAttribute("data-item"), +t.getAttribute("data-set")); return true; }
   if(act === "repstep"){ repStep(+t.getAttribute("data-d")); return true; }
   if(act === "repsave"){ repSave(); return true; }
   if(act === "effort"){ onEffort(t); return true; }
+  if(act === "suguse"){ onSugUse(t.getAttribute("data-ex"), "use"); return true; }
+  if(act === "sugkeep"){ onSugUse(t.getAttribute("data-ex"), "keep"); return true; }
+  if(act === "suguseall"){ onSugAll(); return true; }
   return false;
 }
-/* stored logs and targets made safe (normalize): objects of objects, anything else dropped */
+/* the stored smart data made safe (normalize): logs, targets and suggestions are objects of objects, the history a list;
+   anything else is dropped */
 function cleanSmartStores(){
-  ["logs", "targets"].forEach(function(f){
+  ["logs", "targets", "suggest"].forEach(function(f){
     var v = db[f], out = {};
     if(v && typeof v === "object" && !Array.isArray(v)) for(var k in v){ if(v[k] && typeof v[k] === "object" && !Array.isArray(v[k])) out[k] = v[k]; }
     db[f] = out;
   });
   for(var k in db.targets){ var t = db.targets[k];
     if(!(typeof t.reps === "number" && t.reps > 0) || (t.kg != null && !(typeof t.kg === "number" && isFinite(t.kg) && t.kg >= 0))) delete db.targets[k]; }
+  for(var s in db.suggest){ var g = db.suggest[s]; if(!g.to || typeof g.to !== "object" || !g.from || typeof g.from !== "object" || !Array.isArray(g.did)) delete db.suggest[s]; }
+  db.targetLog = Array.isArray(db.targetLog) ? db.targetLog.filter(function(x){ return x && typeof x === "object" && typeof x.exId === "string" && x.to && typeof x.to === "object"; }) : [];
 }

@@ -110,6 +110,7 @@ function lastCompletedWeek(pid, day){ var ps=db.programState&&db.programState[pi
 /* the carried 15RM anchors a NEW program would start from: each lift's strength at the CURRENT active
    program's (last completed week in its day-track + 1 step). Pure read — used by BOTH preview and start. */
 function carryFromActive(){
+  if(typeof isSmartProg==="function" && isSmartProg(db.activeProgram)) return smartCarryOut();   /* Part 2: from each lift's smart target */
   var out={load:{}, bank:{}}, src=getProgram(db.activeProgram), srcMode=activeRateMode();
   for(var i=0;i<db.exercises.length;i++){ var ex=db.exercises[i], t=db.tested[ex.id];
     if(t==null){ out.load[ex.id]=null; out.bank[ex.id]=null; continue; }
@@ -127,13 +128,19 @@ function openSwitchModal(pid){
     chips:[{label:"👀 Just looking", value:"look"},{label:"🏋 Start training", value:"train"}],
     onSubmit:function(v){ if(v==="look") startPreview(pid); else if(v==="train") startTraining(pid); } });
 }
-function startPreview(pid){ ui.preview={program:pid, anchor:carryFromActive().load}; ui.planWeek=1; ui.planLastProg=null; showView("programs"); }
+function startPreview(pid){
+  /* a smart program previewed from a 12-week one shows the targets it would start from (tracker-smart.js) */
+  var tg=(typeof isSmartProg==="function" && isSmartProg(pid) && !isSmartProg(db.activeProgram)) ? carryTargetsFrom(db.activeProgram, {}) : null;
+  ui.preview={program:pid, anchor:carryFromActive().load, targets:tg}; ui.planWeek=1; ui.planLastProg=null; showView("programs"); }
 function clearPreview(){ ui.preview=null; }
 /* commit: carry current strength into the new program, make it active, start it FRESH (week 1) */
 function startTraining(pid){
   var carried=carryFromActive();
   var hasProg=programTrained(pid);   /* weeks, ticks or diary entries in its current run — starting it again clears the ticks */
   var go=function(){
+    /* Part 2: into a smart program from a 12-week one, each lift's target = what that program prescribes this week (a
+       stronger target already there stays); worked out before the anchors below move */
+    if(typeof isSmartProg==="function" && isSmartProg(pid) && !isSmartProg(db.activeProgram)) carryTargetsFrom(db.activeProgram);
     for(var id in carried.load){ if(carried.load[id]!=null){ db.tested[id]=carried.load[id]; db.bank[id]=carried.bank[id]; } }
     var ps=progStateFor(pid);
     if(programTrained(pid)) ps.cycle=cycleOf(pid)+1;   /* a new run: its own diary cycle … */

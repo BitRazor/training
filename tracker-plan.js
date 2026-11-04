@@ -1,9 +1,12 @@
 "use strict";
-/* training-tracker — the 12-week Plan view. Two independent program tracks (Day A / Day B, blended
-   full-body days since 2026-10-13), each with its own week picker + manual mark-done. Heavy lifts show
-   algorithm-calculated weights (tested 15RM → +1%/week → rep-max %); tap a weight to log what you actually
-   lifted and the rest of the block recomputes. Lifts render in blocks: done alone (solo), supersets (ss:N,
-   cards joined with a connector and tagged 1A/1B), finishers. Uses seed math + howToHtml/gifHtml. */
+/* training-tracker — the Workout screen (view id "programs"; it was "the Plan" in version 1).
+   Two independent program tracks (Day A / Day B, blended full-body days since 2026-10-13) plus the two home days,
+   each with its own week counter and manual Finish. Heavy lifts show algorithm-calculated weights (tested 15RM →
+   +1%/week → rep-max %); tap a weight to log what you actually lifted and the rest of the block recomputes.
+   Lifts render in blocks: done alone (solo), supersets (ss:N, a violet rail, tagged 1A/1B), finishers.
+   Version 2 (2026-11-04): a sticky session header (day, week sheet, elapsed time, progress bar), a segmented day
+   switcher, one quiet phase line with an info sheet, set rows with 56 dp ticks (tracker-session.js), action chips
+   and an exercise sheet (tracker-progress.js). The v1 hooks stay (.planCard, .exName, .exTick, .planPresc, …). */
 
 function shortName(prog){ return prog === "strength-a" ? "Day A" : prog === "strength-b" ? "Day B" : ((db && db.programs && db.programs[prog] && db.programs[prog].name) || prog); }
 function isHomeDay(prog){ return typeof HOME_DAYS !== "undefined" && HOME_DAYS.indexOf(prog) >= 0; }
@@ -18,9 +21,9 @@ function todayProgram(){ var t = CURRENT_WEEK[weekdayIdx()]; if(!t) return null;
 function activeProg(){ return getProgram(db.activeProgram); }
 /* the active program's chosen climb-rate mode (forward only); defaults to plateau (= current behavior) */
 function activeRateMode(){ var ps = db.programState && db.programState[db.activeProgram]; return (ps && ps.rateMode) || DEFAULT_RATE_MODE; }
-/* ---- what the Plan currently SHOWS: the committed active program, OR a transient "just looking" PREVIEW.
-   While previewing, the Plan renders the previewed program from its CARRIED anchor as a FRESH start
-   (week 1, nothing done) — Today + db are untouched, and it auto-reverts on leaving the Plan. ---- */
+/* ---- what the Workout currently SHOWS: the committed active program, OR a transient "just looking" PREVIEW.
+   While previewing, it renders the previewed program from its CARRIED anchor as a FRESH start
+   (week 1, nothing done) — Today + db are untouched, and it auto-reverts on leaving the Workout. ---- */
 function previewing(){ return !!(ui.preview && ui.preview.program); }
 function shownProgramId(){ return previewing() ? ui.preview.program : db.activeProgram; }
 function shownProg(){ return getProgram(shownProgramId()); }
@@ -62,123 +65,198 @@ function prescFor(en, week){
   var p = ladderFor(tested, ex, shownProg(), shownRateMode())[week];
   return { text: "<b>" + p.kg + " kg</b> · " + en.sets + " × " + p.reps + side, tested: true, kind: "heavy", weight: p.kg, rate: p.rate };
 }
+/* one set's target, short, for the set rows and a collapsed card: "75 kg × 10", "16 kg × 45 s/arm",
+   "+5 kg × 12–20", "BW × 12–20", "20 s/side"; "" for the home doses (the dose text above says it all) */
+function setTargetText(en, week){
+  var ex = exById(en.exerciseId) || {}, t = shownAnchor(en.exerciseId), side = /leg|arm/.test(ex.defaultUnit || "") ? "/side" : "";
+  if(en.dose) return "";
+  if(en.exerciseId === "copenhagen-plank") return holdSec(week) + " s/side";
+  if(ex.loadType === "bodyweight") return ((t != null && t > 0) ? "+" + t + " kg" : "BW") + " × 12–20";
+  if(t == null) return "";
+  var p = ladderFor(t, ex, shownProg(), shownRateMode())[week];
+  if(en.exerciseId === "suitcase-carry") return p.kg + " kg × " + (p.reps * 3) + " s/arm";
+  return p.kg + " kg × " + p.reps + side;
+}
+/* the day's blocks in program order, the one place that groups them (render, rest timer, Next):
+   {kind:"ss", n, entries} consecutive entries sharing ss:N · {kind:"solo", entries:[en]} · {kind:"fin", entries}
+   (consecutive finishers) · {kind:"plain", entries:[en]} */
+function blocksFor(prog){
+  var E = (db.programs[prog] || {}).entries || [], out = [], i = 0;
+  while(i < E.length){
+    var en = E[i];
+    if(en.ss){ var g = [], n = en.ss; while(i < E.length && E[i].ss === n){ g.push(E[i]); i++; } out.push({ kind: "ss", n: n, entries: g }); }
+    else if(en.solo){ out.push({ kind: "solo", entries: [en] }); i++; }
+    else if(en.block === "finisher"){ var f = []; while(i < E.length && !E[i].ss && !E[i].solo && E[i].block === "finisher"){ f.push(E[i]); i++; } out.push({ kind: "fin", entries: f }); }
+    else { out.push({ kind: "plain", entries: [en] }); i++; }
+  }
+  return out;
+}
+/* the block a lift sits in: {kind, n, entries, idx (its place in the block), entry, tag ("1A" … or null)} */
+function blockOf(prog, exId){
+  var B = blocksFor(prog);
+  for(var b = 0; b < B.length; b++) for(var j = 0; j < B[b].entries.length; j++) if(B[b].entries[j].exerciseId === exId)
+    return { kind: B[b].kind, n: B[b].n, entries: B[b].entries, idx: j, entry: B[b].entries[j], tag: B[b].kind === "ss" ? B[b].n + String.fromCharCode(65 + j) : null };
+  return null;
+}
+
+/* ---------- pictures: a thumbnail on the card, the big one in the sheets ---------- */
+function thumbHtml(exId){
+  var pend = (typeof EX_GIF_PENDING !== "undefined") ? EX_GIF_PENDING[exId] : null;
+  if(pend) return '<div class="exFig pending" title="Picture to come: gifs/' + esc(pend) + '.gif">' + icon("camera") + '<span class="pendSoon" aria-hidden="true">soon</span><span class="pendTx">Picture to come</span><span class="pendFile">gifs/' + esc(pend) + '.gif</span></div>';
+  var g = EX_GIF[exId]; if(!g) return '<div class="thumbNone">' + icon("dumbbell") + '</div>';
+  return '<div class="exFig"><img src="gifs/' + g + '.gif" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div>';
+}
+
+/* ---------- the Workout ---------- */
 function renderPlan(){
   if(!ui.planProg) ui.planProg = todayProgram() || "strength-a";
   var existingWarm = document.querySelector(".warmSec"); if(existingWarm) ui.warmOpen = existingWarm.open;   /* keep warm-up open across re-renders */
   var prog = ui.planProg, P = db.programs[prog], cur = shownCurrentWeek(prog), done = shownWeeksDone(prog);
   if(!ui.planWeek || ui.planLastProg !== prog){ ui.planWeek = cur; ui.planLastProg = prog; }
-  var w = ui.planWeek;
-  var h = '<div class="viewH">' + esc(shownProg().name) + ' · ' + shownProg().weeks + '-week plan</div>';
-  var dayTab = function(id){ return '<button class="progTab' + (id === prog ? " sel" : "") + '" data-act="prog" data-prog="' + id + '">' + esc(db.programs[id].name) + '</button>'; };
-  h += '<div class="progTabs">' + STRENGTH_DAYS.map(dayTab).join("") + '</div>';
-  if(typeof HOME_DAYS !== "undefined") h += '<div class="progTabs home">' + HOME_DAYS.filter(function(id){ return !!db.programs[id]; }).map(dayTab).join("") + '</div>';   /* the home days get their own row */
-  h += '<div class="weekPick">';
-  for(var k = 1, KW = shownProg().weeks; k <= KW; k++){ var dn = done.indexOf(k) >= 0; h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '">' + k + (dn ? '<span class="wtick">✓</span>' : "") + '</button>'; }
-  h += '</div>';
+  var w = ui.planWeek, SP = shownProg();
   var liftIds = P.entries.map(function(en){ return en.exerciseId; }), liftDone = doneCount(prog, w, liftIds);
-  var phaseLbl = shownProg().direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
-  /* show which non-default climb-rate is driving the numbers (plateau = default, so no badge — keeps the Plan calm) */
+  var h = '';
+  if(previewing()){
+    h += '<div class="previewBar">' + icon("info") + '<div><b>Previewing ' + esc(SP.name) + '</b> from your current strength. It is not your program yet.' +
+      '<div class="btnRow"><button class="btn sm" data-act="previewreturn">' + icon("undo") + 'Return</button>' +
+      '<button class="btn primary sm" data-act="previewstart" data-prog="' + esc(shownProgramId()) + '">' + icon("play") + 'Start training</button></div></div></div>';
+  }
+  h += mainHead("Workout", esc(SP.name) + " · " + SP.weeks + " weeks");
+  /* sticky session header: the day, the week sheet, elapsed time once a set is ticked, lifts done of total */
+  h += '<div class="sessHead"><div class="shRow"><div class="shDay">' + esc(shortName(prog)) + '</div>' +
+    '<button class="shWeek" data-act="weeksheet" aria-label="Pick a week">Week ' + w + icon("chevD", "sm") + '</button>' +
+    '<span class="shTime" hidden>' + icon("timer", "sm") + '<span class="shClock"></span></span></div>' +
+    '<div class="bar shBar"><i style="width:' + Math.round(liftDone / (P.entries.length || 1) * 100) + '%"></i></div></div>';
+  /* the day switcher: one segmented control, the home days grouped at its end */
+  var dayTab = function(id){ var home = isHomeDay(id);
+    return '<button class="progTab' + (id === prog ? " sel" : "") + '" data-act="prog" data-prog="' + id + '">' + (home ? icon("house", "sm") + '<span class="sr">Home </span>' + esc(CURRENT_WEEK_DAY_OF[id] || id) : esc(shortName(id))) + '</button>'; };
+  h += '<div class="daySwitch"><div class="progTabs">' + STRENGTH_DAYS.map(dayTab).join("") + '</div>' +
+    (typeof HOME_DAYS !== "undefined" ? '<div class="progTabs home">' + HOME_DAYS.filter(function(id){ return !!db.programs[id]; }).map(dayTab).join("") + '</div>' : '') + '</div>';
+  /* one quiet phase line; the speed rule in full and the soreness rule sit behind the i chip */
   var rmA = shownRateMode(), rmM = PROGRESSION_MODES[rmA];
-  var paceNote = (rmA !== "plateau" && rmM) ? ' · <span style="color:var(--acc)">' + esc(rmM.label) + ' pace</span>' : '';
-  if(P.home) h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — Home · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
-       '<div class="phaseReps">Every set near failure: holds until your form is about to break; knee work stops 1–2 reps short. No weights to calculate.</div></div>';
-  else h += '<div class="phaseBanner"><div class="phaseName">Week ' + w + (w === cur ? " · current" : "") + ' — ' + phaseLbl + ' · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span></div>' +
-       '<div class="phaseReps">Reps as on each card · lower in about 3 s, then lift firmly in about 1–2 s, no jerk or bounce · heavy weights are calculated from your tested 15RM' + paceNote + '</div>' +
-       '<div class="phaseReps">Still very sore 3+ days after a session? Do 2 sets of everything that day.</div></div>';
-  /* ---- warm-up: its own amber-accented block, separated from the lifts, each move tickable, collapsible from the bottom ---- */
+  var paceNote = (rmA !== "plateau" && rmM) ? ' · <span class="accT">' + esc(rmM.label) + ' pace</span>' : '';
+  var phaseLbl = SP.direction === "reverse" ? "Back-off wave" : phaseForWeek(w);
+  h += '<div class="phaseBanner' + (P.home ? " home" : "") + '"><div class="phaseTx"><div class="phaseName"><b>' + (P.home ? "Home" : esc(phaseLbl)) + '</b> · <span class="doneCt">' + liftDone + '/' + P.entries.length + ' done</span>' + paceNote + '</div>' +
+    '<div class="phaseCue">' + (P.home ? "Every set near failure · no weights to calculate" : "Lower 3 s · lift firmly 1–2 s · no bounce") + '</div></div>' +
+    '<button class="iChip" data-act="phaseinfo" aria-label="About this week">' + icon("info") + '</button></div>';
+  /* ---- warm-up: its own amber card, a row per move (picture, name, detail, tick), collapsible from the bottom ---- */
   var wu = WARMUP_BY_PROG[prog] || [], wuDone = doneCount(prog, w, wu.map(function(m){ return "wu:" + m.gif; }));
-  h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary>🔥 Warm-up · ' + warmTime(prog) + ' · ' + wuDone + '/' + wu.length + '</summary><div class="secBody">' +
+  h += '<details class="warmSec"' + (ui.warmOpen ? " open" : "") + '><summary><span class="wuIc">' + icon("flame") + '</span><span class="wuHead">Warm-up · ' + warmTime(prog) + ' · ' + wuDone + '/' + wu.length + '</span>' + icon("chevD", "wuChev") + '</summary><div class="secBody">' +
        wu.map(function(m){
          var g = m.gif.indexOf(".") >= 0 ? m.gif : m.gif + ".gif", wd = isDone(prog, w, "wu:" + m.gif);
-         var fig = m.nopic ? '' : m.pending ? '<div class="exFig pending"><span class="pendTx">📷 Picture to come</span><span class="pendFile">gifs/' + esc(g) + '</span></div>'
-                             : '<div class="exFig"><img src="gifs/' + g + '" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div>';
-         return '<div class="wuCard' + (wd ? " done" : "") + '"><div class="wuTop"><button class="exTick' + (wd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="wu:' + m.gif + '" aria-label="mark done">✓</button><div class="wuName">' + esc(m.name) + '</div></div><div class="wuDetail">' + esc(m.detail) + '</div>' + fig + '</div>';
+         var fig = m.nopic ? '' : m.pending ? '<button class="wuThumb" data-act="pic" data-wu="' + esc(m.gif) + '"><div class="exFig pending">' + icon("camera") + '<span class="pendSoon" aria-hidden="true">soon</span><span class="pendTx">Picture to come</span><span class="pendFile">gifs/' + esc(g) + '</span></div></button>'
+                             : '<button class="wuThumb" data-act="pic" data-wu="' + esc(m.gif) + '"><div class="exFig"><img src="gifs/' + g + '" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div></button>';
+         return '<div class="wuCard' + (wd ? " done" : "") + (m.nopic ? " nopic" : "") + '">' + fig + '<div class="wuTx"><div class="wuName">' + esc(m.name) + '</div><div class="wuDetail">' + esc(m.detail) + '</div></div>' +
+           '<button class="exTick wuTick' + (wd ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="wu:' + m.gif + '" aria-label="mark done">' + icon("check") + '</button></div>';
        }).join("") +
-       '<button class="warmCollapse" data-act="warmcollapse">▲ Collapse warm-up</button>' +
+       '<button class="warmCollapse" data-act="warmcollapse">' + icon("chevU", "sm") + 'Collapse warm-up</button>' +
        '</div></details>';
   h += '<div class="liftsHead">' + liftsWord(prog) + ' · ' + liftDone + '/' + P.entries.length + ' done</div>';
-  /* blocks in program order: a lift done alone (solo) · a superset (consecutive entries sharing ss:N, cards
-     joined by a connector, tagged NA/NB) · the finishers (block "finisher") · anything else as a plain card */
-  var E = P.entries, i = 0;
-  while(i < E.length){
-    var en = E[i];
-    if(en.ss){
-      var grp = [], ssN = en.ss;
-      while(i < E.length && E[i].ss === ssN){ grp.push(E[i]); i++; }
-      var rest = Math.max.apply(null, grp.map(function(g){ return g.restSec || 0; }));
+  /* blocks in program order: a lift done alone (solo) · a superset (a violet rail, tagged NA/NB, a "then" link
+     between the cards) · the finishers (block "finisher") · anything else as a plain card */
+  blocksFor(prog).forEach(function(b){
+    if(b.kind === "ss"){
+      var grp = b.entries, ssN = b.n, last = ssN + String.fromCharCode(64 + grp.length);
+      var rest = Math.max.apply(null, grp.map(function(g){ return g.restSec || 0; })) || 60;
       h += '<div class="ssGroup"><div class="blockHead ssHead"><span class="ssTitle">Superset ' + ssN + '</span>' +
-           '<span class="ssHow">1 set of each in turn · ' + grp[0].sets + ' rounds · ~' + fmtMin(rest) + ' before the same lift again</span>' +
+           '<span class="ssHow">' + grp[0].sets + ' rounds · rest ' + fmtMin(rest) + ' after ' + last + '</span>' +
            '<span class="ssPair">' + grp.map(function(g, j){ var gx = exById(g.exerciseId) || { name: g.exerciseId }; return '<b>' + ssN + String.fromCharCode(65 + j) + '</b> ' + esc(gx.name); }).join(' <span class="ssArrow">⇄</span> ') + '</span></div>';
-      grp.forEach(function(g, j){ if(j > 0) h += '<div class="ssLink" aria-hidden="true"><span>⇅ then</span></div>'; h += planCardHtml(prog, w, g, ssN + String.fromCharCode(65 + j)); });
+      grp.forEach(function(g, j){ if(j > 0) h += '<div class="ssLink" aria-hidden="true"><span>' + icon("arrowDown", "sm") + 'then ' + ssN + String.fromCharCode(65 + j) + '</span></div>'; h += planCardHtml(prog, w, g, ssN + String.fromCharCode(65 + j)); });
       h += '</div>';
-    } else if(en.solo){
-      h += '<div class="soloBlock"><div class="blockHead">Alone · full rest ' + fmtMin(en.restSec) + ' between sets</div>' + planCardHtml(prog, w, en, null) + '</div>';
-      i++;
-    } else if(en.block === "finisher"){
-      var fins = [];
-      while(i < E.length && !E[i].ss && !E[i].solo && E[i].block === "finisher"){ fins.push(E[i]); i++; }
-      h += '<div class="finBlock"><div class="blockHead">Finishers · last, in this order</div>' + fins.map(function(f){ return planCardHtml(prog, w, f, null); }).join("") + '</div>';
-    } else { h += planCardHtml(prog, w, en, null); i++; }
-  }
+    } else if(b.kind === "solo"){
+      h += '<div class="soloBlock"><div class="blockHead">Alone · full rest ' + fmtMin(b.entries[0].restSec) + ' between sets</div>' + planCardHtml(prog, w, b.entries[0], null) + '</div>';
+    } else if(b.kind === "fin"){
+      h += '<div class="finBlock"><div class="blockHead">Finishers · last, in this order</div>' + b.entries.map(function(f){ return planCardHtml(prog, w, f, null); }).join("") + '</div>';
+    } else h += planCardHtml(prog, w, b.entries[0], null);
+  });
   var weekIsDone = done.indexOf(w) >= 0;
-  h += '<div class="btnRow" style="margin:14px 0 6px"><button class="btn primary block" data-act="weekdone" data-prog="' + prog + '" data-week="' + w + '">' +
-       (weekIsDone ? "✓ Week " + w + " " + shortName(prog) + " done — tap to undo" : "✓ Mark Week " + w + " " + shortName(prog) + " done") + '</button></div>';
+  h += '<div class="finishRow"><button class="btn ' + (weekIsDone ? "tonal" : "primary") + ' big block" data-act="weekdone" data-prog="' + prog + '" data-week="' + w + '">' +
+       (weekIsDone ? icon("check") + "Week " + w + " · " + shortName(prog) + " finished · tap to reopen" : icon("trophy") + "Finish week " + w + " · " + shortName(prog)) + '</button></div>';
   /* the gym supersets run 2 or 3 rounds (the head of each says which); the home day keeps its own wording */
   var roundsTx = P.home ? "3 rounds" : "as many rounds as the header says";
-  h += '<div class="note dim" style="margin:4px 2px">Superset: one set of 1A, then one set of 1B, back to 1A — ' + roundsTx + '. Tick each lift when all its sets are done (top-left ✓) — it collapses to save space and the day count updates. Heavy lifts auto-calculate; tap a weight (✎) to log what you actually lifted. "+ note" logs go to the Notes tab.</div>';
-  if(previewing()){
-    h = '<div class="previewBar">👀 Previewing <b>' + esc(shownProg().name) + '</b> from your current strength — not your active program yet.' +
-        '<div class="btnRow" style="margin-top:8px"><button class="btn sm" data-act="previewreturn">↩ Return</button>' +
-        '<button class="btn primary sm" data-act="previewstart" data-prog="' + esc(shownProgramId()) + '">🏋 Start training</button></div></div>' + h;
-  }
+  h += '<div class="note footNote">Superset: one set of 1A, then one set of 1B, back to 1A — ' + roundsTx + '. Tick each lift\'s sets as you go: the rest timer starts, and the card folds away after its last set. Heavy lifts auto-calculate; tap a weight to log what you actually lifted. Notes collect on the Notes page.</div>';
   $("#view-programs").innerHTML = h;
   updateNextBar(prog, w);
+  if(typeof refreshSessionUi === "function") refreshSessionUi();
 }
+/* the weekday a home day belongs to, for its tab ("Wed" / "Sun"), read from the week schedule */
+var CURRENT_WEEK_DAY_OF = (function(){ var o = {}; (typeof CURRENT_WEEK !== "undefined" ? CURRENT_WEEK : []).forEach(function(d){ if(d.type === "home" && d.ref) o[d.ref] = d.day; if(d.home) o[d.home] = d.day; }); return o; })();
+
 /* one lift's card. `tag` = its superset slot ("1A", "1B" …) or null */
 function planCardHtml(prog, w, en, tag){
-  var ex = exById(en.exerciseId) || { name: en.exerciseId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold" && pr.kind !== "effort"), st = doneState(prog, w, en.exerciseId), exd = !!st, hist = historyFor(en.exerciseId), lt = hist.length ? hist[hist.length - 1] : null;
-  return '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + '"><div class="planTop"><div class="ptL"><button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — full">✓</button><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + en.exerciseId + '" aria-label="done — partial" title="did it, but not fully">◐</button>' + (tag ? '<span class="ssTag">' + tag + '</span>' : '') + '<div class="exName">' + esc(ex.name) + '</div></div><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
-    '<div class="planBody"><div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + en.exerciseId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + (pr.rate === "push" ? ' <span class="rateTag" style="color:var(--acc);font-size:11px" title="pushing harder — stuck adding reps">↑</span>' : pr.rate === "ease" ? ' <span class="rateTag" style="color:var(--dim);font-size:11px" title="easing — paying back the push">↓</span>' : '') + (tappable ? ' <span class="editi">✎</span>' : '') + '</div>' +
-    (lt ? '<div class="lastTime">last time: <b>' + lt.kg + ' kg</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
+  var exId = en.exerciseId, ex = exById(exId) || { name: exId }, pr = prescFor(en, w), tappable = (pr.kind !== "timed" && pr.kind !== "hold" && pr.kind !== "effort");
+  var st = doneState(prog, w, exId), exd = !!st, hist = historyFor(exId), lt = hist.length ? hist[hist.length - 1] : null;
+  var ticks = setTicks(prog, w, exId), tgt = setTargetText(en, w), home = !!en.dose;
+  var note = latestNoteFor(exId);
+  var rate = pr.rate === "push" ? '<span class="rateTag up" title="pushing harder — stuck adding reps">' + icon("arrowUp", "sm") + '</span>' : pr.rate === "ease" ? '<span class="rateTag down" title="easing — paying back the push">' + icon("arrowDown", "sm") + '</span>' : '';
+  var h = '<div class="planCard' + (pr.tested ? "" : " untested") + (exd ? " done" : "") + (st === "partial" ? " partial" : "") + (home ? " homeCard" : "") + '">' +
+    '<div class="planTop"><button class="exThumb" data-act="exsheet" data-ex="' + exId + '" aria-label="' + esc(ex.name) + ': picture and how-to">' + thumbHtml(exId) + '</button>' +
+    '<div class="ptMain" data-act="peek"><div class="ptMeta">' + (tag ? '<span class="ssTag">' + tag + '</span>' : '') + '<span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + en.block + '</span></div>' +
+    '<div class="exName">' + esc(ex.name) + '</div><div class="doneLine">' + esc(tgt) + '</div></div>' +
+    '<div class="ptL"><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" aria-label="done — partial" title="did it, but not fully">' + icon("half") + '</button>' +
+    '<button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" aria-label="done — full (all sets)">' + icon("check") + '</button></div></div>' +
+    '<div class="planBody"><div class="pbIn">' +
+    '<div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + exId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + rate + (tappable ? ' <span class="editi">' + icon("edit", "sm") + '</span>' : '') + '</div>' +
+    (lt ? '<div class="lastTime">Last time: <b>' + lt.kg + ' kg × ' + lt.reps + '</b> · ' + esc(timeAgo(lt.ts)) + (lt.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</div>' : '') +
     /* ramp-up (owner 2026-10-13: the minimum): only the split squat and the deadlift, only in weeks where THAT lift's own reps are 11 or fewer
        (2026-10-17: its own window, so the deadlift's 10-rep start shows the tip from week 1) */
-    (en.ramp && clampReps(repForWeekIn(shownProg(), w), ex) <= 11 ? '<div class="rampTip">↗ Ramp-up first: 1 light set, about half the weight, 6–8 reps</div>' : '') +
-    gifHtml(en.exerciseId) + howToHtml(en.exerciseId) +
-    (hist.length >= 2 ? '<details class="prog"><summary>📈 Progress · ' + hist.length + ' sessions</summary><div class="progBody">' + progHtml(hist) + '</div></details>' : '') +
-    '<button class="noteBtn" data-act="note" data-ex="' + en.exerciseId + '">+ note</button>' +
-    (pr.kind !== "hold" && pr.kind !== "bw" && pr.kind !== "effort" ? '<button class="stepBtn" data-act="setstep" data-ex="' + en.exerciseId + '" title="smallest weight jump for this lift">⚙ ' + esc(stepLabel(ex)) + '</button>' : '') +
-    '</div></div>';
+    (en.ramp && clampReps(repForWeekIn(shownProg(), w), ex) <= 11 ? '<div class="rampTip">' + icon("trendUp", "sm") + '<span>Ramp-up first: 1 light set, about half the weight, <span class="nw">6–8 reps</span></span></div>' : '') +
+    (note ? '<button class="stickyNote" data-act="exsheet" data-ex="' + exId + '" data-sec="notes">' + icon("note", "sm") + '<span class="snTx">' + esc(note.text) + '</span><span class="snWhen">' + esc(shortDate(note.date)) + '</span></button>' : '') +
+    '<div class="setRows">' + ticks.map(function(on, i){
+      return '<div class="setRow' + (on ? " on" : "") + (home ? " plain" : "") + '"><span class="setNo">' + (home ? "Set " + (i + 1) : (i + 1)) + '</span><span class="setTgt">' + esc(tgt) + '</span>' +
+        '<button class="setTick' + (on ? " on" : "") + '" data-act="settick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" data-set="' + i + '" aria-label="Set ' + (i + 1) + ' done">' + icon("check") + '</button></div>';
+    }).join("") + '</div>' +
+    '<div class="exChips chips">' +
+      '<button class="chip" data-act="exsheet" data-ex="' + exId + '">' + icon("book") + 'How to</button>' +
+      (hist.length >= 2 ? '<button class="chip" data-act="exsheet" data-ex="' + exId + '" data-sec="progress">' + icon("chart") + 'Progress</button>' : '') +
+      '<button class="chip noteBtn" data-act="note" data-ex="' + exId + '">' + icon("note") + 'Note</button>' +
+      (tappable ? '<button class="chip" data-act="setw" data-ex="' + exId + '" data-kind="' + pr.kind + '">' + icon("edit") + 'Weight</button>' : '') +
+      (pr.kind !== "hold" && pr.kind !== "bw" && pr.kind !== "effort" ? '<button class="chip stepBtn" data-act="setstep" data-ex="' + exId + '" title="smallest weight jump for this lift">' + icon("cog") + esc(stepLabel(ex)) + '</button>' : '') +
+    '</div></div></div></div>';
+  return h;
 }
+/* the newest note for a lift, or null */
+function latestNoteFor(exId){ var n = db.notes || []; for(var i = n.length - 1; i >= 0; i--) if(n[i] && n[i].exerciseId === exId) return n[i]; return null; }
+/* "2026-10-20" → "20 Oct" */
+function shortDate(iso){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? (+m[3]) + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+m[2] - 1] : (iso || ""); }
+
 /* update the done counts in place (no full re-render) so a tick can animate the card collapse */
 function updateDoneCounts(prog, week){
   var P = db.programs[prog]; if(!P) return;
   var liftIds = P.entries.map(function(en){ return en.exerciseId; }), n = doneCount(prog, week, liftIds), total = P.entries.length;
   var ct = document.querySelector("#view-programs .phaseName .doneCt"); if(ct) ct.textContent = n + "/" + total + " done";
   var lh = document.querySelector("#view-programs .liftsHead"); if(lh) lh.textContent = liftsWord(prog) + " · " + n + "/" + total + " done";
+  var bar = document.querySelector("#view-programs .shBar > i"); if(bar) bar.style.width = Math.round(n / (total || 1) * 100) + "%";
   var wu = WARMUP_BY_PROG[prog] || [], wn = doneCount(prog, week, wu.map(function(m){ return "wu:" + m.gif; }));
-  var ws = document.querySelector("#view-programs .warmSec > summary"); if(ws) ws.textContent = "🔥 Warm-up · " + warmTime(prog) + " · " + wn + "/" + wu.length;
+  var ws = document.querySelector("#view-programs .warmSec > summary .wuHead"); if(ws) ws.textContent = "Warm-up · " + warmTime(prog) + " · " + wn + "/" + wu.length;
 }
 
-/* ---------- "next exercise" jump bar (the floating #nextBar above the tab bar) ---------- */
+/* ---------- the floating pill above the bottom bar: "Next: <lift> ↓", or "Now 1B" inside a superset ---------- */
 /* first main lift (program order) not yet ticked done this week; null once every lift is done */
 function nextUndoneLift(prog, week){
   var P = db.programs[prog]; if(!P) return null;
   for(var i = 0; i < P.entries.length; i++){ var id = P.entries[i].exerciseId; if(!isDone(prog, week, id)) return id; }
   return null;
 }
-/* refresh the floating jump bar for the shown day-track; hidden while previewing (can't log) */
+/* refresh the Next pill for the shown day-track; hidden while previewing (can't log) or while the rest pill shows */
 function updateNextBar(prog, week){
   var bar = $("#nextBar"); if(!bar) return;
-  if(previewing()){ bar.hidden = true; bar.innerHTML = ""; return; }
-  var nextId = nextUndoneLift(prog, week);
-  if(nextId){
+  if(previewing()){ bar.hidden = true; bar.innerHTML = ""; syncPillClass(); return; }
+  var np = ui.nowPrompt, nextId = nextUndoneLift(prog, week);
+  if(np && np.prog === prog && np.week === week && !isDone(prog, week, np.exId)){
+    var nx = exById(np.exId) || { name: np.exId };
+    bar.innerHTML = '<button class="nextBtn now" data-act="nextex" data-ex="' + esc(np.exId) + '"><span class="nextLbl">Now ' + esc(np.tag) + '</span><span class="nextNm">' + esc(nx.name) + '</span><span class="nextArrow">' + icon("arrowDown") + '</span></button>';
+  } else if(nextId){
     var ex = exById(nextId) || { name: nextId };
-    bar.innerHTML = '<button class="nextBtn" data-act="nextex" data-ex="' + esc(nextId) + '"><span class="nextLbl">Next</span><span class="nextNm">' + esc(ex.name) + '</span><span class="nextArrow">↓</span></button>';
+    bar.innerHTML = '<button class="nextBtn" data-act="nextex" data-ex="' + esc(nextId) + '"><span class="nextLbl">Next</span><span class="nextNm">' + esc(ex.name) + '</span><span class="nextArrow">' + icon("arrowDown") + '</span></button>';
   } else {
-    bar.innerHTML = '<button class="nextBtn done" data-act="nextex" data-ex=""><span class="nextLbl">✓ All lifts done</span><span class="nextNm">Finish the week</span><span class="nextArrow">↓</span></button>';
+    bar.innerHTML = '<button class="nextBtn done" data-act="nextex" data-ex=""><span class="nextLbl">' + icon("check", "sm") + 'All lifts done</span><span class="nextNm">Finish the week</span><span class="nextArrow">' + icon("arrowDown") + '</span></button>';
   }
-  bar.hidden = false;
+  bar.hidden = !!(typeof restState === "function" && restState());
+  syncPillClass();
 }
+/* body.pillOn lifts the toast and the page bottom above a floating pill */
+function syncPillClass(){ var r = $("#restBar"), n = $("#nextBar"); document.body.classList.toggle("pillOn", !!((r && !r.hidden) || (n && !n.hidden))); }
 /* scroll the next lift (or the week-finish button) into view + flash it */
 function flashCard(el){
   if(!el) return;
@@ -194,13 +272,33 @@ function jumpToNext(exId){
   if(target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "center" });
   flashCard(target);
 }
-/* per-lift progress: a tiny inline-SVG sparkline of kg over the diary — amber point = partial, ringed = best */
+/* per-lift progress: an inline-SVG line of kg over the diary — amber point = partial, ringed = best */
 function progHtml(hist){
   if(hist.length < 2) return "";
   var kgs = hist.map(function(h){ return h.kg; }), min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs), span = (max - min) || 1;
-  var W = 280, H = 54, pad = 9, n = hist.length, X = function(i){ return pad + i * (W - 2 * pad) / (n - 1); }, Y = function(kg){ return H - pad - (kg - min) / span * (H - 2 * pad); };
+  var W = 320, H = 120, pad = 12, n = hist.length, X = function(i){ return pad + i * (W - 2 * pad) / (n - 1); }, Y = function(kg){ return H - pad - (kg - min) / span * (H - 2 * pad); };
   var pts = hist.map(function(h, i){ return X(i).toFixed(1) + "," + Y(h.kg).toFixed(1); }).join(" ");
-  var dots = hist.map(function(h, i){ var b = h.kg === max; return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(h.kg).toFixed(1) + '" r="' + (b ? 4 : 3) + '" fill="' + (h.quality === "partial" ? "var(--warn)" : "var(--acc)") + '"' + (b ? ' stroke="var(--tx)" stroke-width="1"' : '') + '></circle>'; }).join("");
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="spark"><polyline points="' + pts + '" fill="none" stroke="var(--acc)" stroke-width="2" stroke-linejoin="round"></polyline>' + dots + '</svg>' +
-    '<div class="progSum">' + hist[0].kg + ' kg <span class="progArrow">→</span> <b class="accT">' + hist[n - 1].kg + ' kg</b><span class="progDim"> · ⭐ best ' + max + ' kg</span></div>';
+  var area = pad + "," + (H - pad) + " " + pts + " " + X(n - 1).toFixed(1) + "," + (H - pad);
+  var dots = hist.map(function(h, i){ var b = h.kg === max; return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(h.kg).toFixed(1) + '" r="' + (b ? 5 : 3.5) + '" fill="' + (h.quality === "partial" ? "var(--warm)" : "var(--acc)") + '"' + (b ? ' stroke="var(--tx)" stroke-width="2"' : '') + '></circle>'; }).join("");
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="spark" role="img" aria-label="kg over time"><polygon points="' + area + '" fill="var(--accTint)"></polygon><polyline points="' + pts + '" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>' + dots + '</svg>' +
+    '<div class="progSum">' + hist[0].kg + ' kg <span class="progArrow">→</span> <b class="accT">' + hist[n - 1].kg + ' kg</b><span class="progDim"> · ' + icon("star", "sm") + ' best ' + max + ' kg</span></div>';
+}
+
+/* ---------- the week sheet (12 weeks, current and finished marked) and the phase info sheet ---------- */
+function openWeekSheet(){
+  var prog = ui.planProg, cur = shownCurrentWeek(prog), done = shownWeeksDone(prog), w = ui.planWeek, K = shownProg().weeks, h = '<div class="weekGrid">';
+  for(var k = 1; k <= K; k++){ var dn = done.indexOf(k) >= 0;
+    h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '"><span class="wN">' + k + '</span>' +
+      (dn ? '<span class="wtick">' + icon("check", "sm") + '</span>' : k === cur ? '<span class="wNow">now</span>' : '') + '</button>'; }
+  h += '</div><div class="weekKey"><span>' + icon("check", "sm") + 'finished</span><span><i class="keyRing"></i>this week</span></div>';
+  openSheet(shortName(prog) + " · weeks", h, { cls: "weekSheet" });
+}
+function openPhaseInfo(){
+  var prog = ui.planProg, P = db.programs[prog], w = ui.planWeek || 1, SP = shownProg();
+  var rmA = shownRateMode(), rmM = PROGRESSION_MODES[rmA], pace = (rmA !== "plateau" && rmM) ? " · " + rmM.label + " pace" : "";
+  var lines = P.home ? ["Every set near failure: holds until your form is about to break; knee work stops 1–2 reps short. No weights to calculate."]
+    : ["Reps as on each card · lower in about 3 s, then lift firmly in about 1–2 s, no jerk or bounce · heavy weights are calculated from your tested 15RM" + pace,
+       "Still very sore 3+ days after a session? Do 2 sets of everything that day."];
+  openSheet(P.home ? shortName(prog) : "Week " + w + " · " + (SP.direction === "reverse" ? "Back-off wave" : phaseForWeek(w)),
+    '<div class="infoLines">' + lines.map(function(l){ return '<div class="phaseReps">' + esc(l) + '</div>'; }).join("") + '</div>');
 }

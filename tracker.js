@@ -18,7 +18,7 @@ function weekdayIdx(){var w=new Date().getDay();return w===0?6:w-1;}
 function zoneRange(z){var zz=db.profile.hrZones[z];return zz?zz[0]+"–"+zz[1]+" bpm":"";}
 
 /* ---------- state ---------- */
-var db=null, ui={view:"today", planProg:null, planWeek:null, planLastProg:null, warmOpen:false};
+var db=null, ui={view:"today", planProg:null, planWeek:null, planLastProg:null, warmOpen:false, nowPrompt:null};
 
 function seedDb(){
   return {schemaVersion:SCHEMA_VERSION, app:"training-tracker", exportedAt:null,
@@ -26,7 +26,7 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -100,6 +100,10 @@ function normalize(){
   if(!db.settings) db.settings=clone(SEED_SETTINGS);
   for(var k in SEED_PROFILE){ if(db.profile[k]===undefined) db.profile[k]=clone(SEED_PROFILE[k]); }
   if(!Array.isArray(db.notes)) db.notes=[];                                  /* odd-but-readable files must not break a screen */
+  /* version 2 (2026-11-04), additive: per-set ticks keyed like db.done, and the live session (null = none).
+     Version 1 ignores both, so a v2 export still imports there. */
+  if(!db.sets || typeof db.sets!=="object" || Array.isArray(db.sets)) db.sets={};
+  if(db.session===undefined || (db.session!==null && typeof db.session!=="object")) db.session=null;
   if(!db.profile.hrZones||!db.profile.hrZones.z1) regenZones();
   migrate();
 }
@@ -129,7 +133,7 @@ function programTrained(pid){
   for(var k in db.done){ if(k.indexOf(pid+":")===0) return true; }
   return db.history.some(function(h){ return h.program===pid&&(h.cycle||1)===cyc; });
 }
-function clearTicks(pid){ for(var k in db.done){ if(k.indexOf(pid+":")===0) delete db.done[k]; } }
+function clearTicks(pid){ for(var k in db.done){ if(k.indexOf(pid+":")===0) delete db.done[k]; } for(var s in (db.sets||{})){ if(s.indexOf(pid+":")===0) delete db.sets[s]; } }
 
 /* ---------- the frozen lift diary (schema v4): what you ACTUALLY did, by date ---------- */
 /* full | partial | null for a lift or warm-up item in a given week */
@@ -216,28 +220,30 @@ document.addEventListener("click",function(e){
   if(act==="switchprogram"){ var pid=t.getAttribute("data-prog"); if(db.programLib[pid]){ if(pid===db.activeProgram) showView("programs"); else openSwitchModal(pid); } return; }
   if(act==="previewstart"){ startTraining(t.getAttribute("data-prog")); return; }
   if(act==="previewreturn"){ clearPreview(); ui.planWeek=null; ui.planLastProg=null; renderPlan(); return; }
-  if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
+  if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick|settick)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
   if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
-  if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); renderPlan(); return; }
-  if(act==="weekdone"){ var pr=t.getAttribute("data-prog"), wk=+t.getAttribute("data-week"), wd=progDoneArr(pr), ix=wd.indexOf(wk); if(ix>=0)wd.splice(ix,1); else { wd.push(wk); ui.planWeek=Math.min(wk+1,getProgram(db.activeProgram).weeks); maybeCompleteActive(); } save(); renderPlan(); return; }
+  if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); if($("#modal.open")) closeModal(); renderPlan(); return; }
+  if(act==="weekdone"){ onWeekDone(t); return; }   /* v1 week-done, then the summary (tracker-session.js) */
+  if(act==="weeksheet"){ openWeekSheet(); return; }
+  if(act==="phaseinfo"){ openPhaseInfo(); return; }
+  if(act==="settick"){ onSetTick(t); return; }
+  if(act==="exsheet"){ openExSheet(t.getAttribute("data-ex"), t.getAttribute("data-sec")); return; }
+  if(act==="pic"){ openPicSheet(t.getAttribute("data-wu")); return; }
+  if(act==="peek"){ var pk=t.closest(".planCard"); if(pk&&pk.classList.contains("done")) pk.classList.toggle("peek"); return; }
+  if(act==="restplus"){ addRest(15); return; }
+  if(act==="restminus"){ addRest(-15); return; }
+  if(act==="restskip"){ skipRest(); return; }
+  if(act==="restgo"){ if(ui.view!=="programs") showView("programs"); return; }
+  if(act==="kpkey"){ kpPress(t.getAttribute("data-k")); return; }
+  if(act==="kpdel"){ kpDel(); return; }
+  if(act==="kpplus"||act==="kpminus"){ kpStep(act==="kpplus"?1:-1); return; }
+  if(act==="notifyallow"){ closeModal(); if(window.Native&&Native.notifyPermission) Native.notifyPermission("request").then(function(s){ if(s==="granted"&&restState()) scheduleAlert(); }); return; }
   if(act==="setw"){ onSetWeight(t); return; }
   if(act==="setstep"){ onSetStep(t); return; }
   if(act==="setcatstep"){ onSetCatStep(t); return; }
   if(act==="note"){ onNote(t); return; }
   if(act==="delnote"){ onDelNote(t); return; }
-  if(act==="donetick"||act==="partialtick"){
-    var dp=t.getAttribute("data-prog"), dw=+t.getAttribute("data-week"), di=t.getAttribute("data-item");
-    applyMark(dp,dw,di, act==="partialtick" ? "partial" : "full");
-    var st=doneState(dp,dw,di), c=t.closest(".planCard")||t.closest(".wuCard");
-    if(c){   /* in-place so the card animates its collapse */
-      c.classList.toggle("done", !!st); c.classList.toggle("partial", st==="partial");
-      var fb=c.querySelector('[data-act="donetick"]'), pb=c.querySelector('[data-act="partialtick"]');
-      if(fb) fb.classList.toggle("on", st==="full"); if(pb) pb.classList.toggle("on", st==="partial");
-    }
-    updateDoneCounts(dp,dw);
-    updateNextBar(dp,dw);   /* advance the jump bar to the next undone lift */
-    return;
-  }
+  if(act==="donetick"||act==="partialtick"){ onMark(t, act==="partialtick" ? "partial" : "full"); return; }   /* in place, so the card animates its collapse (tracker-session.js) */
   if(act==="nextex"){ jumpToNext(t.getAttribute("data-ex")); return; }
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }
   if(act==="appinfo"){ openAppSheet(); return; }
@@ -258,4 +264,5 @@ $("#importFile").addEventListener("change",function(ev){
 /* ---------- init ---------- */
 load();
 drawNavIcons();
+sessionInit();
 showView("today");

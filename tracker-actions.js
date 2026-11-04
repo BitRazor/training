@@ -33,6 +33,42 @@ function openModal(o){
   $("#modal").classList.add("open");
   if(o.mode === "text") setTimeout(function(){ var f = $("#mText"); if(f && f.focus) f.focus(); }, 60);   /* the keypad never opens the phone keyboard */
 }
+/* ---------- the number pad (design §5): replaces the phone keyboard for the weight, the 15RM and the plate ----------
+   A big read-only display (#mNum: the v1 hook, so the old handlers read it unchanged), −step / +step on the lift's
+   own grid (the engine's nextWeight / snapDown; o.stepEx = the exercise), digits, a decimal point, delete; Save is
+   the sheet's data-act="modalok". The first key replaces the starting value, later keys append. */
+var kp = { ex: null, fresh: true };
+function fmtKg(x){ return String(Math.round(x * 100) / 100); }
+function keypadHtml(o){
+  var ex = o.stepEx || null, g = ex ? gearFor(ex) : null;
+  kp = { ex: ex, fresh: true };
+  var hint = !g ? "" : g.equip === "db" ? "± one dumbbell step: 1 kg under 10 kg, 2.5 kg above" : "± " + fmtKg(g.inc || 2.5) + " kg per step";
+  return '<div class="kp"><div class="kpDisp">' +
+    (ex ? '<button class="kpStep" data-act="kpminus" aria-label="One step lighter">' + icon("minus") + '</button>' : '') +
+    '<label class="kpVal"><input id="mNum" class="kpIn" type="text" readonly inputmode="none" autocomplete="off" value="' + esc(o.value == null ? "" : o.value) + '" placeholder="' + esc(o.placeholder || "kg") + '"><span class="kpUnit">kg</span></label>' +
+    (ex ? '<button class="kpStep" data-act="kpplus" aria-label="One step heavier">' + icon("plus") + '</button>' : '') + '</div>' +
+    (hint ? '<div class="kpHint">' + hint + '</div>' : '') +
+    '<div class="kpGrid">' + ["1","2","3","4","5","6","7","8","9",".","0"].map(function(k){ return '<button class="kpKey" data-act="kpkey" data-k="' + k + '">' + k + '</button>'; }).join("") +
+    '<button class="kpKey kpDel" data-act="kpdel" aria-label="Delete">' + icon("backspace") + '</button></div></div>';
+}
+function kpPress(k){
+  var inp = $("#mNum"); if(!inp) return;
+  var v = kp.fresh ? "" : inp.value; kp.fresh = false;
+  if(k === "."){ if(v.indexOf(".") >= 0) { inp.value = v; return; } v = (v || "0") + "."; }
+  else { if(/\.\d{2}$/.test(v) || v.replace(".", "").length >= 6) { inp.value = v; return; } v = (v === "0") ? k : v + k; }
+  inp.value = v;
+}
+function kpDel(){ var inp = $("#mNum"); if(!inp) return; kp.fresh = false; inp.value = inp.value.slice(0, -1); }
+/* one real step lighter or heavier on the lift's grid (0 = nothing, e.g. body weight for a plate) */
+function kpStep(dir){
+  var inp = $("#mNum"); if(!inp || !kp.ex) return;
+  var cur = num(inp.value); if(cur == null || cur < 0) cur = 0;
+  var nx;
+  if(dir > 0) nx = nextWeight(kp.ex, cur);
+  else { nx = snapDown(cur - 1e-6, kp.ex); if(nx == null || !(nx < cur - 1e-9)) nx = 0; nx = Math.max(0, nx); }
+  inp.value = fmtKg(nx); kp.fresh = false;
+  if(window.Native) Native.haptic("light");
+}
 /* a read-only sheet: title + any html + a Close button */
 function openSheet(title, html, extra){ var o = { mode:"sheet", title:title, html:html }; for(var k in (extra||{})) o[k] = extra[k]; openModal(o); }
 function closeModal(){ var m=$("#modal"), fn=modalState && modalState.onClose; if(m){ m.classList.remove("open"); m.innerHTML=""; } modalState=null; if(fn) fn(); }
@@ -112,20 +148,20 @@ function onSetWeight(t){
   var exId=t.getAttribute("data-ex"), w=ui.planWeek||1, ex=exById(exId)||{name:exId}, cur=db.tested[exId];
   /* body-weight lift (45° back extension): the number is the plate he holds, stored as typed; 0 = body weight */
   if(ex.loadType==="bodyweight"){
-    openModal({ title:"Plate · "+ex.name, message:"Body weight until 25 clean reps, then hold a 2.5–5 kg plate. Enter the plate's kg (0 = body weight).", mode:"number", value:cur!=null?String(cur):"", placeholder:"kg",
+    openModal({ title:"Plate · "+ex.name, message:"Body weight until 25 clean reps, then hold a 2.5–5 kg plate. Enter the plate's kg (0 = body weight).", mode:"number", value:cur!=null?String(cur):"", placeholder:"kg", stepEx:ex,
       onSubmit:function(v){ if(v==null||String(v).trim()==="") return; var n=num(v); if(n==null||n<0){ toast("Enter 0 or more"); return; }
         if(n>0) db.tested[exId]=Math.round(n*4)/4; else delete db.tested[exId]; save(); renderPlan(); } });
     return;
   }
   if(cur==null){
-    openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at about 15 reps, lowering in about 3 s and lifting firmly (kg).", mode:"number", placeholder:"kg",
+    openModal({ title:"Tested 15RM · "+ex.name, message:"The weight you fail at about 15 reps, lowering in about 3 s and lifting firmly (kg).", mode:"number", placeholder:"kg", stepEx:ex,
       onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0){ db.tested[exId]=Math.round(num(v)*4)/4; delete db.bank[exId]; save(); renderPlan(); } } });
     return;
   }
   /* re-anchor from what you ACTUALLY lifted this week: the whole block re-derives (ladderFor) so THIS
      week shows exactly the typed weight and every week stays a real weight (engine: anchorForLogged) */
   var planW=(ladderFor(cur, ex, getProgram(db.activeProgram), activeRateMode())[w]||{}).kg;
-  openModal({ title:"Actual weight · "+ex.name+" · wk "+w, message:"What you really lifted (kg). The whole block recalculates from this.", mode:"number", value:String(planW), placeholder:"kg",
+  openModal({ title:"Actual weight · "+ex.name+" · wk "+w, message:"What you really lifted (kg). The whole block recalculates from this.", mode:"number", value:String(planW), placeholder:"kg", stepEx:ex,
     onSubmit:function(v){ if(v!=null&&String(v).trim()!==""&&num(v)>0&&planW){
       var r=anchorForLogged(ex, getProgram(db.activeProgram), activeRateMode(), w, num(v), cur, db.bank[exId]);
       db.tested[exId]=r.anchor; db.bank[exId]=r.bank; save(); renderPlan();
@@ -156,8 +192,9 @@ function onNote(t){
   var exId=t.getAttribute("data-ex"), ex=exById(exId)||{name:exId};
   openModal({ title:"Note · "+ex.name, message:"Pain, machine quirks, how it felt — saved with the week & weight.", mode:"text", placeholder:"e.g. left knee niggle on set 3, gone next morning",
     onSubmit:function(txt){ if(txt==null||txt.trim()==="") return;
-      /* auto-stamp the week + the prescribed weight at the moment of the note, as its own record */
-      var prog=ui.planProg||todayProgram()||"strength-a", week=ui.planWeek||1;
+      /* auto-stamp the week + the prescribed weight at the moment of the note, as its own record. From a sheet the
+         button names its day and week (data-prog / data-week); on the Workout card they are the shown ones. */
+      var prog=t.getAttribute("data-prog")||ui.planProg||todayProgram()||"strength-a", week=(+t.getAttribute("data-week"))||ui.planWeek||1;
       var en=progEntry(prog,exId), pr=en?prescFor(en,week):null;
       var weight=(pr&&pr.weight!=null)?(pr.weight+" kg"):((pr&&pr.kind==="timed")?"timed":"");
       db.notes.push({date:todayISO(), week:week, exerciseId:exId, weight:weight, text:txt.trim()});

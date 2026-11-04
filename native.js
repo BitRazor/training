@@ -7,6 +7,9 @@
    Native.haptic(kind)     a short buzz: "light" (default) | "medium" | "heavy" | "success" | "warning" | "error"
                            (browsers: navigator.vibrate where it exists)
    Native.keepAwake(on)    keep the screen on (@capacitor-community/keep-awake; browsers: Screen Wake Lock)
+   Native.notifyAt(id, atMs, title, body) / Native.cancelNotify(id) / Native.notifyPermission("check"|"request")
+                           the rest timer's alert (@capacitor/local-notifications, channel "rest", exact alarm through
+                           the manifest's USE_EXACT_ALARM); browsers: no-ops that resolve
    Native.backHandlers     the Android back button asks these in order; the first that returns true has
                            handled the press. Defaults (version 2): close the open sheet, else go from a page
                            reached from More back to More, else go to Today, else leave the app.
@@ -30,6 +33,15 @@
   function whenLoaded(fn) { if (D.readyState === "complete") setTimeout(fn, 0); else W.addEventListener("load", fn); }
 
   var lock = null, wantAwake = false;
+  /* rest-timer alerts (@capacitor/local-notifications, version 2): every call goes through one chain, so a Skip
+     that follows a schedule can never be overtaken by it */
+  var noteChain = Promise.resolve(), channelMade = null;
+  function inChain(fn) { noteChain = noteChain.then(fn, fn).catch(noop); return noteChain; }
+  function restChannel() {
+    if (!channelMade) channelMade = P.LocalNotifications.createChannel({ id: "rest", name: "Rest timer", description: "Tells you when your rest between sets is over",
+      importance: 4, visibility: 1, vibration: true }).catch(noop);
+    return channelMade;
+  }
   var Native = {
     isApp: isApp,
     haptic: function (kind) {
@@ -45,8 +57,37 @@
       wantAwake = !!on;
       if (has("KeepAwake")) return (on ? P.KeepAwake.keepAwake() : P.KeepAwake.allowSleep()).catch(noop);
       if (!on) { if (lock) { lock.release().catch(noop); lock = null; } return Promise.resolve(); }
+      if (lock && !lock.released) return Promise.resolve();   /* already held: asking again would stack locks */
       if (navigator.wakeLock && navigator.wakeLock.request) return navigator.wakeLock.request("screen").then(function (l) { lock = l; }).catch(noop);
       return Promise.resolve();
+    },
+    /* notification permission: "check" or "request" -> "granted" | "denied" | "prompt" | "unavailable" (browsers) */
+    notifyPermission: function (mode) {
+      if (!has("LocalNotifications")) return Promise.resolve("unavailable");
+      return (mode === "request" ? P.LocalNotifications.requestPermissions() : P.LocalNotifications.checkPermissions())
+        .then(function (r) { return (r && r.display) || "unavailable"; }, function () { return "unavailable"; });
+    },
+    /* show "title / body" at the time `at` (ms), even with the app closed or the phone locked. Only once the
+       permission is granted: the app asks first, with one line why (tracker-session.js). Resolves true when set. */
+    notifyAt: function (id, at, title, body) {
+      if (!has("LocalNotifications")) return Promise.resolve(false);
+      return inChain(function () {
+        return Native.notifyPermission("check").then(function (st) {
+          if (st !== "granted") return false;
+          return restChannel().then(function () {
+            return P.LocalNotifications.schedule({ notifications: [{ id: id, title: title, body: body, channelId: "rest", smallIcon: "ic_stat_rest", iconColor: "#C8F542",
+              foreground: true, schedule: { at: new Date(at), allowWhileIdle: true } }] });
+          }).then(function () { return true; }, function () { return false; });
+        });
+      });
+    },
+    /* cancel a scheduled alert and take it out of the shade if it already showed */
+    cancelNotify: function (id) {
+      if (!has("LocalNotifications")) return Promise.resolve();
+      return inChain(function () {
+        return Promise.all([P.LocalNotifications.cancel({ notifications: [{ id: id }] }).catch(noop),
+          (P.LocalNotifications.removeDeliveredNotificationsById ? P.LocalNotifications.removeDeliveredNotificationsById({ ids: [id] }) : Promise.resolve()).catch(noop)]);
+      });
     },
     backHandlers: [
       function () { if (D.querySelector("#modal.open") && typeof W.closeModal === "function") { W.closeModal(); return true; } return false; },

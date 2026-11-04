@@ -273,30 +273,19 @@ function moveEx(i, dir){
   var E = dayMut(edPid(), edDayId()).entries, j = i + dir; if(j < 0 || j >= E.length) return;
   var t = E[i]; E[i] = E[j]; E[j] = t; renumberSS(E); afterEdit();
 }
-/* the picker: search plus (once the catalogue is in) filters; his program's exercises first */
-var pickState = { q: "" };
-function pickerItems(){
-  var inProg = {}, P = getProgram(edPid());
-  (P.days || []).forEach(function(d){ var def = dayDef(edPid(), d); (def ? def.entries : []).forEach(function(en){ inProg[en.exerciseId] = true; }); });
-  var src = (typeof catalogPickerItems === "function") ? catalogPickerItems() : SEED_EXERCISES.map(function(x){ return { id: x.id, name: x.name, sub: "" }; });
-  return src.map(function(it){ return { id: it.id, name: it.name, sub: it.sub, mine: !!inProg[it.id], data: it }; })
-    .sort(function(a, b){ return (b.mine ? 1 : 0) - (a.mine ? 1 : 0); });
+/* the picker: the whole catalogue with search and filters (tracker-catalog.js), this program's exercises first */
+function pickerProgramIds(){
+  var inProg = {}, pid = edPid();
+  (getProgram(pid).days || []).forEach(function(d){ var def = dayDef(pid, d); (def ? def.entries : []).forEach(function(en){ inProg[en.exerciseId] = true; }); });
+  return inProg;
 }
 function openPicker(){
-  pickState = { q: "" };
-  var items = pickerItems();
-  var row = function(it){ return '<button class="li pickRow" data-act="edpick" data-ex="' + esc(it.id) + '"><span class="libThumb">' + thumbHtml(it.id) + '</span><span class="liB"><span class="liT pickName">' + esc(it.name) + '</span>' +
-    '<span class="liS">' + esc((it.mine ? "In this program" + (it.sub ? " · " : "") : "") + (it.sub || "")) + '</span></span>' + icon("plus", "chev") + '</button>'; };
+  catF.pick = catBlank();
   openSheet("Add exercise to " + dayName(edDayId()), '<div class="pickSheet"><label class="searchBox">' + icon("search") + '<input id="pickSearch" type="search" placeholder="Search exercises" autocomplete="off" aria-label="Search exercises"></label>' +
-    (typeof catalogFilterHtml === "function" ? catalogFilterHtml("pick") : '') +
-    '<div class="list pickList">' + items.map(row).join("") + '</div><div class="note pickEmpty" hidden>Nothing found. Try part of a name.</div></div>', { cls: "pickCard" });
-  var box = $("#pickSearch"); if(box) box.addEventListener("input", function(){ pickState.q = box.value; filterPicker(); });
-}
-function filterPicker(){
-  var q = String(pickState.q || "").trim().toLowerCase(), any = false, ok = (typeof catalogMatch === "function") ? catalogMatch : null;
-  $$("#modal .pickRow").forEach(function(r){ var id = r.getAttribute("data-ex"), nm = ((r.querySelector(".pickName") || {}).textContent || "").toLowerCase();
-    var show = (!q || nm.indexOf(q) >= 0) && (!ok || ok(id, "pick")); r.hidden = !show; if(show) any = true; });
-  var e = $("#modal .pickEmpty"); if(e) e.hidden = any;
+    '<div id="pickFilters" class="catFilters"></div><div class="libCount"></div><div class="list pickList catList"></div><button class="btn block catMore" data-act="catmore" data-ctx="pick" hidden></button>' +
+    '<div class="note pickEmpty" hidden>Nothing found. Try part of a name.</div></div>', { cls: "pickCard" });
+  var box = $("#pickSearch"); if(box) box.addEventListener("input", function(){ catF.pick.q = box.value; catF.pick.limit = CAT_PAGE; catRefresh("pick"); });
+  catRefresh("pick");
 }
 function pickExercise(id){
   var ex = exById(id); if(!ex) return;

@@ -1,22 +1,24 @@
 {
-  "version": "2026.11.04.11",
+  "version": "2026.11.04.12",
   "files": {
-    "index.html": "5b94645559b30773f8f5f5b02e4c4634d1bfbfce9422b56a6741e3fa489ddbbb",
-    "tracker.css": "2ffd5e648ff3cf25009718ccb3d86e0fdae8e82068984d050ecea87f342be359",
+    "index.html": "5e1631a2e081737b6022a8f2ca59ec77df68b312620396912bcfe157daf704fa",
+    "tracker.css": "8376998418936b802af24c33134ea81dcda2b80b60ba53ca3c8c1f62cf661714",
     "native.js": "0918b2a96d5cb20ec53f008b9359d114a4981cc82098b73e11cb0a9294a1cd7c",
     "tracker-seed.js": "e80297b0aeab7f4e12a0ecc5c36b06a24be1b84ad0e01a99514ef944f9015493",
     "tracker-engine.js": "6544eee0ec8ecfd268b9480d0fdd22f096d1b70c46dd7184023119ce7386bc30",
     "tracker-desc.js": "54f9e60bc3ffd04049a282cdb6e89f703ced899f73674f8109c5c7b2d7dd1a92",
+    "exercise-catalog.js": "d1bb3f731347c8ffef969d24838b435dfadf4b75659b6b2821fd5d20e09e7f06",
     "ui-icons.js": "fa7be9c2279583f64f4f5e2bf32f413a44b96eab2f5d61b9fe24585c8f1fa629",
-    "tracker-views.js": "461cc5b3c321573b875ce6327f4be4d064a0a5f63a82b04495dcad75a112a24d",
-    "tracker-plan.js": "7d243ab9bcde189316ad90691d374bdbaaa8647eab3b299bda16dbc71a4458e0",
+    "tracker-views.js": "c0c7b284cea58303f2659037b6e7cda7f93a0b98c7bf629e56257ca3e245bbc3",
+    "tracker-plan.js": "26730439322628467c76ce3d9edf01bf79c7d45d3d2536e0dbf5591456ebb299",
     "tracker-session.js": "de4efefa19671040bd933c95feef1c5b62481b1faa5eaa8ff0468f42ee1c6ac2",
-    "tracker-progress.js": "033b494a8e0d42ae525ed5cc7cafb1c8875395bfd96701539985d8befd42ef96",
+    "tracker-progress.js": "008ea87397597cd3f874a33040dc47bcb71d374b60d7df3bb9eeaa8a4b136f1a",
     "tracker-week.js": "358f7eaf4c5586199b4a60709f2cb3d9ef658d1d5b85cb993a81ea1b13324468",
     "tracker-smart.js": "ce97f0ffaa4ce40a4b8662badf5cbc0399faa35e80c27e083bfa96d444c52f89",
-    "tracker-editor.js": "c9ec9b3e67942a0dbbf707a0486f160fb8d1711eb1d54e51ecebf2b75b468354",
+    "tracker-editor.js": "9f4ca527f26908409fdd33d3070290f3cab0122edc4dd180f4969fab020fb060",
+    "tracker-catalog.js": "2af2d2ae4b2c044ece4bbccf3643b69e0aac0a4e636871aecd68af2309874380",
     "tracker-actions.js": "68db9cb65e46a2bcc24bd6b40935b1c3a9d0911091fe72584ab33c7b084e6761",
-    "tracker.js": "665959cc7bbffbb1e6b00bdec8551ea1c812599b50100ab2c05bc3e781adb50e"
+    "tracker.js": "5a86ecb470710c89001c901ed55a485d11cbbf7cca48b175d786989f65735e63"
   },
   "assets": {
     "gifs/atg.gif": "c0d086c9d4c11045f252fb74091d0ec4d0133f46ba9d84f19185db88cd2725cb",

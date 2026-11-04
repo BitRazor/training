@@ -764,3 +764,28 @@ button.wrow:active{background:var(--raised)}
 .sw.on{background:var(--acc)}
 .sw.on i{transform:translateX(20px); background:var(--onAcc)}
 .edRm{margin-top:12px}
+
+/* ===================== Part 2 (2026-11-04): the catalogue: filters, rows, details ===================== */
+.catFilters{margin:8px 0 2px}
+.catCat .ic{width:14px; height:14px; transition:transform .15s ease}
+.catCat.open .ic{transform:rotate(180deg)}
+.catCat{white-space:nowrap; flex:none}
+.catCat.sel{background:var(--accTint); color:var(--acc)}
+.catClear{flex:none; white-space:nowrap}
+.catVals{margin:8px 0 2px; padding:10px; border-radius:16px; background:var(--card)}
+.catVal{background:var(--raised)}
+.mCard .catCat:not(.sel){background:var(--high)}
+.mCard .catVals{background:var(--card)}
+.libCount{margin:8px 4px 0; font-size:13px; color:var(--tx2)}
+.libSection{margin:20px 4px 0; font-size:17px; font-weight:800; letter-spacing:-.01em}
+.libSection + .libGroup .libHead{margin-top:12px}
+.catRow{min-height:72px; padding:10px 14px 10px 10px}
+.catRow .liS{display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; overflow:hidden}
+.catMore{margin-top:10px}
+.instrList{margin:0; padding:0 0 0 22px; font-size:15px; line-height:1.5}
+.instrList li{margin:0 0 8px; padding-left:2px}
+.factList{display:flex; flex-direction:column}
+.factRow{display:flex; justify-content:space-between; gap:16px; padding:9px 0; border-bottom:1px solid var(--line); font-size:14.5px}
+.factRow:last-child{border-bottom:0}
+.factRow span{color:var(--tx2)}
+.factRow b{font-weight:600; text-align:right}

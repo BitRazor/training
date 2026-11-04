@@ -105,7 +105,7 @@ function blockOf(prog, exId){
 
 /* ---------- pictures: a thumbnail on the card, the big one in the sheets ---------- */
 function thumbHtml(exId){
-  var pend = (typeof EX_GIF_PENDING !== "undefined") ? EX_GIF_PENDING[exId] : null;
+  var pend = (typeof pendingPic === "function") ? pendingPic(exId) : EX_GIF_PENDING[exId];   /* his rule: only his checked pictures (tracker-catalog.js) */
   if(pend) return '<div class="exFig pending" title="Picture to come: gifs/' + esc(pend) + '.gif">' + icon("camera") + '<span class="pendSoon" aria-hidden="true">soon</span><span class="pendTx">Picture to come</span><span class="pendFile">gifs/' + esc(pend) + '.gif</span></div>';
   var g = EX_GIF[exId]; if(!g) return '<div class="thumbNone">' + icon("dumbbell") + '</div>';
   return '<div class="exFig"><img src="gifs/' + g + '.gif" alt="" loading="lazy" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div>';

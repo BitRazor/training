@@ -95,11 +95,10 @@ function subHead(title, sub){
 function renderMore(){
   var P = getProgram(db.activeProgram), n = (db.notes || []).length, bw = db.profile.targetBodyweightKg;
   var ver = (window.__boot && window.__boot.version) || "";
-  var moves = (typeof libraryGroups === "function") ? libraryGroups().reduce(function(s, g){ return s + g.items.length; }, 0) : 0;
   var tiles = [
     { view:"library",   ic:"layers",   t:"Programs",        s: esc(P.name) + " is active" },
     { view:"schedule",  ic:"calendar", t:"Week schedule",   s: "Move workouts between days" },
-    { view:"exercises", ic:"dumbbell", t:"Exercises",       s: moves + " moves, with how-tos" },
+    { view:"exercises", ic:"dumbbell", t:"Exercises",       s: catalogList().length + " exercises, with how-tos" },
     { view:"log",       ic:"note",     t:"Notes",           s: n ? n + (n === 1 ? " note" : " notes") : "No notes yet" },
     { view:"nutrition", ic:"fork",     t:"Fuel",            s: bw ? Math.round(bw * NUTRITION.targetLow) + "–" + Math.round(bw * NUTRITION.targetHigh) + " g protein a day" : "Set your target weight" },
     { view:"settings",  ic:"sliders",  t:"Settings",        s: "Profile, heart-rate zones, data" },

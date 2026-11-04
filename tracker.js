@@ -134,7 +134,8 @@ function load(){
 /* write-through: every change is stored the moment it happens. (A 150 ms debounce lost the last tick
    when the phone locked, and lost a whole restore — the reload killed the timer.) */
 function save(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(db)); }catch(e){} }
-function exById(id){for(var i=0;i<db.exercises.length;i++)if(db.exercises[i].id===id)return db.exercises[i];return null;}
+/* his exercises, then the catalogue (Part 2: a lift built on demand from its entry, never saved) */
+function exById(id){for(var i=0;i<db.exercises.length;i++)if(db.exercises[i].id===id)return db.exercises[i];return (typeof catalogExercise==="function")?catalogExercise(id):null;}
 
 /* ---------- done-ticks (per-exercise + per warm-up move), keyed prog:week:item so each week starts fresh ---------- */
 function doneKey(prog,week,item){return (db&&db.activeProgram?db.activeProgram:"hsr-base-12")+":"+prog+":"+(week||1)+":"+item;}
@@ -260,6 +261,7 @@ document.addEventListener("click",function(e){
   if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick|settick|setreps|effort)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
   if(typeof smartClick==="function" && smartClick(act, t)) return;   /* Part 2: the rep stepper, the effort chips (tracker-smart.js) */
   if(typeof editorClick==="function" && editorClick(act, t)) return;   /* Part 2: Programs and the program editor (tracker-editor.js) */
+  if(/^cat/.test(act) && typeof catalogClick==="function" && catalogClick(act, t)) return;   /* Part 2: the catalogue's filters (tracker-catalog.js) */
   if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
   if(act==="week"){ ui.planWeek=+t.getAttribute("data-week"); if($("#modal.open")) closeModal(); renderPlan(); return; }
   if(act==="weekdone"){ onWeekDone(t); return; }   /* v1 week-done, then the summary (tracker-session.js) */

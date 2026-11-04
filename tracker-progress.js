@@ -20,7 +20,7 @@ function libraryGroups(){
 /* the day a lift lives on (gym days first, then home); null for a lift on no day */
 function dayOfAny(exId){ var ds = ((getProgram(db.activeProgram) || {}).days || STRENGTH_DAYS).concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []); for(var i = 0; i < ds.length; i++) if(progEntry(ds[i], exId)) return ds[i]; return null; }
 function bigPicHtml(exId, alt){
-  var pend = (typeof EX_GIF_PENDING !== "undefined") ? EX_GIF_PENDING[exId] : null;
+  var pend = (typeof pendingPic === "function") ? pendingPic(exId) : EX_GIF_PENDING[exId];
   if(pend) return '<div class="exFig pending big">' + icon("camera", "xl") + '<span class="pendTx">Picture to come</span><span class="pendFile">gifs/' + esc(pend) + '.gif</span></div>';
   var g = EX_GIF[exId]; if(!g) return '';
   return '<div class="exFig big"><img src="gifs/' + g + '.gif" alt="' + esc(alt || "") + '" onerror="this.closest(\'.exFig\').style.display=\'none\'"></div>';
@@ -49,6 +49,7 @@ function openExSheet(exId, sec){
   var h = '<div class="exSheet"><div class="exBig">' + bigPicHtml(exId, ex.name) + '</div>' +
     (en ? '<div class="exNow"><div class="exNowTop"><span class="pill' + (en.block === "heavy" ? " acc" : "") + '">' + esc(en.block) + '</span><span class="dim">' + esc(shortName(day)) + ' · week ' + w + '</span></div><div class="exNowT">' + pr.text + '</div></div>' : '') +
     (EX_DESC[exId] ? '<div class="sheetSec"><div class="sectH">How to</div>' + howHtml(exId) + '</div>' : '') +
+    (typeof catalogDetailsHtml === "function" ? catalogDetailsHtml(exId) : '') +   /* Part 2: instructions of a catalogue exercise, the categories */
     '<div class="sheetSec exProg" id="exSecProgress"><div class="sectH">Progress</div>' + (hist.length >= 2 ? progHtml(hist) : '') + histListHtml(hist) + '</div>' +
     (typeof targetHistoryHtml === "function" ? targetHistoryHtml(exId) : '') +   /* Part 2: "Target 65 → 67.5 kg on 4 Nov" */
     '<div class="sheetSec exNotes" id="exSecNotes"><div class="sectH">Notes</div>' + (notes.length ? notes.map(function(o){ return noteLineHtml(o, false); }).join("") : '<div class="note">No notes for this lift yet.</div>') +
@@ -70,15 +71,20 @@ function openPicSheet(gif){
 
 function renderExercises(){
   var groups = libraryGroups(), n = groups.reduce(function(s, g){ return s + g.items.length; }, 0);
-  var h = subHead("Exercises", n + " moves of " + esc(getProgram(db.activeProgram).name) + " and the home days, with pictures and how-tos.") +
-    '<label class="searchBox">' + icon("search") + '<input id="exSearch" type="search" placeholder="Search exercises" autocomplete="off" aria-label="Search exercises"></label>';
+  var h = subHead("Exercises", n + " moves of " + esc(getProgram(db.activeProgram).name) + " and the home days first, then every exercise in the catalogue, with how-tos.") +
+    '<label class="searchBox">' + icon("search") + '<input id="exSearch" type="search" placeholder="Search exercises" autocomplete="off" aria-label="Search exercises"></label>' +
+    /* Part 2: the filter chips and the whole catalogue under his program's exercises (tracker-catalog.js) */
+    '<div id="libFilters" class="catFilters"></div><div class="libCount"></div><div class="libSection">In my program</div>';
   h += groups.map(function(g){
     return '<div class="libGroup" data-group="' + esc(g.id) + '"><div class="sectH libHead">' + esc(g.title) + '</div><div class="list">' + g.items.map(libRowHtml).join("") + '</div></div>';
   }).join("");
   h += '<div class="libEmpty card emptyCard" hidden>' + icon("search", "xl") + '<div class="emptyT">Nothing found</div><div class="note">Try part of a name, like “curl” or “squat”.</div></div>';
+  h += '<div class="libAll"><div class="libSection">All exercises</div><div class="list catList"></div><button class="btn block catMore" data-act="catmore" data-ctx="lib" hidden></button></div>';
   $("#view-exercises").innerHTML = h;
   var box = $("#exSearch");
-  if(box){ box.value = ui.libQuery || ""; box.addEventListener("input", function(){ ui.libQuery = box.value; filterLibrary(box.value); }); if(ui.libQuery) filterLibrary(ui.libQuery); }
+  catF.lib.q = ui.libQuery || "";
+  if(box){ box.value = ui.libQuery || ""; box.addEventListener("input", function(){ ui.libQuery = box.value; catF.lib.q = box.value; catF.lib.limit = CAT_PAGE; catRefresh("lib"); }); }
+  catRefresh("lib");
 }
 function libRowHtml(it){
   if(it.kind === "warm"){
@@ -96,10 +102,11 @@ function filterLibrary(q){
   var any = false;
   $$("#view-exercises .libGroup").forEach(function(g){
     var vis = 0;
-    $$(".libRow", g).forEach(function(r){ var nm = ((r.querySelector(".libName") || {}).textContent || "").toLowerCase(), ok = !q || nm.indexOf(q) >= 0; r.hidden = !ok; if(ok) vis++; });
+    $$(".libRow", g).forEach(function(r){ var nm = ((r.querySelector(".libName") || {}).textContent || "").toLowerCase(), ok = (!q || nm.indexOf(q) >= 0) && (typeof catalogMatch !== "function" || catalogMatch(r.getAttribute("data-ex") || r.getAttribute("data-wu"), "lib")); r.hidden = !ok; if(ok) vis++; });
     g.hidden = !vis; if(vis) any = true;
   });
   var e = $("#view-exercises .libEmpty"); if(e) e.hidden = any;
+  return any;
 }
 
 /* ---------- PROGRESS (read only, from the v1 diary) ---------- */

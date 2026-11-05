@@ -18,7 +18,9 @@ var EX_GIF = {
      frame by frame. The reverse Nordic is the site's "Bodyweight Kneeling Sissy Squat" (same move: kneeling,
      straight body, lean back); the hollow hold is its still picture, turned into a GIF without changing a pixel. */
   "bear-crawl":"bearcrawl", "hollow-hold":"hollow", "towel-stretch":"towelstretch", "lateral-step-down":"stepdown",
-  "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank"
+  "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank",
+  /* 2026-11-05 neck block: fitnessprogramer.com (chin-tuck, lying-weighted-neck-flexion, prone-cervical-extension), checked 2026-11-04/05 */
+  "chin-tuck":"chintuck", "neck-curl":"neckcurl", "neck-extension":"neckext"
 };
 /* lifts whose picture is not added yet (2026-10-13): the card shows a labelled placeholder naming the
    expected file (project lesson L-2: never a silent gap). Move an entry to EX_GIF once its gif is in gifs/. */
@@ -212,6 +214,25 @@ var EX_DESC = {
     move: "Pull the towel gently upward with the top hand so the left hand slides up your back, until a mild stretch at the front or top of the left shoulder. Hold 3 s, let it back down. 10 times. The other side gently too, if you like.",
     cue: "Pain-free and well below the stab: any stab on the side of the shoulder stops it until the physio has seen the shoulder. Small, slow pulls, never a yank. Fine once or twice a day, any day.",
     feel: "A mild stretch at the front or top of the left shoulder; nothing sharp."
+  },
+  /* ---- neck block (2026-11-05, neck-jaw/program.md sections 1-3): lying moves, every set by effort, stopped 2–3 reps before the form breaks ---- */
+  "chin-tuck": {
+    setup: "Lie on your back, knees bent, a thin folded towel under your head so your face points at the ceiling (not chin-up). Two fingers on the chin as a guide, shoulders heavy on the floor. The picture shows it standing at a wall: same move, here lying down.",
+    move: "Without nodding, slide the head straight back along the towel, about 1–2 cm, as if making a double chin. Hold 5 s at gentle effort (about 3 out of 10), release slowly. 8 reps.",
+    cue: "Eyes stay on the ceiling the whole time: the chin goes back, not down. No shrug, no jaw clench. Stop on sharp pain, pins and needles or weakness in an arm. Dizziness, blurred vision or a sudden severe headache: stop and get medical help.",
+    feel: "A light, deep effort at the front of the neck under the chin, and the back of the neck getting longer. Nothing in the shoulders or the jaw."
+  },
+  "neck-curl": {
+    setup: "Lie on your back on a mat or bed with the head resting on the surface (not hanging over any edge), knees bent, arms by your sides. Tuck the chin first. The picture shows a plate on a bench: you use no plate, and your head stays on the surface.",
+    move: "Keeping the chin tucked, lift the head about a hand's width, as if looking at your belt. 2 s up, 1 s pause, 3 s down.",
+    cue: "The chin stays tucked all the way; the head lifts, the shoulders stay down. If the chin pokes forward like a turtle, the set is over. Stop on sharp pain, pins and needles or weakness in an arm. Dizziness, blurred vision or a sudden severe headache: stop and get medical help.",
+    feel: "The front and sides of the neck working, from behind the ears down to the collarbone, tired by the last reps. No pain in the throat, jaw or back of the neck."
+  },
+  "neck-extension": {
+    setup: "Lie face-down, forehead on a folded towel, arms by your sides, a pillow under the hips if the lower back complains.",
+    move: "Lift the head a few centimetres off the towel, eyes on the floor a little ahead of you, chin slightly tucked. Do not throw the head back to look at the wall. 2 s up, 1 s pause, 3 s down.",
+    cue: "Small and slow. Head up, not chest up. Keep the neck long. Stop on sharp pain, pins and needles or weakness in an arm. Dizziness, blurred vision or a sudden severe headache: stop and get medical help.",
+    feel: "The back of the neck and between the shoulder blades working. No pinch at the base of the skull or in the lower back."
   },
   "internal-rotation": {
     setup: "Lie on your back (or stand with a cable), a rolled towel under the working upper arm, elbow bent 90° tucked at your side.",

@@ -75,7 +75,12 @@ var SEED_EXERCISES = [
   {id:"reverse-nordic",   name:"Reverse Nordic",             pattern:"squat",     loadType:"effort", defaultUnit:"reps"},
   {id:"glute-bridge-hold",name:"Glute Bridge Hold",          pattern:"hinge",     loadType:"effort", defaultUnit:"s"},
   {id:"rkc-plank",        name:"RKC Plank",                  pattern:"core",      loadType:"effort", defaultUnit:"s"},
-  {id:"towel-stretch",    name:"Towel Stretch Behind the Back", pattern:"mobility", loadType:"effort", defaultUnit:"s"}   /* 2026-10-25: left shoulder, pain-free, until the physio */
+  {id:"towel-stretch",    name:"Towel Stretch Behind the Back", pattern:"mobility", loadType:"effort", defaultUnit:"s"},   /* 2026-10-25: left shoulder, pain-free, until the physio */
+  /* 2026-11-05 neck block (owner: "Yes add it"; kontor/dossiers/2026-11-04-neck-jaw/program.md): three lying moves on both
+     home days, every set by effort and counted in reps, no weight. Stop rules sit in each how-to (tracker-desc.js). */
+  {id:"chin-tuck",        name:"Chin Tuck",                  pattern:"isolation", loadType:"effort", defaultUnit:"reps"},
+  {id:"neck-curl",        name:"Neck Curl (on Your Back)",   pattern:"isolation", loadType:"effort", defaultUnit:"reps"},
+  {id:"neck-extension",   name:"Neck Extension (on Your Stomach)", pattern:"isolation", loadType:"effort", defaultUnit:"reps"}
 ];
 
 /* ---- DAYS (the training-day tracks a program points at; reused across programs).
@@ -125,20 +130,29 @@ var SEED_DAYS = {
      every set by effort, near failure. 2026-11-03 even split (owner: "Forget the cardio.... O need two those
      exarcise to split..."), about 20 min each: the bridge ⇄ Copenhagen pair moved from Sunday to Wednesday.
      Wednesday: core and hips, no knee work (the day after the split squat, before the deadlift).
-     Sunday: the knee work (48 h before Tuesday's split squat), the RKC plank last. */
+     Sunday: the knee work (48 h before Tuesday's split squat), the RKC plank last.
+     2026-11-05 neck block (owner: "Yes add it"; neck-jaw/program.md): chin tuck, neck curl, neck extension, each alone (no
+     superset), the same block on both days. Wednesday: after the Copenhagen plank, before the towel stretch (the stretch
+     stays last), block "neck". Sunday: after the RKC plank, in the finisher block. dose = the first weeks, then the target. */
   "home-wed": { id:"home-wed", name:"Home · Wed", home:true, entries:[
     {exerciseId:"bear-crawl",        block:"core", sets:2, dose:"2 × until the hips stop staying level (start ~20–40 s)"},
     {exerciseId:"bear-step-through", block:"core", sets:2, dose:"2–3 × as many clean reps per side as you can (start ~5)"},
     {exerciseId:"hollow-hold",       block:"core", sets:3, dose:"3 × hold until the lower back starts to lift · past ~45 s, the harder version"},
     {exerciseId:"glute-bridge-hold", block:"hold", sets:3, restSec:60, ss:1, dose:"3 × until the hips start to drop (start ~20–45 s) · then one leg · then the crab hold"},
     {exerciseId:"copenhagen-plank",  block:"hold", sets:3, restSec:60, ss:1, dose:"3 × per side until the hips start to drop (start ~20 s) · past ~45 s, the longer lever"},
+    {exerciseId:"chin-tuck",         block:"neck", sets:2, restSec:30, dose:"Weeks 1–2: 1 × 8, easy · then 2 × 8 · hold 5 s each, gentle effort"},
+    {exerciseId:"neck-curl",         block:"neck", sets:2, restSec:60, dose:"Weeks 1–2: 1 × 8–10, easy · then 2 × 10–15 · stop 2–3 reps before the form breaks · 2 s up, 1 s pause, 3 s down"},
+    {exerciseId:"neck-extension",    block:"neck", sets:2, restSec:60, dose:"Weeks 1–2: 1 × 8–10, easy · then 2 × 10–15 · stop 2–3 reps before the form breaks · 2 s up, 1 s pause, 3 s down"},
     {exerciseId:"towel-stretch",     block:"core", sets:1, dose:"10 × 3 s gentle holds · pain-free, well below the stab · daily is fine"}
   ]},
   "home-sun": { id:"home-sun", name:"Home · Sun", home:true, entries:[
     {exerciseId:"lateral-step-down", block:"legs", sets:3, restSec:60, solo:true, dose:"3 × per leg, stop 1–2 reps before the knee would cave or twist (start ~8–10)"},
     {exerciseId:"sissy-squat",       block:"legs", sets:2, restSec:90, solo:true, dose:"2 × stop 1–2 reps before failure, holding a support"},
     {exerciseId:"reverse-nordic",    block:"legs", sets:2, restSec:90, solo:true, dose:"2 × as many controlled reps as you have (now ~2–3)"},
-    {exerciseId:"rkc-plank",         block:"finisher", sets:3, restSec:45, dose:"3–5 × 10 s at full tension"}
+    {exerciseId:"rkc-plank",         block:"finisher", sets:3, restSec:45, dose:"3–5 × 10 s at full tension"},
+    {exerciseId:"chin-tuck",         block:"finisher", sets:2, restSec:30, dose:"Weeks 1–2: 1 × 8, easy · then 2 × 8 · hold 5 s each, gentle effort"},
+    {exerciseId:"neck-curl",         block:"finisher", sets:2, restSec:60, dose:"Weeks 1–2: 1 × 8–10, easy · then 2 × 10–15 · stop 2–3 reps before the form breaks · 2 s up, 1 s pause, 3 s down"},
+    {exerciseId:"neck-extension",    block:"finisher", sets:2, restSec:60, dose:"Weeks 1–2: 1 × 8–10, easy · then 2 × 10–15 · stop 2–3 reps before the form breaks · 2 s up, 1 s pause, 3 s down"}
   ]}
 };
 var STRENGTH_DAYS = ["strength-a","strength-b"];

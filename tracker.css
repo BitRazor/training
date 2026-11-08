@@ -366,12 +366,11 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 /* suggestions (Part 2): the card's line with Use it / Keep, "Use all" at the top, Today's arrow, the summary's list,
    the exercise sheet's target changes */
 .sugLine{margin:10px 0 0; padding:10px 12px 12px; border-radius:16px; background:var(--accTint); border:1px solid var(--accLine)}
-.sugLine.hold{background:var(--raised); border-color:var(--line)}
 .sugLine.back{background:var(--warmTint); border-color:rgba(255,181,71,.38)}
 .sugTx{font-size:14.5px; line-height:1.4; color:var(--tx2)}
 .sugTx b{font-size:17px; font-weight:800; color:var(--tx)}
 .sugG{display:inline-block; min-width:14px; font-weight:800; color:var(--acc)}
-.sugLine.hold .sugG{color:var(--tx2)} .sugLine.back .sugG{color:var(--warm)}
+.sugLine.back .sugG{color:var(--warm)}
 .sugBtns{display:flex; gap:8px; margin-top:10px}
 .sugBtns .btn{flex:1; min-height:44px}
 .sugAll{margin:10px 0 0}

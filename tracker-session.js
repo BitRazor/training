@@ -58,6 +58,7 @@ function tickSet(prog, week, exId, i, undo0){
   if(on){ touchSession(prog, week, before); if(arr.every(Boolean) && st0 !== "full") applyMark(prog, week, exId, "full"); }
   else if(st0 === "full") applyMark(prog, week, exId, "full");   /* un-ticking a set of a full lift un-marks it (v1 untick) */
   noteTick(prog, week, exId, i, on);
+  if(typeof smartTicked === "function") smartTicked(prog, week, exId);   /* Part 3: the session keeps the target it started at (tracker-smart.js) */
   save();
   var st = doneState(prog, week, exId), ex = exById(exId) || { name: exId };
   ui.nowPrompt = null;
@@ -79,6 +80,7 @@ function onMark(t, mark){
   applyMark(prog, week, item, mark);
   var st = doneState(prog, week, item);
   if(!wu && mark === "full"){ if(!db.sets) db.sets = {}; if(st === "full") db.sets[doneKey(prog, week, item)] = allSets(prog, item, true); else delete db.sets[doneKey(prog, week, item)]; save(); }
+  if(!wu && typeof smartTicked === "function"){ smartTicked(prog, week, item); save(); }
   if(st) touchSession(prog, week, before);
   else if(endSessionIfEmpty(prog, week)){ ui.nowPrompt = null; stopRest(); }
   var c = t.closest(".planCard") || t.closest(".wuCard");

@@ -339,7 +339,9 @@ function edStart(){
       n = Math.round(n * 100) / 100;
       var undo = undoPoint(), lo = smartRange(en, ex).lo, today = todayISO();
       if(!Array.isArray(db.targetLog)) db.targetLog = [];
-      if(t){ if(t.kg === n) return; db.targetLog.push({ exId: en.exerciseId, date: today, from: { kg: t.kg, reps: t.reps }, to: { kg: n, reps: t.reps }, how: "edit" }); t.kg = n; t.at = today; }
+      /* a weight he sets is a fresh start: no session owns it (an older session's recompute never overwrites it), and its
+         misses and Goods start again (Part 3, rule version 2) */
+      if(t){ if(t.kg === n) return; db.targetLog.push({ exId: en.exerciseId, date: today, from: { kg: t.kg, reps: t.reps }, to: { kg: n, reps: t.reps }, how: "edit" }); t.kg = n; t.at = today; delete t.src; t.misses = 0; t.goods = 0; }
       else { db.targets[en.exerciseId] = { kg: n, reps: lo, misses: 0, at: today }; db.targetLog.push({ exId: en.exerciseId, date: today, from: {}, to: { kg: n, reps: lo }, how: "start" }); }
       afterEdit(); toast(ex.name + ": " + smartWeightText(k, n), { undo: undo }); } });
 }

@@ -20,7 +20,9 @@ var EX_GIF = {
   "bear-crawl":"bearcrawl", "hollow-hold":"hollow", "towel-stretch":"towelstretch", "lateral-step-down":"stepdown",
   "sissy-squat":"sissy", "reverse-nordic":"revnordic", "glute-bridge-hold":"bridge", "rkc-plank":"rkcplank",
   /* 2026-11-05 neck block: fitnessprogramer.com (chin-tuck, lying-weighted-neck-flexion, prone-cervical-extension), checked 2026-11-04/05 */
-  "chin-tuck":"chintuck", "neck-curl":"neckcurl", "neck-extension":"neckext"
+  "chin-tuck":"chintuck", "neck-curl":"neckcurl", "neck-extension":"neckext",
+  /* 2026-11-08: fitnessprogramer.com (dumbbell-fly), checked frame by frame: flat bench, feet on the floor, palms facing in */
+  "db-fly":"dbfly"
 };
 /* lifts whose picture is not added yet (2026-10-13): the card shows a labelled placeholder naming the
    expected file (project lesson L-2: never a silent gap). Move an entry to EX_GIF once its gif is in gifs/. */
@@ -129,6 +131,12 @@ var EX_DESC = {
     move: "Lower the dumbbells in about 3 s, elbows angled about 45° from your body, until your hands are level with your chest or a little below. Press back up firmly in about 1–2 s to just short of lockout.",
     cue: "Full depth every rep, a little deeper each week rather than all at once. Last set: when the reps slow right down, stop one rep short rather than failing with the weights over your chest. Back after big soreness: first 2 sessions 1 set, stop 3–4 reps before failure. If the left shoulder hurts, scale the weight down yourself.",
     feel: "Pecs and the front of the shoulder; a strong stretch across the chest at the bottom."
+  },
+  "db-fly": {
+    setup: "Lie on a flat bench, feet on the floor, a dumbbell in each hand over your chest, palms facing in (towards each other), a slight bend in the elbows that stays fixed. The weight shown is ONE dumbbell.",
+    move: "Open the arms out to the sides in a wide arc, lowering in about 3 s only to a comfortable stretch, about chest level. Then lift firmly in about 1–2 s by squeezing the arms back together over the chest, no jerk or bounce.",
+    cue: "A hug, not a press: the elbows keep the same small bend all the way. Go only as deep as feels comfortable; the stretch can grow over the weeks. Stop if the left shoulder stabs at the bottom of the stretch. If the left shoulder hurts less than that, scale the weight down yourself.",
+    feel: "The chest stretching across at the bottom and squeezing at the top; the front of the shoulders helps. Nothing sharp in the shoulder."
   },
   "lu-raise": {
     setup: "Stand tall, feet shoulder-width, light dumbbells in front of your thighs, elbows only slightly bent, stomach tight.",

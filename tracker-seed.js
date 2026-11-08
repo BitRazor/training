@@ -48,7 +48,7 @@ var SEED_EXERCISES = [
   {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db", cat:"db"},
   {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:10, repCap:15},
   {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repCap:12},
-  {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:8, repCap:12},   /* kg = ONE dumbbell */
+  {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:8, repCap:12},   /* kg = ONE dumbbell. Off Day A since 2026-11-08 (the Dumbbell Fly below); kept for its diary */
   {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable", repFloor:8, repCap:12},
   {id:"triceps-overhead", name:"Cable Overhead Triceps Ext", pattern:"v-push",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:10, repCap:15},
   {id:"face-pulls",       name:"Face Pulls",                 pattern:"h-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:12, repCap:20},
@@ -80,7 +80,11 @@ var SEED_EXERCISES = [
      home days, every set by effort and counted in reps, no weight. Stop rules sit in each how-to (tracker-desc.js). */
   {id:"chin-tuck",        name:"Chin Tuck",                  pattern:"isolation", loadType:"effort", defaultUnit:"reps"},
   {id:"neck-curl",        name:"Neck Curl (on Your Back)",   pattern:"isolation", loadType:"effort", defaultUnit:"reps"},
-  {id:"neck-extension",   name:"Neck Extension (on Your Stomach)", pattern:"isolation", loadType:"effort", defaultUnit:"reps"}
+  {id:"neck-extension",   name:"Neck Extension (on Your Stomach)", pattern:"isolation", loadType:"effort", defaultUnit:"reps"},
+  /* 2026-11-08: the lift on Day A was always the dumbbell fly, not a press (owner); it takes the chest press's slot. 10–15 reps:
+     an isolation lift with a loaded stretch at his left shoulder, protection and tendons first, like the external rotation
+     and the wrist curls. New id, so it asks for its own starting weight. */
+  {id:"db-fly",           name:"Dumbbell Fly",               pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:10, repCap:15}   /* kg = ONE dumbbell */
 ];
 
 /* ---- DAYS (the training-day tracks a program points at; reused across programs).
@@ -100,13 +104,13 @@ var SEED_DAYS = {
     {exerciseId:"atg-split-squat",     block:"heavy", sets:2, restSec:150, solo:true, ramp:true},   /* ramp: 1 light set first when the week's target is ≤ 11 reps */
     /* every superset inside one area of the owner's gym (2026-10-18; corrected on 2026-10-25: the back-extension bench
        stands by the barbells and dumbbells, no dumbbells leave the dumbbell area, and the pairs run in plan order).
-       Split squat alone (dumbbells) → pulldown with leg curl (machines) → chest press with suitcase carry, then Lu
-       raises with back extension (dumbbells) → calf raise with face pulls (machines). Heavier pairs first, the carry's
+       Split squat alone (dumbbells) → pulldown with leg curl (machines) → dumbbell fly (the chest press's slot since
+       2026-11-08) with suitcase carry, then Lu raises with back extension (dumbbells) → calf raise with face pulls (machines). Heavier pairs first, the carry's
        grip after the pulldown, the Lu raises after the presses and pulls, cuff work last; walks happen between
        supersets, never inside one. Partners share a count: Lu raises, leg curl and back extension run 2 sets. */
     {exerciseId:"cable-pulldown",      block:"heavy", sets:2, restSec:150, ss:1},
     {exerciseId:"leg-curl",            block:"heavy", sets:2, restSec:150, ss:1},
-    {exerciseId:"db-chest-press",      block:"heavy", sets:2, restSec:150, ss:2},
+    {exerciseId:"db-fly",              block:"heavy", sets:2, restSec:150, ss:2},
     {exerciseId:"suitcase-carry",      block:"gap",   sets:2, restSec:90,  ss:2, timed:true},
     {exerciseId:"lu-raise",            block:"gap",   sets:2, restSec:90,  ss:3, reps:15},
     {exerciseId:"back-extension-45",   block:"gap",   sets:2, restSec:90,  ss:3},

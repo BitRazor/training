@@ -92,6 +92,38 @@ function migrate(){
   /* v3 -> v4: the frozen lift diary + done ticks became "full"/"partial" (were boolean true) */
   if(!Array.isArray(db.history)) db.history=[];
   for(var dkq in db.done){ if(db.done[dkq]===true) db.done[dkq]="full"; }
+  /* 2026-11-08 Day A (owner): the lift was always the dumbbell fly, so the Dumbbell Fly takes the chest press's slot. One time
+     only, like the swap above: his own edited days that hold the chest press get the fly in the same place, with its pairing,
+     sets and rest (the chest press's rep range goes: the fly has its own). This week's chest press, if done, moves to the fly
+     on each program's day that now holds it: the done mark, the set ticks and, in a smart program, the session log, which
+     carries the kg and reps he did (from his diary) so the done card reads them; marked "moved", it never sets a fly target,
+     box or diary entry. The fly's target is not carried (its first set asks for a weight); the diary keeps the chest press. */
+  if(db.settings.flySwap!=="2026-11-08"){
+    var flyDays={"strength-a":true};
+    Object.keys(db.userDays||{}).forEach(function(uk){ var u=db.userDays[uk];
+      (u.entries||[]).forEach(function(e){ if(e.exerciseId==="db-chest-press"){ e.exerciseId="db-fly"; delete e.repLo; delete e.repHi; flyDays[u.id||uk]=true; } }); });
+    var weekNow=function(pid,day){ var ps=db.programState[pid], wd=(ps&&ps.progress&&ps.progress[day]&&ps.progress[day].weeksDone)||[], P=SEED_PROGRAM_LIB[pid];
+      return wd.length?Math.min(Math.max.apply(null,wd)+1,(P&&P.weeks)||TOTAL_WEEKS):1; };
+    Object.keys(db.done).forEach(function(fk){
+      var fp=fk.split(":"), pid=fp[0], day=fp[1], wk=+fp[2];
+      if(fp.slice(3).join(":")!=="db-chest-press"||!flyDays[day]||wk!==weekNow(pid,day)||(db.done[fk]!=="full"&&db.done[fk]!=="partial")) return;
+      var to=pid+":"+day+":"+wk+":db-fly";
+      db.done[to]=db.done[fk]; delete db.done[fk];
+      if(db.sets[fk]!==undefined){ db.sets[to]=db.sets[fk]; delete db.sets[fk]; }
+      var L=(db.logs&&typeof db.logs==="object"&&!Array.isArray(db.logs))?db.logs:null, l=L&&L[fk];
+      if(L) delete L[fk];
+      if(!L||typeof isSmartProg!=="function"||!isSmartProg(pid)) return;
+      var cyc=cycleOf(pid), h=null, t=db.targets&&db.targets["db-chest-press"];
+      db.history.forEach(function(x){ if(x&&x.program===pid&&(x.cycle||1)===cyc&&x.day===day&&x.week===wk&&x.exId==="db-chest-press") h=x; });
+      var lo=(l&&typeof l==="object")?l:{}, n=(db.sets[to]||[]).length, reps=[];
+      if(h&&Array.isArray(h.done)) reps=h.done.slice();
+      else for(var ri=0; ri<n; ri++) reps.push(Array.isArray(lo.reps)&&typeof lo.reps[ri]==="number"?lo.reps[ri]:(t?t.reps:null));
+      var m={reps:reps, kg:(h&&typeof h.kg==="number")?h.kg:(typeof lo.kg==="number"?lo.kg:(t?t.kg:null)), date:lo.date||(h&&h.ts)||todayISO(), cy:cyc, moved:"db-chest-press"};
+      if(lo.effort) m.effort=lo.effort;
+      L[to]=m;
+    });
+    db.settings.flySwap="2026-11-08";
+  }
   db.schemaVersion=SCHEMA_VERSION;
 }
 /* fill defaults + bring the current `db` (stored or imported) up to the schema; throws if it can't */
@@ -125,6 +157,9 @@ function normalize(){
   if(typeof cleanSmartStores==="function") cleanSmartStores();
   /* the default switch to Smart HSR with his strength, weeks and ticks: once per data file (db.settings.smartSince) */
   if(typeof smartMigrate==="function") smartMigrate();
+  /* Part 3 (2026-11-08): smart rule version 2 replays each lift's last session once per data file (db.settings.smartRule),
+     so the rows show what he really lifted (tracker-smart-replay.js) */
+  if(typeof smartRuleMigrate==="function") smartRuleMigrate();
 }
 function load(){
   try{var raw=localStorage.getItem(STORE_KEY); db=raw?JSON.parse(raw):seedDb();}catch(e){db=seedDb();}

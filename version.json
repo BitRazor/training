@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.08.1",
+  "version": "2026.11.08.2",
   "files": {
     "index.html": "848cb63688f547150957ab4c039f7a5c762fc40b62cf76d5cace3b57d6d47398",
     "tracker.css": "53aa2d9cd64feb8fefb90698ff811cc4abddb7e80e7c9740fde42be2c33c2488",
@@ -14,7 +14,7 @@
     "tracker-session.js": "3a44b690704db3eadc40858196a0a71f5d1543dd55bce83e9dae3ef78a47e7e5",
     "tracker-progress.js": "008ea87397597cd3f874a33040dc47bcb71d374b60d7df3bb9eeaa8a4b136f1a",
     "tracker-week.js": "358f7eaf4c5586199b4a60709f2cb3d9ef658d1d5b85cb993a81ea1b13324468",
-    "tracker-smart.js": "4aea21ab604ef42f58b501edc2bdfe455e279c1593fa956c614e81b974c17dcb",
+    "tracker-smart.js": "28eb7139f57c0a2fc7c62f444c0dc265b5ba08df8283fc72d8d207f40ab01779",
     "tracker-smart-replay.js": "2c322b47e782271b3f25833aca73d0e97a8fa40deb6acf7ee283978ec836e952",
     "tracker-editor.js": "56ea7448935669f14c7581f05253d886dd73893a4dfefe2f4c0a32ac26573cf2",
     "tracker-catalog.js": "2af2d2ae4b2c044ece4bbccf3643b69e0aac0a4e636871aecd68af2309874380",

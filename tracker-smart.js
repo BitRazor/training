@@ -7,7 +7,8 @@
       (design-part3-smart-rule.md; build-log.md "Part 3"). A target = {kg, reps, misses, goods, level}: misses = misses in
       a row, goods = Good or Easy sessions in a row at the same numbers, level = a hold's "harder version" count.
       smartNext(target, log, opts) after an exercise returns {base, next}: base = what he did (the weight used, the reps
-      reached on every set, never lower than his reps target), which becomes the next target with no tap; next = a
+      reached on every set; a set short of the target keeps the target, unless no set reached it: then the most reps of
+      any set), which becomes the next target with no tap; next = a
       proposal shown as a box only when it changes something. Hard never raises and never lowers; a miss proposes one
       step back from the second miss in a row (not when Hard); a hit decides by the share of the next weight step: up
       to 3 % the weight, over 3 % up to 7 % the weight when Easy or after 2 Goods in a row, over 7 % one rep more (Easy
@@ -60,10 +61,12 @@ function smartOpts(en, ex){
 /* rule version 2 (2026-11-08, design-part3-smart-rule.md, his "Yes, build it"). t = the target the session was done at
    {kg, reps, misses, goods(, level)}; log = {reps: [done per set], kg (used), effort, partial}. Returns {base, next}:
    - base = what he did, the next session's target with no tap: the weight used; the reps reached on every set when every
-     set hit, else the reps target (missed reps never lower it); misses = 0 on a hit, else + 1; goods = Good or Easy hits
+     set hit; on a miss the reps target when a set reached it (a fade never lowers it), else the most reps of any set (no
+     set reached it: his week 2 shin raise 10 kg × 15 → 10, 10, 10 comes back 10 × 10; 2026-11-08, spec rule 1 "reps as
+     logged"); misses = 0 on a hit, else + 1; goods = Good or Easy hits
      in a row at the same numbers (a hit at new numbers starts at 1; Hard or a miss → 0); a hold keeps its level;
    - next = a proposal only when it differs from base (a box with Use it / Keep), else null:
-     a miss: from the second in a row, and not Hard, one step back at the same reps target (none when nothing is lower);
+     a miss: from the second in a row, and not Hard, one step back from the base, at its reps (none when nothing is lower);
      a hit, Hard: nothing; a hit, Good or Easy: by the share of the next weight step (stepClass); a hold: +5 s (Easy +10 s)
      up to 45 s, then the harder version at 20 s */
 function smartNext(t, log, o){
@@ -71,7 +74,8 @@ function smartNext(t, log, o){
   var tr = t.reps || o.lo, eff = log.effort || "good", hard = eff === "hard", easy = eff === "easy";
   var used = log.kg != null ? log.kg : (t.kg != null ? t.kg : null), done = Array.isArray(log.reps) ? log.reps : [];
   var hit = !log.partial && done.length > 0 && done.every(function(n){ return typeof n === "number" && n >= tr; });
-  var b = { kg: used == null ? null : r2(used), reps: hit ? Math.min.apply(null, done) : tr, misses: hit ? 0 : (t.misses || 0) + 1, goods: 0 };
+  var best = done.reduce(function(m, n){ return (typeof n === "number" && n > m) ? n : m; }, 0);   /* the most reps (or seconds) of any set */
+  var b = { kg: used == null ? null : r2(used), reps: hit ? Math.min.apply(null, done) : (best > 0 && best < tr) ? best : tr, misses: hit ? 0 : (t.misses || 0) + 1, goods: 0 };
   if(hit && !hard) b.goods = ((kgEq(b.kg, t.kg) && b.reps === tr) ? (t.goods || 0) : 0) + 1;   /* Easy counts as a Good */
   if(o.hold) b.level = t.level || 0;
   var p = !hit ? ((b.misses >= 2 && !hard) ? stepBack(b, o) : null) : hard ? null : o.hold ? holdUp(b, easy, o) : liftUp(b, easy, o);
@@ -100,7 +104,7 @@ function holdUp(b, easy, o){
   if(b.reps >= o.hi) return { kind: "harder", kg: b.kg, reps: o.lo, level: (b.level || 0) + 1 };
   return { kind: "secs", kg: b.kg, reps: Math.min(o.hi, b.reps + o.step * (easy ? 2 : 1)), level: b.level || 0 };
 }
-/* one step back at the same reps target: the weight one grid step down; a hold 5 s back (never under 20 s); a body-weight
+/* one step back from the base, at its reps: the weight one grid step down; a hold 5 s back (never under 20 s); a body-weight
    lift its plate one step down, or at body weight one rep less (never under its floor); null when nothing is lower */
 function stepBack(b, o){
   if(o.hold){ var s = Math.max(o.lo, b.reps - o.step); return s < b.reps ? { kind: "back", kg: b.kg, reps: s, level: b.level || 0 } : null; }

@@ -1,7 +1,8 @@
 "use strict";
 /* tracker-catalog.js: the exercise catalogue in the app (version 2, part 2, 2026-11-04; design-part2.md §2).
    exercise-catalog.js (generated in the owner's office, catalog/build-catalog.mjs; never edited by hand) defines
-   EXERCISE_CATALOG (895 entries: his 31 with his ids, 864 from free-exercise-db as "fedb:<source id>") and CATALOG_FIELDS.
+   EXERCISE_CATALOG (898 entries on 2026-11-11: his 35 with his ids, 863 from free-exercise-db as "fedb:<source id>") and
+   CATALOG_FIELDS.
    - exById falls back to catalogExercise(id): an entry as a lift the engine and the cards can use, built on demand and
      never saved (the catalogue stays out of the saved data; the saved data only names ids).
      Weight grid by equipment: dumbbell = the dumbbell grid; barbell, E-Z bar = 2.5 kg; cable, machine = the stack; kettlebells
@@ -11,7 +12,7 @@
      to come" box naming the file it expects (lesson L-2). The source's images are never shipped.
    - the filters (muscle = main muscle, equipment, pattern, location, level; one value each, all together) and the search work
      the same in the Exercises library ("lib") and the program editor's picker ("pick"): the chips open their values
-     inline, because the picker is itself a sheet. Rows come in pages of 40: 895 rows at once are too many for a phone.
+     inline, because the picker is itself a sheet. Rows come in pages of 40: about 900 rows at once are too many for a phone.
    Loaded after the data, before the views need it at run time. */
 
 var CAT_PAGE = 40;

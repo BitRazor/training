@@ -1,12 +1,12 @@
 {
-  "version": "2026.11.11.2",
+  "version": "2026.11.11.3",
   "files": {
     "index.html": "73cd8be780167e1dce23401d5d01120164d347d9a0f0ac6b62df65bbbe58d58b",
     "tracker.css": "994b57e56ecb1b39bcc5d0890f71b037dcf96cc1d084cc5b3cdc8d78fe8ca13c",
     "native.js": "0918b2a96d5cb20ec53f008b9359d114a4981cc82098b73e11cb0a9294a1cd7c",
-    "tracker-seed.js": "9021644573e8a1b82de8c7f2179f773962902b48b6adc0fce84bc53012b0fbda",
+    "tracker-seed.js": "b2cdfffcf087ff4e25c7be2aa014e330eff32a234cc9a1bdde1c30931c909e32",
     "tracker-engine.js": "6544eee0ec8ecfd268b9480d0fdd22f096d1b70c46dd7184023119ce7386bc30",
-    "tracker-desc.js": "0866439ddcb603d37050fae873a4ff9adca55adea7e3d81b077bca682fbedd4c",
+    "tracker-desc.js": "62b9c5c69aed6ba3b65fdf3d8a2660c7fe5ccbc4761be1d0621041289c70fa40",
     "exercise-catalog.js": "d7be53cd7b195abfe43e99dcb3fd6caec9b9e853ebe066de8c41ec6ee2a76bba",
     "ui-icons.js": "fa7be9c2279583f64f4f5e2bf32f413a44b96eab2f5d61b9fe24585c8f1fa629",
     "tracker-views.js": "87e64d8918ec1af1e9b9365b66f9be6aa6de9d1ba0b9ec56de726a9ec47617ec",

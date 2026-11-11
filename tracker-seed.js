@@ -37,16 +37,20 @@ var SEED_EXERCISES = [
      then strength, then size). No window = the plain HSR ladder 15 → 6.
      Retuned 2026-10-17 (owner, kontor/dossiers/2026-10-17-exercise-review/review.md): the loaded lifts start at
      12 reps (repCap 12), the fixed windows tightened (overhead press 9–12; external rotation and wrist curls 10–15);
-     the split squat has no floor now. Plans are worked out live from these, so a stored phone needs no migration. */
+     the split squat has no floor now. Plans are worked out live from these, so a stored phone needs no migration.
+     Researched 2026-11-11 for rule version 3 (his "Based on exercise type backed on data"; kontor/dossiers/2026-11-11-rule-
+     v3/rep-ranges.md): a range must also fit one weight step, since the reps restart at the same effort. Changed: the fly
+     10–20, tibialis raise 10–20, hip flexion 10–20, external rotation 12–20 (rotator cuff: light loads as good as heavy),
+     wrist curls 8–15. The overhead press keeps his own 9–12 ("a bit towards more strength", 2026-10-17). */
   {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db", cat:"db", repCap:12},
   {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"bar", repCap:10},
   {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:8, repCap:12},
   {id:"calf-raise",       name:"Heavy Calf Raise — seated",  pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:1.25, cat:"single"},  /* single plate */
-  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:12, repCap:20},
-  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5, cat:"cable", repFloor:10, repCap:15},
+  {id:"tibialis-raise",   name:"Seated Tibialis Raise",      pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:10, repCap:20},
+  {id:"hip-flexion",      name:"Standing 1-Leg Cable Hip Flexion", pattern:"core", loadType:"external", defaultUnit:"kg/leg", inc:2.5, cat:"cable", repFloor:10, repCap:20},
   {id:"copenhagen-plank", name:"Copenhagen Plank",           pattern:"core",      loadType:"timed",    defaultUnit:"s",      inc:2.5},
   {id:"suitcase-carry",   name:"Single-Arm Suitcase Carry",  pattern:"carry",     loadType:"carry",    defaultUnit:"kg",     equip:"db", cat:"db"},
-  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:10, repCap:15},
+  {id:"reverse-wrist-curl",name:"Reverse Wrist Curls",       pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:8, repCap:15},
   {id:"cable-pulldown",   name:"Cable Pulldown",             pattern:"v-pull",    loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repCap:12},
   {id:"db-chest-press",   name:"Dumbbell Chest Press",       pattern:"h-push",    loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:8, repCap:12},   /* kg = ONE dumbbell. Off Day A since 2026-11-08 (the Dumbbell Fly below); kept for its diary */
   {id:"cable-row",        name:"Half-Kneeling 1-Arm Cable Row", pattern:"h-pull", loadType:"external", defaultUnit:"kg/arm", inc:2.5, cat:"cable", repFloor:8, repCap:12},
@@ -63,7 +67,7 @@ var SEED_EXERCISES = [
      defined above for the diary. The back extension is body weight plus an optional plate (loadType "bodyweight"). */
   {id:"calf-raise-standing", name:"Standing Calf Raise",     pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repCap:12},
   {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db", repFloor:9, repCap:12},   /* kg = ONE dumbbell */
-  {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db", repFloor:10, repCap:15},
+  {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db", repFloor:12, repCap:20},
   {id:"back-extension-45",name:"45° Back Extension",         pattern:"hinge",     loadType:"bodyweight", defaultUnit:"kg"},  /* kg = the optional plate */
   /* home sessions (owner 2026-10-13, home-plan.md version 2): body weight, every set by EFFORT (near failure) —
      the card shows its dose text, no weight maths, no diary entry. The Copenhagen plank reuses its old id. */
@@ -84,7 +88,7 @@ var SEED_EXERCISES = [
   /* 2026-11-08: the lift on Day A was always the dumbbell fly, not a press (owner); it takes the chest press's slot. 10–15 reps:
      an isolation lift with a loaded stretch at his left shoulder, protection and tendons first, like the external rotation
      and the wrist curls. New id, so it asks for its own starting weight. */
-  {id:"db-fly",           name:"Dumbbell Fly",               pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:10, repCap:15}   /* kg = ONE dumbbell */
+  {id:"db-fly",           name:"Dumbbell Fly",               pattern:"isolation", loadType:"external", defaultUnit:"kg",     equip:"db", cat:"db", repFloor:10, repCap:20}   /* kg = ONE dumbbell */
 ];
 
 /* ---- DAYS (the training-day tracks a program points at; reused across programs).

@@ -158,7 +158,7 @@ var EX_DESC = {
   },
   "side-lying-er": {
     setup: "Lie on your side, the working arm on top, a folded towel between the elbow and your side, elbow bent 90°, a light dumbbell in front of your belly. Start at 1–3 kg.",
-    move: "Rotate the forearm up and away from your belly as far as is comfortable, keeping the elbow on the towel; hold 2 s at the top, then lower for 3 s. 3 × 10–15 per arm.",
+    move: "Rotate the forearm up and away from your belly as far as is comfortable, keeping the elbow on the towel; hold 2 s at the top, then lower for 3 s. 3 × 12–20 per arm.",
     cue: "Only the forearm turns — the elbow stays pinned to the towel. If the left shoulder hurts, scale the weight down yourself: pain at most 3/10 and settled by the next session, and a stab stops it. It comes after the day's presses and pulls: a tired cuff lets the shoulder ball ride up.",
     feel: "The back of the shoulder (the small rotator-cuff muscles) working. Nothing sharp."
   },

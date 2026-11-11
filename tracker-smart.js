@@ -3,18 +3,19 @@
    design-part2.md §1 and build-log.md "Part 2"). His words: "suggestions each session (based on history) ... like some kind
    of algorithmic awareness in the app"; "by confirming it it will edit program exercise and saves update rep count or weight".
 
-   1. THE RULE (pure functions, unit-tested in a plain vm: verify-v2-smart-rule.mjs), version 2 since 2026-11-08
-      (design-part3-smart-rule.md; build-log.md "Part 3"). A target = {kg, reps, misses, goods, level}: misses = misses in
-      a row, goods = Good or Easy sessions in a row at the same numbers, level = a hold's "harder version" count.
+   1. THE RULE (pure functions, unit-tested in a plain vm: verify-v2-smart-rule.mjs), version 3 since 2026-11-11, his own
+      rule (decisions.md 2026-11-11 "Progression rule version 3", "Rating names", "Lowering comes only from the reps he
+      logs"; the spec: dossiers/2026-11-11-rule-v3/design.md). A target = {kg, reps, misses, level}: misses = misses in a
+      row (kept for the record), level = a hold's "harder version" count.
       smartNext(target, log, opts) after an exercise returns {base, next}: base = what he did (the weight used, the reps
       reached on every set; a set short of the target keeps the target, unless no set reached it: then the most reps of
-      any set), which becomes the next target with no tap; next = a
-      proposal shown as a box only when it changes something. Hard never raises and never lowers; a miss proposes one
-      step back from the second miss in a row (not when Hard); a hit decides by the share of the next weight step: up
-      to 3 % the weight, over 3 % up to 7 % the weight when Easy or after 2 Goods in a row, over 7 % one rep more (Easy
-      two) and at the top of the range the weight at the floor when Easy or after 2 Goods. Holds (the Copenhagen plank,
-      the hollow hold, the glute bridge hold) propose +5 s (Easy +10 s) within 20–45 s, then the harder version at 20 s.
-      A missing floor is 8 and a missing cap 12 (the spec's "8–12").
+      any set), which becomes the next target with no tap; next = a proposal shown as a box only when it changes
+      something. Ratings: Easy = two steps up, Smooth = one, Solid and Hard = none (no tap = Solid). A step is one rep
+      more; at the top of the range it is the next weight with the reps of the same effort (Epley), kept inside the
+      range. Lowering only from logged reps: no set reached the target and the best is below the range → the smallest
+      weight drop whose same-effort reps reach the range, by itself (never a box). Holds (the Copenhagen plank, the hollow
+      hold, the glute bridge hold) step 5 s within 20–45 s, then the harder version at 20 s; under 20 s the easier version
+      at 45 s. A missing floor is 8 and a missing cap 12 ("8–12").
    2. THE PROGRAM: "Smart HSR", built in, the same days, exercises, sets, rests and supersets as HSR Base 12 (it points at
       the same day tracks). The engine's getProgram reads SEED_PROGRAM_LIB, so it is added to that object here at load;
       tracker-seed.js stays unchanged.
@@ -36,6 +37,13 @@ var HOLD_IDS = ["copenhagen-plank", "hollow-hold", "glute-bridge-hold"];   /* th
 var HOLD_LO = 20, HOLD_HI = 45, HOLD_STEP = 5;
 var RANGE_LO = 8, RANGE_HI = 12;      /* "lifts without one: 8–12" */
 var BW_LO = 12, BW_HI = 20;           /* the 45° back extension's own card: "12–20 reps", then a plate */
+/* rule version 3: the steps up each rating gives (his words: Easy "two steps forward", Great/Smooth one, Strong/Solid and
+   Hard none); anything else stored (version 2's absent Good) reads as Solid */
+var EFFORT_STEPS = { easy: 2, smooth: 1, solid: 0, hard: 0 };
+var EFFORTS = [["easy", "Easy", "3+ left"], ["smooth", "Smooth", "2 left"], ["solid", "Solid", "1 left"], ["hard", "Hard", "0 left"]];
+/* the share of body mass a 45° back extension moves: head, arms and trunk, 0.678 (Dempster's segment masses, as in
+   Winter's tables: head 0.081, trunk 0.497, each upper arm 0.028, forearm 0.016, hand 0.006) */
+var HAT_SHARE = 0.678;
 
 /* ===================== 1. the rule (pure) ===================== */
 function r2(x){ return Math.round(x * 100) / 100; }
@@ -49,69 +57,76 @@ function smartRange(en, ex){
   if(hi < lo) hi = lo;
   return { lo: lo, hi: hi, unit: "reps" };
 }
-/* what the rule needs to know about an entry: its range, hold or not, and one weight step up / down on the lift's grid */
-function smartOpts(en, ex){
+/* what the rule needs to know about an entry: its range, hold or not, one weight step up / down on the lift's grid, and
+   the load a set moves (for the same-effort reps): the weight; a body-weight lift its plate plus head, arms and trunk
+   (HAT_SHARE of bodyKg, his latest logged body weight), null when no body weight is logged */
+function smartOpts(en, ex, bodyKg){
   var r = smartRange(en, ex), hold = r.unit === "s", bw = !!ex && ex.loadType === "bodyweight";
+  var body = (typeof bodyKg === "number" && isFinite(bodyKg) && bodyKg > 0) ? bodyKg : null;
   return { lo: r.lo, hi: r.hi, hold: hold, step: hold ? HOLD_STEP : 1, bw: bw,
     up: function(kg){ return r2(nextWeight(ex, kg || 0)); },
     down: function(kg){ kg = kg || 0; var d = snapDown(kg - 1e-6, ex);
       if(d == null || !(d < kg - 1e-9) || (!bw && d <= 0)) return kg;   /* the lightest weight stays */
-      return r2(Math.max(0, d)); } };
+      return r2(Math.max(0, d)); },
+    load: function(kg){ kg = kg || 0; return bw ? (body ? HAT_SHARE * body + kg : null) : kg; } };
 }
-/* rule version 2 (2026-11-08, design-part3-smart-rule.md, his "Yes, build it"). t = the target the session was done at
-   {kg, reps, misses, goods(, level)}; log = {reps: [done per set], kg (used), effort, partial}. Returns {base, next}:
-   - base = what he did, the next session's target with no tap: the weight used; the reps reached on every set when every
-     set hit; on a miss the reps target when a set reached it (a fade never lowers it), else the most reps of any set (no
-     set reached it: his week 2 shin raise 10 kg × 15 → 10, 10, 10 comes back 10 × 10; 2026-11-08, spec rule 1 "reps as
-     logged"); misses = 0 on a hit, else + 1; goods = Good or Easy hits
-     in a row at the same numbers (a hit at new numbers starts at 1; Hard or a miss → 0); a hold keeps its level;
-   - next = a proposal only when it differs from base (a box with Use it / Keep), else null:
-     a miss: from the second in a row, and not Hard, one step back from the base, at its reps (none when nothing is lower);
-     a hit, Hard: nothing; a hit, Good or Easy: by the share of the next weight step (stepClass); a hold: +5 s (Easy +10 s)
-     up to 45 s, then the harder version at 20 s */
+/* rule version 3 (2026-11-11, his rule; design.md part A). t = the target the session was done at {kg, reps, misses(,
+   level)}; log = {reps: [done per set], kg (used), effort, partial}. Returns {base, next}:
+   - base = the next session's numbers with no tap: the weight used; the reps reached on every set when every set hit; on
+     a miss the reps target when a set reached it (a fade never lowers it), else the most reps of any set (his week 2
+     shin raise 10 kg × 15 → 10, 10, 10 comes back 10 × 10); misses = 0 on a hit, else + 1; a hold keeps its level.
+     Lowering, his rule: only when no set reached the target (so the reps were logged by hand) and the best set is below
+     the range: the smallest weight drop whose same-effort reps reach the range (lowerInto);
+   - next = a proposal only when every set hit (not partial) and the rating gives steps up (stepUp), and only when it
+     differs from base (a box with Use it / Keep), else null. Nothing ever proposes a step down. */
+function effortOf(e){ return EFFORT_STEPS.hasOwnProperty(e) ? e : "solid"; }
 function smartNext(t, log, o){
   t = t || {}; log = log || {};
-  var tr = t.reps || o.lo, eff = log.effort || "good", hard = eff === "hard", easy = eff === "easy";
+  var tr = t.reps || o.lo, steps = EFFORT_STEPS[effortOf(log.effort)];
   var used = log.kg != null ? log.kg : (t.kg != null ? t.kg : null), done = Array.isArray(log.reps) ? log.reps : [];
   var hit = !log.partial && done.length > 0 && done.every(function(n){ return typeof n === "number" && n >= tr; });
   var best = done.reduce(function(m, n){ return (typeof n === "number" && n > m) ? n : m; }, 0);   /* the most reps (or seconds) of any set */
-  var b = { kg: used == null ? null : r2(used), reps: hit ? Math.min.apply(null, done) : (best > 0 && best < tr) ? best : tr, misses: hit ? 0 : (t.misses || 0) + 1, goods: 0 };
-  if(hit && !hard) b.goods = ((kgEq(b.kg, t.kg) && b.reps === tr) ? (t.goods || 0) : 0) + 1;   /* Easy counts as a Good */
+  var b = { kg: used == null ? null : r2(used), reps: hit ? Math.min.apply(null, done) : (best > 0 && best < tr) ? best : tr, misses: hit ? 0 : (t.misses || 0) + 1 };
   if(o.hold) b.level = t.level || 0;
-  var p = !hit ? ((b.misses >= 2 && !hard) ? stepBack(b, o) : null) : hard ? null : o.hold ? holdUp(b, easy, o) : liftUp(b, easy, o);
-  return { base: b, next: (p && !(kgEq(p.kg, b.kg) && p.reps === b.reps && (p.level || 0) === (b.level || 0))) ? p : null };
+  if(!hit && best > 0 && best < tr && best < o.lo){ var low = lowerInto(b, o); if(low){ b.kg = low.kg; b.reps = low.reps; if(o.hold) b.level = low.level; } }
+  var p = null;
+  if(hit && steps > 0){ p = { kg: b.kg, reps: b.reps }; if(o.hold) p.level = b.level; for(var i = 0; i < steps; i++) p = stepUp(p, o); }
+  if(!p || (kgEq(p.kg, b.kg) && p.reps === b.reps && (p.level || 0) === (b.level || 0))) return { base: b, next: null };
+  var kind = (p.level || 0) !== (b.level || 0) ? "harder" : !kgEq(p.kg, b.kg) ? "weight" : o.hold ? "secs" : "reps";
+  var n = { kind: kind, kg: p.kg, reps: p.reps }; if(o.hold) n.level = p.level || 0;
+  return { base: b, next: n };
 }
 function kgEq(a, b){ return (a == null ? null : r2(a)) === (b == null ? null : r2(b)); }
+/* his latest logged body weight (tracker-body.js), for the body-weight lifts; null when none */
+function bodyKgNow(){ return typeof latestBody === "function" ? latestBody("kg") : null; }
 function sameKR(a, b){ return !!a && !!b && kgEq(a.kg, b.kg) && a.reps === b.reps; }
-/* the share of the next weight step on the lift's grid: small up to 3 %, medium over 3 % up to 7 %, big over 7 %; compared
-   without a division and with a margin, so 3 % and 7 % exactly stay in the lower class; a body-weight lift always big */
-function stepClass(w, nx, bw){
-  if(bw || !(w > 0)) return "big";
-  var d = nx - w;
-  return d * 100 <= 3 * w + 1e-9 ? "small" : d * 100 <= 7 * w + 1e-9 ? "medium" : "big";
+/* the reps at load b that are as hard as reps at load a (Epley: load × (1 + reps / 30)), rounded; null when a load is unknown */
+function sameEffortReps(la, reps, lb){ return (la != null && lb != null && lb > 0) ? Math.round(30 * (la * (1 + reps / 30) / lb - 1)) : null; }
+/* one step up from p = {kg, reps(, level)}: one rep more below the top; at or above the top the next weight with the reps
+   of the same effort, kept inside the range (no body weight logged: the bottom of the range); a hold 5 s more, at the top
+   the harder version at 20 s */
+function stepUp(p, o){
+  if(o.hold) return p.reps < o.hi ? { kg: p.kg, reps: Math.min(o.hi, p.reps + o.step), level: p.level || 0 } : { kg: p.kg, reps: o.lo, level: (p.level || 0) + 1 };
+  if(p.reps < o.hi) return { kg: p.kg, reps: p.reps + 1 };
+  var w = p.kg || 0, nx = r2(o.up(w)); if(!(nx > w + 1e-9)) return p;
+  var r = sameEffortReps(o.load(w), p.reps, o.load(nx));
+  return { kg: nx, reps: Math.max(o.lo, Math.min(o.hi, r == null ? o.lo : r)) };
 }
-/* a lift hit, Good or Easy: small → the next weight; medium → the next weight when Easy or after 2 Goods in a row; big →
-   one rep more (Easy two, never past the cap), at the top of the range the next weight at the floor when Easy or after
-   2 Goods in a row */
-function liftUp(b, easy, o){
-  var w = b.kg || 0, nx = r2(o.up(w)), c = stepClass(w, nx, o.bw);
-  if(c === "small" || (c === "medium" && (easy || b.goods >= 2))) return { kind: "weight", kg: nx, reps: b.reps };
-  if(c === "medium") return null;
-  if(b.reps < o.hi) return { kind: "reps", kg: b.kg, reps: Math.min(o.hi, b.reps + (easy ? 2 : 1)) };
-  return (easy || b.goods >= 2) ? { kind: "weight", kg: nx, reps: o.lo } : null;
-}
-function holdUp(b, easy, o){
-  if(b.reps >= o.hi) return { kind: "harder", kg: b.kg, reps: o.lo, level: (b.level || 0) + 1 };
-  return { kind: "secs", kg: b.kg, reps: Math.min(o.hi, b.reps + o.step * (easy ? 2 : 1)), level: b.level || 0 };
-}
-/* one step back from the base, at its reps: the weight one grid step down; a hold 5 s back (never under 20 s); a body-weight
-   lift its plate one step down, or at body weight one rep less (never under its floor); null when nothing is lower */
-function stepBack(b, o){
-  if(o.hold){ var s = Math.max(o.lo, b.reps - o.step); return s < b.reps ? { kind: "back", kg: b.kg, reps: s, level: b.level || 0 } : null; }
-  var w = b.kg || 0;
-  if(o.bw && !(w > 0)) return b.reps - 1 >= o.lo ? { kind: "back", kg: 0, reps: b.reps - 1 } : null;
-  var d = o.down(w);
-  return d < w - 1e-9 ? { kind: "back", kg: r2(d), reps: b.reps } : null;
+/* his rule for lowering (b.reps below the range, logged by hand): the smallest weight drop whose same-effort reps reach the
+   range, at those reps (never above the top); if no drop reaches it, the lightest weight there is at its same-effort reps;
+   null when nothing is lighter. A hold: the easier version at 45 s (none below level 0). A body-weight lift with no body
+   weight logged: one plate step down at the bottom of the range */
+function lowerInto(b, o){
+  if(o.hold) return (b.level || 0) > 0 ? { kg: b.kg, reps: o.hi, level: b.level - 1 } : null;
+  var w = b.kg || 0, la = o.load(w), last = null;
+  if(la == null){ var d0 = o.down(w); return d0 < w - 1e-9 ? { kg: r2(d0), reps: o.lo } : null; }
+  for(var i = 0; i < 80; i++){
+    var d = o.down(w); if(!(d < w - 1e-9)) break;
+    w = d; var r = sameEffortReps(la, b.reps, o.load(w)); if(r == null) break;
+    last = { kg: r2(w), reps: Math.min(o.hi, r) };
+    if(r >= o.lo) return last;
+  }
+  return last;
 }
 /* estimated 1RM of kg × reps (the engine's rep-max table; past 15 reps it reads 15) */
 function smartE1(kg, reps){ return kg / pct(Math.max(1, Math.min(15, Math.round(reps || 15)))); }
@@ -313,18 +328,19 @@ function lastEffortValue(exId, i){
   return best;
 }
 
-/* ---------- the effort chips after an exercise: Easy · Good · Hard (no tap = Good) ---------- */
+/* ---------- the rating after an exercise: Easy · Smooth · Solid · Hard, each with the reps that were left (rule version
+   3; no tap = Solid) ---------- */
 function effortRowHtml(prog, week, en){
   var k = smartKind(en, exById(en.exerciseId)); if(k === "effort") return "";
-  var l = smartLog(prog, week, en.exerciseId), e = (l && l.effort) || "good";
-  return '<div class="effortRow"><span class="effLbl">How was it?</span><div class="effChips seg">' + [["easy", "Easy"], ["good", "Good"], ["hard", "Hard"]].map(function(x){
-    return '<button class="effChip' + (x[0] === e ? " sel" : "") + '" data-act="effort" data-prog="' + prog + '" data-week="' + week + '" data-item="' + esc(en.exerciseId) + '" data-val="' + x[0] + '" aria-pressed="' + (x[0] === e) + '">' + x[1] + '</button>'; }).join("") + '</div></div>';
+  var l = smartLog(prog, week, en.exerciseId), e = effortOf(l && l.effort);
+  return '<div class="effortRow"><span class="effLbl">How was it?</span><div class="effChips seg">' + EFFORTS.map(function(x){
+    return '<button class="effChip' + (x[0] === e ? " sel" : "") + '" data-act="effort" data-prog="' + prog + '" data-week="' + week + '" data-item="' + esc(en.exerciseId) + '" data-val="' + x[0] + '" aria-pressed="' + (x[0] === e) + '" aria-label="' + x[1] + ', ' + x[2] + '"><span class="effN">' + x[1] + '</span><span class="effH">' + x[2] + '</span></button>'; }).join("") + '</div></div>';
 }
 function onEffort(t){
   var prog = t.getAttribute("data-prog"), week = +t.getAttribute("data-week"), exId = t.getAttribute("data-item"), v = t.getAttribute("data-val");
-  if(!progEntry(prog, exId) || ["easy", "good", "hard"].indexOf(v) < 0) return;
+  if(!progEntry(prog, exId) || !EFFORT_STEPS.hasOwnProperty(v)) return;
   var l = smartLogMut(prog, week, exId);
-  if(v === "good") delete l.effort; else l.effort = v;
+  if(v === "solid") delete l.effort; else l.effort = v;
   save();
   smartRefreshDone(prog, week, exId);
   var row = t.closest(".effortRow");
@@ -467,7 +483,7 @@ function smartSuggestAfter(prog, week, exId, quality){
   if(!l.wrote){ var old = db.suggest[exId]; if(old && !sameSession(old, prog, week)) l.ps = clone(old); l.wrote = 1; }   /* an earlier box never answered: kept, and back if this is un-marked */
   var n = setCount(prog, exId), did = [], used = smartKg(prog, week, en);
   for(var i = 0; i < n; i++) did.push(smartSetReps(prog, week, en, i));
-  var r = smartNext(l.t, { reps: did, kg: used, effort: l.effort, partial: quality === "partial" }, smartOpts(en, ex));
+  var r = smartNext(l.t, { reps: did, kg: used, effort: l.effort, partial: quality === "partial" }, smartOpts(en, ex, bodyKgNow()));
   r.base.src = key; r.base.at = todayISO();
   db.targets[exId] = r.base;
   if(!r.next){ delete db.suggest[exId]; return; }
@@ -507,7 +523,8 @@ function sugParts(s, en){
   else if(k === "carry") what = to.kg + " kg × " + (to.reps * 3) + " s/arm";
   else what = smartWeightText(k, to.kg) + " × " + to.reps + (k === "lift" ? side : "");
   var did = (s.did || []).map(function(x){ return k === "carry" ? x * 3 : x; }).join(", ");
-  return { glyph: glyph, what: what, did: "you did " + did + " last time" + (s.effort === "hard" ? ", Hard" : s.effort === "easy" ? ", Easy" : "") + (s.partial ? ", partial" : "") };
+  var rated = { easy: ", Easy", smooth: ", Smooth", hard: ", Hard" }[s.effort] || "";   /* Solid, the default, is not named */
+  return { glyph: glyph, what: what, did: "you did " + did + " last time" + rated + (s.partial ? ", partial" : "") };
 }
 /* the card's line: "↑ 67.5 kg × 8 · you did 12, 12 last time" with Use it and Keep (a proposal is always a change) */
 function sugLineHtml(prog, week, en){
@@ -551,7 +568,7 @@ function applySuggestion(exId, how){
   var en = progEntry(s.day, exId) || { exerciseId: exId }, ex = exById(exId) || { name: exId };
   var cur = entryTarget(en) || { kg: s.from.kg, reps: s.from.reps, misses: 0 }, next = cur, changed = false;
   if(how !== "keep"){
-    var nt = { kg: s.to.kg, reps: s.to.reps, misses: 0, goods: 0, at: todayISO() }; if(s.to.level != null) nt.level = s.to.level;
+    var nt = { kg: s.to.kg, reps: s.to.reps, misses: 0, at: todayISO() }; if(s.to.level != null) nt.level = s.to.level;
     changed = !kgEq(nt.kg, cur.kg) || nt.reps !== cur.reps || (nt.level || 0) !== (cur.level || 0);
   }
   if(!db.targets || typeof db.targets !== "object") db.targets = {};

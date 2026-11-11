@@ -15,12 +15,18 @@
    3. a target he chose after that session stays: Use it, Use all, the editor or a starting weight (a target-history
       entry), or any target dated after it (a program switch); on the same day such a target counts as earlier only when
       the session started at it;
-   4. a waiting suggestion that changes nothing (version 1's holds with their OK) goes. The diary is never changed. */
-var SMART_RULE = "2026-11-08";
+   4. a waiting suggestion that changes nothing (version 1's holds with their OK) goes. The diary is never changed.
+   Rule version 3 (2026-11-11, his rule; design.md part C): the replay above works out the last sessions with the CURRENT
+   rule (smartNext), so a file that never had it gets version 3's numbers and boxes and the mark 2026-11-11. A file already
+   replayed under version 2 (the mark 2026-11-08, his phone) keeps every target as it is, as he was told ("your current
+   numbers stay; the new rule starts at your next session"); only its waiting boxes go, because version 2 made them. */
+var SMART_RULE = "2026-11-11";
+var SMART_RULE_V2 = "2026-11-08";
 var CHOSEN_HOW = ["use", "all", "edit", "start"];
 
 function smartRuleMigrate(){
   if(!db.settings || db.settings.smartRule === SMART_RULE) return;
+  if(db.settings.smartRule === SMART_RULE_V2){ db.suggest = {}; db.settings.smartRule = SMART_RULE; return; }
   db.settings.smartRule = SMART_RULE;
   if(!db.targets || typeof db.targets !== "object" || Array.isArray(db.targets)) db.targets = {};
   if(!db.suggest || typeof db.suggest !== "object" || Array.isArray(db.suggest)) db.suggest = {};
@@ -59,10 +65,10 @@ function replayStamp(ids){
 /* the target a done session was done at: its diary entry's, else its waiting suggestion's */
 function doneTarget(P, cyc, day, week, exId){
   for(var i = 0; i < db.history.length; i++){ var h = db.history[i];
-    if(isSmartEntry(h) && h.program === P && (h.cycle || 1) === cyc && h.day === day && h.week === week && h.exId === exId) return { kg: h.target.kg, reps: h.target.reps, misses: 0, goods: 0 }; }
+    if(isSmartEntry(h) && h.program === P && (h.cycle || 1) === cyc && h.day === day && h.week === week && h.exId === exId) return { kg: h.target.kg, reps: h.target.reps, misses: 0 }; }
   var s = db.suggest[exId];
   if(s && s.from && typeof s.from.reps === "number" && s.program === P && (s.cycle || 1) === cyc && s.day === day && s.week === week){
-    var t = { kg: s.from.kg == null ? null : s.from.kg, reps: s.from.reps, misses: 0, goods: 0 }; if(s.from.level != null) t.level = s.from.level; return t; }
+    var t = { kg: s.from.kg == null ? null : s.from.kg, reps: s.from.reps, misses: 0 }; if(s.from.level != null) t.level = s.from.level; return t; }
   return null;
 }
 
@@ -72,7 +78,7 @@ function replayLift(exId, cur){
   if(!rec || chosenSince(exId, cur, rec)){ dropNoChange(exId); return; }
   var en = progEntry(rec.day, exId) || { exerciseId: exId }, k = smartKind(en, ex);
   if(k === "effort"){ dropNoChange(exId); return; }
-  var r = smartNext(rec.t, rec.log, smartOpts(en, ex)), key = rec.program + ":" + rec.day + ":" + rec.week + ":" + exId;
+  var r = smartNext(rec.t, rec.log, smartOpts(en, ex, bodyKgNow())), key = rec.program + ":" + rec.day + ":" + rec.week + ":" + exId;
   r.base.src = key + "@" + rec.cycle; r.base.at = rec.date;
   db.targets[exId] = r.base;
   if(r.next){
@@ -97,13 +103,13 @@ function lastFromDiary(exId){
   var ex = exById(exId), list = db.history.map(function(h, i){ return { h: h, i: i }; }).filter(function(x){ return isSmartEntry(x.h) && x.h.exId === exId; });
   if(!list.length) return null;
   list.sort(function(a, b){ var ta = String(a.h.ts || ""), tb = String(b.h.ts || ""); return ta < tb ? -1 : ta > tb ? 1 : ((a.h.cycle || 1) - (b.h.cycle || 1)) || ((a.h.week || 0) - (b.h.week || 0)) || (a.i - b.i); });
-  var prevT = null, prevB = null, st = { misses: 0, goods: 0 }, rec = null;
+  var prevT = null, prevB = null, st = { misses: 0 }, rec = null;
   list.forEach(function(x){
-    var h = x.h, t = { kg: h.target.kg, reps: h.target.reps, misses: 0, goods: 0 };
-    if(prevT && (sameKR(t, prevT) || sameKR(t, prevB))){ t.misses = st.misses; t.goods = st.goods; }
+    var h = x.h, t = { kg: h.target.kg, reps: h.target.reps, misses: 0 };
+    if(prevT && (sameKR(t, prevT) || sameKR(t, prevB))) t.misses = st.misses;
     var log = { reps: h.done.slice(), kg: h.kg, effort: h.effort, partial: h.quality === "partial" };
-    var r = smartNext(t, log, smartOpts(progEntry(h.day, exId) || { exerciseId: exId }, ex));
-    prevT = t; prevB = r.base; st = { misses: r.base.misses, goods: r.base.goods };
+    var r = smartNext(t, log, smartOpts(progEntry(h.day, exId) || { exerciseId: exId }, ex, bodyKgNow()));
+    prevT = t; prevB = r.base; st = { misses: r.base.misses };
     rec = { t: t, log: log, program: h.program, cycle: h.cycle || 1, day: h.day, week: h.week, date: String(h.ts || "") };
   });
   return rec;
@@ -111,7 +117,7 @@ function lastFromDiary(exId){
 /* a hold or the back extension: version 1's waiting suggestion holds its last session (the target then, what he did) */
 function lastFromSuggestion(exId, cur){
   var s = db.suggest[exId]; if(!s || !s.from || typeof s.from.reps !== "number" || !Array.isArray(s.did) || !s.did.length) return null;
-  var t = { kg: s.from.kg == null ? null : s.from.kg, reps: s.from.reps, misses: (cur && cur.misses) || 0, goods: 0 };
+  var t = { kg: s.from.kg == null ? null : s.from.kg, reps: s.from.reps, misses: (cur && cur.misses) || 0 };
   if(s.from.level != null) t.level = s.from.level;
   return { t: t, log: { reps: s.did.slice(), kg: s.kg != null ? s.kg : t.kg, effort: s.effort, partial: !!s.partial }, program: s.program, cycle: s.cycle || 1, day: s.day, week: s.week, date: String(s.date || "") };
 }
@@ -122,7 +128,7 @@ function lastFromLog(exId, cur){
   for(var k in db.done){ if(k.indexOf(P + ":") !== 0 || keyItem(k) !== exId || (db.done[k] !== "full" && db.done[k] !== "partial")) continue;
     var p = k.split(":"), w = +p[2]; if(!best || w > best.week) best = { key: k, day: p[1], week: w }; }
   var l = best && db.logs[best.key]; if(!l || typeof l !== "object" || typeof l.date !== "string" || !progEntry(best.day, exId)) return null;
-  var t = { kg: cur.kg == null ? null : cur.kg, reps: cur.reps, misses: 0, goods: 0 }; if(cur.level != null) t.level = cur.level;
+  var t = { kg: cur.kg == null ? null : cur.kg, reps: cur.reps, misses: 0 }; if(cur.level != null) t.level = cur.level;
   var n = setCount(best.day, exId), did = [];
   for(var i = 0; i < n; i++) did.push(Array.isArray(l.reps) && typeof l.reps[i] === "number" ? l.reps[i] : t.reps);
   var partial = db.done[best.key] === "partial";

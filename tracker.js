@@ -26,7 +26,7 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, schedule:null, dayNames:{}, logs:{}, targets:{}, settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, schedule:null, dayNames:{}, logs:{}, targets:{}, body:[], settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -155,6 +155,8 @@ function normalize(){
   /* Part 2 (2026-11-04), additive: the smart session log (db.logs) and the targets (db.targets), tracker-smart.js.
      Version 1 ignores both. */
   if(typeof cleanSmartStores==="function") cleanSmartStores();
+  /* 2026-11-11, additive: the body measurements (tracker-body.js); before the replay below, which reads the latest weight */
+  if(typeof cleanBody==="function") cleanBody();
   /* the default switch to Smart HSR with his strength, weeks and ticks: once per data file (db.settings.smartSince) */
   if(typeof smartMigrate==="function") smartMigrate();
   /* Part 3 (2026-11-08): smart rule version 2 replays each lift's last session once per data file (db.settings.smartRule),
@@ -241,7 +243,7 @@ function progDoneArr(prog){ var ps=progStateFor(db.activeProgram); if(!ps.progre
    (keep-climbing): the strength anchor rises so the next program starts heavier. Guarded by
    completedAt so it never double-advances. The tap-to-log override remains the correction path. */
 function maybeCompleteActive(){
-  var P=getProgram(db.activeProgram), ps=progStateFor(db.activeProgram); if(ps.completedAt) return;
+  var P=getProgram(db.activeProgram), ps=progStateFor(db.activeProgram); if(ps.completedAt||P.smart) return;   /* a smart program runs on: never "completed" (2026-11-11) */
   var allDone=P.days.every(function(d){ var wd=progDoneArr(d); for(var ww=1; ww<=P.weeks; ww++) if(wd.indexOf(ww)<0) return false; return true; });
   if(allDone){ ps.completedAt=nowISO(); }   /* gains now carry when you START the next program (carryFromActive) — no separate auto-bank */
 }
@@ -295,6 +297,7 @@ document.addEventListener("click",function(e){
   if(act==="previewreturn"){ clearPreview(); ui.planWeek=null; ui.planLastProg=null; renderPlan(); return; }
   if(previewing() && /^(weekdone|setw|setstep|note|donetick|partialtick|settick|setreps|effort)$/.test(act)){ toast("Start training "+shownProg().name+" first to log"); return; }
   if(typeof smartClick==="function" && smartClick(act, t)) return;   /* Part 2: the rep stepper, the effort chips (tracker-smart.js) */
+  if(/^body/.test(act) && typeof bodyClick==="function" && bodyClick(act, t)) return;   /* 2026-11-11: the body measurements (tracker-body.js) */
   if(typeof editorClick==="function" && editorClick(act, t)) return;   /* Part 2: Programs and the program editor (tracker-editor.js) */
   if(/^cat/.test(act) && typeof catalogClick==="function" && catalogClick(act, t)) return;   /* Part 2: the catalogue's filters (tracker-catalog.js) */
   if(act==="setpace"){ var spp=t.getAttribute("data-prog"), spm=t.getAttribute("data-mode"); if(PROGRESSION_MODES[spm]){ progStateFor(spp).rateMode=spm; save(); renderLibrary(); } return; }
@@ -303,7 +306,7 @@ document.addEventListener("click",function(e){
   if(act==="weeksheet"){ openWeekSheet(); return; }
   if(act==="phaseinfo"){ openPhaseInfo(); return; }
   if(act==="settick"){ onSetTick(t); return; }
-  if(act==="exsheet"){ openExSheet(t.getAttribute("data-ex"), t.getAttribute("data-sec")); return; }
+  if(act==="exsheet"){ openExSheet(t.getAttribute("data-ex"), t.getAttribute("data-sec"), t.getAttribute("data-day")); return; }
   if(act==="pic"){ openPicSheet(t.getAttribute("data-wu")); return; }
   if(act==="peek"){ var pk=t.closest(".planCard"); if(pk&&pk.classList.contains("done")) pk.classList.toggle("peek"); return; }
   if(act==="restplus"){ addRest(15); return; }

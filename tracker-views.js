@@ -19,7 +19,7 @@ function renderToday(){
     /* his own name for the workout is the title (and then not repeated in the line above) */
     var ref = today.ref, cw = currentWeek(ref), E = (db.programs[ref] || { entries: [] }).entries, cn = customName(ref);
     h += '<div class="todayHero gym' + (today.type === "home" ? " home" : "") + '">' +
-      '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home · " : (cn ? "" : esc(shortName(ref)) + " · ")) + 'Week ' + cw + ' of ' + TOTAL_WEEKS + '</div>' +
+      '<div class="todayDay">' + today.day + ' · ' + (today.type === "home" ? "Home · " : (cn ? "" : esc(shortName(ref)) + " · ")) + weekOfText(cw) + '</div>' +
       '<div class="todayTitle">' + esc(cn || today.label) + '</div><div class="todayNote">' + esc(today.note) + '</div>' +
       '<div class="heroPreview">' + E.slice(0, 4).map(function(en){
         /* Part 2: a waiting suggestion shows here too, with its arrow (tracker-smart.js) */
@@ -37,7 +37,7 @@ function renderToday(){
     if(today.home){
       var hw = today.home, cwh = currentWeek(hw), nh = ((db.programs[hw] || {}).entries || []).length, hcn = customName(hw), ht = hcn || ADDON_TITLE[hw] || dayName(hw);
       h += '<div class="todayHero homeHero"><div class="hhTop"><span class="hhIc">' + icon("house") + '</span><span><span class="hhTitle">' + esc(ht) + '</span>' +
-        '<span class="hhSub">' + (hcn ? '' : esc(dayName(hw)) + ' · ') + 'Week ' + cwh + ' of ' + TOTAL_WEEKS + ' · ' + nh + ' exercises</span></span></div>' +
+        '<span class="hhSub">' + (hcn ? '' : esc(dayName(hw)) + ' · ') + weekOfText(cwh) + ' · ' + nh + ' exercises</span></span></div>' +
         '<button class="btn big block homeBtn" data-act="gotoplan" data-prog="' + hw + '">' + icon("play") + 'Start ' + esc(hcn || ht.toLowerCase()) + '</button></div>';
     }
   }
@@ -54,7 +54,7 @@ function renderToday(){
   var AP = getProgram(db.activeProgram), tracks = AP.days.concat(typeof HOME_DAYS !== "undefined" ? HOME_DAYS : []);
   h += '<button class="card progCard" data-view="library"><span class="pcTop"><span class="pcIc">' + icon("layers") + '</span><span class="pcHead"><span class="pcName">' + esc(AP.name) + '</span>' +
     '<span class="pcSub">Active program · ' + AP.weeks + ' weeks</span></span>' + icon("chevR", "chev") + '</span>' +
-    tracks.map(function(d){ var n = progWeeksDone(d).length; return '<span class="pcTrack"><span class="pcT">' + esc(dayTitle(d)) + '</span><span class="bar"><i style="width:' + Math.round(n / AP.weeks * 100) + '%"></i></span><span class="pcV">' + n + '/' + AP.weeks + '</span></span>'; }).join("") + '</button>';
+    tracks.map(function(d){ var n = progWeeksDone(d).length; return '<span class="pcTrack"><span class="pcT">' + esc(dayTitle(d)) + '</span><span class="bar"><i style="width:' + weeksDonePct(n, AP) + '%"></i></span><span class="pcV">' + weeksDoneText(n, AP) + '</span></span>'; }).join("") + '</button>';
   /* the last session, from the diary */
   var ls = lastSession();
   if(ls) h += '<div class="card lastSess"><div class="sectH">Last session</div><div class="lsDate">' + esc(ls.label) + '</div>' + ls.rows.map(function(r){

@@ -371,7 +371,8 @@ function onWeekDone(t){
   var pr = t.getAttribute("data-prog"), wk = +t.getAttribute("data-week"), wd = progDoneArr(pr), ix = wd.indexOf(wk);
   if(ix >= 0){ wd.splice(ix, 1); save(); renderPlan(); toast("Week " + wk + " · " + shortName(pr) + " reopened"); return; }   /* v1: the same button undoes */
   var undo = undoPoint(), S = summaryData(pr, wk);
-  wd.push(wk); ui.planWeek = Math.min(wk + 1, getProgram(db.activeProgram).weeks); maybeCompleteActive();
+  var AP = getProgram(db.activeProgram);
+  wd.push(wk); ui.planWeek = AP.smart ? wk + 1 : Math.min(wk + 1, AP.weeks); maybeCompleteActive();   /* a smart program runs on past 12 (2026-11-11) */
   if(db.session && db.session.prog === pr && db.session.week === wk) db.session = null;
   if(rest){ cancelAlert(); rest = null; saveRest(); }
   save(); renderPlan(); renderRest(); updateAwake(true);

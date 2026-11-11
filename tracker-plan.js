@@ -34,10 +34,19 @@ function shownWeeksDone(prog){ return previewing() ? [] : progWeeksDone(prog); }
 function shownCurrentWeek(prog){ return previewing() ? 1 : currentWeek(prog); }
 /* read-only weeksDone for a day-track WITHIN the active program (per-program progress) */
 function progWeeksDone(prog){ var ps = db.programState && db.programState[db.activeProgram]; var d = ps && ps.progress && ps.progress[prog]; return (d && d.weeksDone) || []; }
+/* the week a day-track is on: after the last finished one; a 12-week program stops at its last week, a smart program runs
+   on (2026-11-11: week 13 after week 12, suggestions keep coming) */
 function currentWeek(prog){
-  var wd = progWeeksDone(prog);
-  return wd.length ? Math.min(Math.max.apply(null, wd) + 1, activeProg().weeks) : 1;
+  var wd = progWeeksDone(prog), P = activeProg();
+  if(!wd.length) return 1;
+  var nx = Math.max.apply(null, wd) + 1;
+  return P.smart ? nx : Math.min(nx, P.weeks);
 }
+/* "Week 3 of 12" for a 12-week program, "Week 13" for a smart one (it runs on) */
+function weekOfText(w){ return "Week " + w + (activeProg().smart ? "" : " of " + TOTAL_WEEKS); }
+/* a day-track's finished weeks on a bar: "5/12"; a smart program past its 12: "13 weeks" with the bar full */
+function weeksDoneText(n, P){ return (P.smart && n > P.weeks) ? n + " weeks" : n + "/" + P.weeks; }
+function weeksDonePct(n, P){ return Math.min(100, Math.round(n / P.weeks * 100)); }
 function progEntry(prog, exId){ var P = db.programs[prog]; if(!P) return null; for(var i = 0; i < P.entries.length; i++) if(P.entries[i].exerciseId === exId) return P.entries[i]; return null; }
 /* prescription for one entry at a given week. `weight` = the raw prescribed kg (or null for
    untested / timed) — the single source the note-stamp + UI both read, so they can't diverge. */
@@ -308,7 +317,8 @@ function progHtml(hist){
 
 /* ---------- the week sheet (12 weeks, current and finished marked) and the phase info sheet ---------- */
 function openWeekSheet(){
-  var prog = ui.planProg, cur = shownCurrentWeek(prog), done = shownWeeksDone(prog), w = ui.planWeek, K = shownProg().weeks, h = '<div class="weekGrid">';
+  var prog = ui.planProg, cur = shownCurrentWeek(prog), done = shownWeeksDone(prog), w = ui.planWeek, SPw = shownProg(), h = '<div class="weekGrid">';
+  var K = SPw.smart ? Math.max(SPw.weeks, cur, w || 1, done.length ? Math.max.apply(null, done) : 1) : SPw.weeks;   /* a smart program runs on past 12 */
   for(var k = 1; k <= K; k++){ var dn = done.indexOf(k) >= 0;
     h += '<button class="wchip' + (k === w ? " sel" : "") + (k === cur ? " cur" : "") + (dn ? " done" : "") + '" data-act="week" data-week="' + k + '"><span class="wN">' + k + '</span>' +
       (dn ? '<span class="wtick">' + icon("check", "sm") + '</span>' : k === cur ? '<span class="wNow">now</span>' : '') + '</button>'; }
@@ -321,7 +331,8 @@ function openPhaseInfo(){
   var smart = SP.smart === true;
   var lines = P.home ? ["Every set near failure: holds until your form is about to break; knee work stops 1–2 reps short. No weights to calculate."]
     : smart ? ["Reps as on each card · lower in about 3 s, then lift firmly in about 1–2 s, no jerk or bounce · each card's target comes from what you really did last time",
-               "A tick means you did the target. Tap a set's reps to log more or fewer; after the last set tap Easy, Good or Hard (no tap = Good). The next session suggests the next step.",
+               "A tick means you did the target. Tap a set's reps to log more or fewer. After the last set, rate it by the reps you had left: Easy (3+), Smooth (2), Solid (1) or Hard (0); no tap = Solid.",
+               "Smooth suggests one step up and Easy two: one rep more, and at the top of the range a heavier weight at reps that feel as hard. Solid and Hard keep the numbers. Log fewer reps than the range and the next session goes lighter by itself.",
                "Still very sore 3+ days after a session? Do 2 sets of everything that day."]
     : ["Reps as on each card · lower in about 3 s, then lift firmly in about 1–2 s, no jerk or bounce · heavy weights are calculated from your tested 15RM" + pace,
        "Still very sore 3+ days after a session? Do 2 sets of everything that day."];

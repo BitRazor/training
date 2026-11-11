@@ -41,9 +41,11 @@ function histListHtml(hist){
     return '<div class="kv"><span>' + esc(shortDate(h.ts)) + ' · week ' + h.week + '</span><b>' + h.kg + ' kg × ' + h.reps + (h.quality === "partial" ? ' <span class="ltPartial">partial</span>' : '') + '</b></div>';
   }).join("") + '</div>';
 }
-function openExSheet(exId, sec){
+/* inDay: the day whose row was tapped (the library lists a lift under each of its days: the neck work sits on both home
+   days, so its sheet names the day it was opened from, 2026-11-11) */
+function openExSheet(exId, sec, inDay){
   var ex = exById(exId) || { name: exId }, hist = historyFor(exId);
-  var day = (ui.view === "programs" && ui.planProg && progEntry(ui.planProg, exId)) ? ui.planProg : dayOfAny(exId), en = day ? progEntry(day, exId) : null;
+  var day = (inDay && progEntry(inDay, exId)) ? inDay : (ui.view === "programs" && ui.planProg && progEntry(ui.planProg, exId)) ? ui.planProg : dayOfAny(exId), en = day ? progEntry(day, exId) : null;
   var w = (day && day === ui.planProg && ui.planWeek) ? ui.planWeek : (day ? shownCurrentWeek(day) : 1), pr = en ? prescFor(en, w, day) : null;
   var notes = notesFor(exId);
   var h = '<div class="exSheet"><div class="exBig">' + bigPicHtml(exId, ex.name) + '</div>' +
@@ -94,7 +96,7 @@ function libRowHtml(it){
     return '<button class="li libRow" data-act="pic" data-wu="' + esc(m.gif) + '"><span class="libThumb">' + th + '</span><span class="liB"><span class="liT libName">' + esc(m.name) + '</span><span class="liS">' + esc(m.detail) + '</span></span>' + icon("chevR", "chev") + '</button>';
   }
   var en = progEntry(it.day, it.id), sub = en ? (en.dose ? "home · by effort" : (en.block + (en.ss ? " · superset " + en.ss : en.solo ? " · alone" : ""))) : "";
-  return '<button class="li libRow" data-act="exsheet" data-ex="' + esc(it.id) + '"><span class="libThumb">' + thumbHtml(it.id) + '</span><span class="liB"><span class="liT libName">' + esc(it.name) + '</span><span class="liS">' + esc(sub) + '</span></span>' + icon("chevR", "chev") + '</button>';
+  return '<button class="li libRow" data-act="exsheet" data-ex="' + esc(it.id) + '" data-day="' + esc(it.day) + '"><span class="libThumb">' + thumbHtml(it.id) + '</span><span class="liB"><span class="liT libName">' + esc(it.name) + '</span><span class="liS">' + esc(sub) + '</span></span>' + icon("chevR", "chev") + '</button>';
 }
 /* keep the rows whose name contains the text (any case); hide empty groups; say so when nothing matches */
 function filterLibrary(q){
@@ -141,6 +143,7 @@ function renderProgress(){
   var lifts = liftsWithHistory(), today = todayISO(), h = mainHead("Progress", lifts.length ? (db.history.length + " lifts logged") : "");
   if(!lifts.length){
     h += '<div class="card emptyCard">' + icon("chart", "xl") + '<div class="emptyT">No lifts logged yet</div><div class="note">Tick a lift on the Workout and its weight is written here, week by week.</div></div>';
+    if(typeof bodyCardHtml === "function") h += bodyCardHtml();   /* 2026-11-11: weight, belly, neck (tracker-body.js) */
   } else {
     if(!ui.progLift || !lifts.some(function(l){ return l.id === ui.progLift; })) ui.progLift = lifts[0].id;
     var sel = ui.progLift, hist = historyFor(sel), ex = exById(sel) || { name: sel };
@@ -153,6 +156,7 @@ function renderProgress(){
       '<div class="stat"><span class="stK">' + icon("star", "sm") + 'Best</span><b class="stBest">' + fmtNum(best) + ' kg</b></div>' +
       '<div class="stat"><span class="stK">Change</span><b class="stChange' + (ch > 0 ? " up" : "") + '">' + chTx + '</b></div>' +
       '<div class="stat"><span class="stK">Sessions</span><b class="stSessions">' + hist.length + '</b></div></div>';
+    if(typeof bodyCardHtml === "function") h += bodyCardHtml();   /* 2026-11-11: weight, belly, neck (tracker-body.js) */
     /* personal bests: each lift's best kg and the day it was first reached, newest first; a trophy on this week's */
     var mon = isoOf(mondayOf(today));
     var pbs = lifts.map(function(l){ var b = null; historyFor(l.id).forEach(function(x){ if(!b || x.kg > b.kg) b = x; }); return { id: l.id, name: l.name, kg: b.kg, ts: b.ts }; })
@@ -177,5 +181,5 @@ function consistencyHtml(today){
   return '<div class="sectH">Consistency</div><div class="card consCard"><div class="consTop"><b>' + n + '</b> training ' + (n === 1 ? "day" : "days") + ' in 12 weeks</div>' +
     '<div class="consWrap"><div class="consDays"><span>M</span><span></span><span>W</span><span></span><span>F</span><span></span><span>S</span></div><div class="consGrid">' + cells + '</div></div>' +
     '<div class="consFoot"><span>12 weeks ago</span><span>this week</span></div>' +
-    '<div class="trackList">' + tracks.map(function(d){ var w = progWeeksDone(d).length; return '<div class="trackRow"><span class="trName">' + esc(dayTitle(d)) + '</span><span class="bar"><i style="width:' + Math.round(w / AP.weeks * 100) + '%"></i></span><span class="trVal">' + w + '/' + AP.weeks + '</span></div>'; }).join("") + '</div></div>';
+    '<div class="trackList">' + tracks.map(function(d){ var w = progWeeksDone(d).length; return '<div class="trackRow"><span class="trName">' + esc(dayTitle(d)) + '</span><span class="bar"><i style="width:' + weeksDonePct(w, AP) + '%"></i></span><span class="trVal">' + weeksDoneText(w, AP) + '</span></div>'; }).join("") + '</div></div>';
 }

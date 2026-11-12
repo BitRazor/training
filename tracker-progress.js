@@ -153,7 +153,7 @@ function openMaxSheet(exId){
   var ex = exById(exId) || { name: exId }, mine = (db.maxes || []).map(function(m, i){ return { m: m, i: i }; }).filter(function(o){ return o.m.exId === exId; }).reverse();
   var list = mine.length ? '<div class="sectH">Logged</div><div class="list maxList">' + mine.map(function(o){ return '<div class="li maxRow"><span class="liB"><span class="liT">' + fmtNum(o.m.kg) + ' kg</span><span class="liS">' + esc(shortDate(o.m.date)) + '</span></span>' +
     '<button class="btn sm" data-act="maxdel" data-i="' + o.i + '">Remove</button></div>'; }).join("") + '</div>' : '';
-  openModal({ mode: "number", title: "Real max · " + ex.name, message: "The most you lifted for one rep, tested for real today.", value: "", placeholder: "kg", okLabel: "Save", html: list,
+  openModal({ mode: "number", title: "Real max · " + ex.name, message: "The most you lifted for one rep, tested for real today.", value: "", placeholder: "0", okLabel: "Save", html: list,   /* "0", not "kg": the pad shows its own unit (seen on the emulator 2026-11-12: "kg kg") */
     onSubmit: function(v){
       var kg = num(v); if(kg == null || !(kg > 0) || !(kg < 1000)){ toast("Type the weight in kg"); return; }
       if(!Array.isArray(db.maxes)) db.maxes = [];

@@ -84,6 +84,8 @@ function onMark(t, mark){
   if(!wu && typeof smartTicked === "function"){ smartTicked(prog, week, item); save(); }
   if(st) touchSession(prog, week, before);
   else if(endSessionIfEmpty(prog, week)){ ui.nowPrompt = null; stopRest(); }
+  /* 2026-11-12 (his gym report): a lift marked done with ✓ or ◐ starts the rest before what comes next, as its last set does */
+  if(!wu && st){ var pa = restAfterDone(prog, week, item); if(pa) startRest(pa); else stopRest(); }
   var c = t.closest(".planCard") || t.closest(".wuCard");
   if(c){ c.classList.toggle("done", !!st); c.classList.toggle("partial", st === "partial");
     var fb = c.querySelector('[data-act="donetick"]'), pb = c.querySelector('[data-act="partialtick"]');
@@ -233,9 +235,38 @@ function setSecondsFor(prog, week, id){
 /* the rest after the round's lift before the next one: half of what the first lift's own rest leaves after the next lift's
    set, at least BREATH_SEC */
 function splitRestFor(prog, week, firstId, nextId){ return Math.max(BREATH_SEC, Math.round((restSecondsFor(prog, firstId) - setSecondsFor(prog, week, nextId)) / 2)); }
+/* after a lift is finished (its last set, its ✓ or ◐): the rest before what comes next. 2026-11-12, his gym report: "during
+   superset when one exercise was finished ... Clock was not triggered" and "clock from one superset to next exercise was not
+   triggered" (the rule until then: no timer after a lift's last set). The other lift of its superset while that one has sets
+   left: the same rest as between the lifts in a round (the even split, never less than that lift still needs of its own rest;
+   the round's first lift: until its own rest is up); else the next lift of the day (the Next bar's): the even split between
+   the finished lift and that one, at least 30 s; nothing after the day's last lift */
+function restAfterDone(prog, week, exId){
+  if(!exId || exId.indexOf("wu:") === 0) return null;
+  var now = nowMs(), b = blockOf(prog, exId);
+  var make = function(kind, x, id, tag){ x = Math.max(BREATH_SEC, Math.ceil(x)); return { kind: kind, start: now, end: now + x * 1000, total: x, exId: id, set: nextSetNo(prog, week, id), tag: tag || null }; };
+  /* what a lift still needs of its own rest since its last ticked set (0 when none was ticked) */
+  var ownLeft = function(id){
+    var a = setTicks(prog, week, id), last = -1; for(var j = 0; j < a.length; j++) if(a[j]) last = j;
+    var t = last >= 0 ? tickedAt(prog, week, id, last) : null;
+    return t == null ? 0 : (t + restSecondsFor(prog, id) * 1000 - now) / 1000;
+  };
+  if(b && b.kind === "ss"){
+    var ids = b.entries.map(function(e){ return e.exerciseId; }), k = ids.indexOf(exId);
+    var left = ids.slice(k + 1).concat(ids.slice(0, k)).filter(function(id){ return !isDone(prog, week, id); });
+    if(left.length){
+      var nx = left[0], tag = b.n + String.fromCharCode(65 + ids.indexOf(nx));
+      if(nx === ids[0]){ var w = ownLeft(nx); return w > BREATH_SEC ? make("ready", w, nx, tag) : make("breath", BREATH_SEC, nx, tag); }
+      return make("breath", Math.max(splitRestFor(prog, week, ids[0], nx), ownLeft(nx)), nx, tag);
+    }
+  }
+  var nid = typeof nextUndoneLift === "function" ? nextUndoneLift(prog, week) : null; if(!nid || nid === exId) return null;
+  return make("rest", Math.max(splitRestFor(prog, week, exId, nid), ownLeft(nid)), nid, null);
+}
 function restPlan(prog, week, exId, i){
   if(!exId || exId.indexOf("wu:") === 0) return null;
-  var b = blockOf(prog, exId); if(!b || setTicks(prog, week, exId).every(Boolean)) return null;
+  var b = blockOf(prog, exId); if(!b) return null;
+  if(setTicks(prog, week, exId).every(Boolean)) return restAfterDone(prog, week, exId);
   var now = nowMs();
   var plan = function(kind, end, id, tag){ return { kind: kind, start: now, end: end, total: Math.ceil((end - now) / 1000), exId: id, set: nextSetNo(prog, week, id), tag: tag || null }; };
   var own = function(){ return plan("rest", now + restSecondsFor(prog, exId) * 1000, exId, null); };

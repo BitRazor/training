@@ -218,14 +218,17 @@ function tickedAt(prog, week, exId, i){
      counted from its tick in this round (its full rest when that time is unknown), never less than the breath;
      with only the breath left, the breath before the first lift. After the final round: no timer.
    Out-of-order ticks: when the lift's partners are done, its next set is its own, so it rests its own time. */
-/* the expected length of one set of a lift (for the even split): 4 s a rep at its target reps (a carry: its seconds), kept
-   between 25 and 90 s */
+/* the expected length of one set of a lift (for the even split), at its target: 4 s a rep, a hold its seconds, a carry its
+   seconds for each arm (reps × 3 s/arm), both sides for a one-side-at-a-time lift (sideOf: "/side"); kept between 25 and
+   90 s. A 12-week program has no target here: the entry's reps, else 10 */
 function setSecondsFor(prog, week, id){
   var en = progEntry(prog, id), ex = exById(id) || {}; if(!en) return 40;
-  var reps = null, carry = false;
-  if(typeof smartOn === "function" && smartOn()){ var t = sessTarget(prog, week, en); reps = t ? t.reps : null; carry = smartKind(en, ex) === "carry"; }
+  var reps = null, kind = typeof smartKind === "function" ? smartKind(en, ex) : "lift";
+  if(typeof smartOn === "function" && smartOn()){ var t = sessTarget(prog, week, en); reps = t ? t.reps : null; }
   if(reps == null) reps = en.reps || 10;
-  return Math.max(25, Math.min(90, carry ? reps * 3 : reps * 4));
+  var sides = kind === "carry" || (typeof sideOf === "function" && sideOf(ex)) ? 2 : 1;
+  var s = kind === "hold" ? reps : kind === "carry" ? reps * 3 : reps * 4;
+  return Math.max(25, Math.min(90, s * sides));
 }
 /* the rest after the round's lift before the next one: half of what the first lift's own rest leaves after the next lift's
    set, at least BREATH_SEC */

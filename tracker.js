@@ -124,6 +124,34 @@ function migrate(){
     });
     db.settings.flySwap="2026-11-08";
   }
+  /* 2026-11-12 (owner, "Yes, put it back"; office decisions.md 2026-11-12): the swap above left the fly without his numbers:
+     its target was not carried and the weeks before the swap stayed on the chest press, so Day A showed an empty fly. He
+     always did the fly (2026-11-07). One time only, the fly gets the chest press's numbers wherever it has none of its own:
+     the target (with a "Started at" line in its target history), the tested weight (the 12-week programs) and, on each day
+     that holds the fly, every week's done mark, set ticks and session log (a copy marked "moved": it never sets a fly target,
+     box or diary entry). Copies only: the chest press keeps its own, the diary is not changed, and nothing the fly already has
+     is overwritten (a week where the fly has a mark, ticks or a log stays the fly's). */
+  if(db.settings.flyRestore!=="2026-11-12"){
+    var CP="db-chest-press", FLY="db-fly", flyAt={"strength-a":true}, today=todayISO();
+    Object.keys(db.userDays||{}).forEach(function(uk){ var u=db.userDays[uk]; (u.entries||[]).forEach(function(e){ if(e.exerciseId===FLY) flyAt[u.id||uk]=true; }); });
+    if(db.tested[FLY]==null&&typeof db.tested[CP]==="number"&&db.tested[CP]>0) db.tested[FLY]=db.tested[CP];
+    var TG=(db.targets&&typeof db.targets==="object"&&!Array.isArray(db.targets))?db.targets:null, tc=TG&&TG[CP];
+    if(TG&&!TG[FLY]&&tc&&typeof tc==="object"&&typeof tc.reps==="number"&&tc.reps>0&&typeof tc.kg==="number"&&isFinite(tc.kg)&&tc.kg>0){
+      TG[FLY]={kg:tc.kg, reps:tc.reps, misses:0, at:today};
+      if(!Array.isArray(db.targetLog)) db.targetLog=[];
+      db.targetLog.push({exId:FLY, date:today, from:null, to:{kg:tc.kg, reps:tc.reps}, how:"start"});
+    }
+    var LG=(db.logs&&typeof db.logs==="object"&&!Array.isArray(db.logs))?db.logs:null;
+    Object.keys(db.done).forEach(function(rk){
+      var rp=rk.split(":"); if(rp.length<4||rp.slice(3).join(":")!==CP||!flyAt[rp[1]]||(db.done[rk]!=="full"&&db.done[rk]!=="partial")) return;
+      var to=rp[0]+":"+rp[1]+":"+rp[2]+":"+FLY;
+      if(db.done[to]!==undefined||db.sets[to]!==undefined||(LG&&LG[to]!==undefined)) return;
+      db.done[to]=db.done[rk];
+      if(Array.isArray(db.sets[rk])) db.sets[to]=db.sets[rk].slice();
+      if(LG&&LG[rk]&&typeof LG[rk]==="object"&&!Array.isArray(LG[rk])){ var cl=clone(LG[rk]); cl.moved=CP; LG[to]=cl; }
+    });
+    db.settings.flyRestore="2026-11-12";
+  }
   db.schemaVersion=SCHEMA_VERSION;
 }
 /* fill defaults + bring the current `db` (stored or imported) up to the schema; throws if it can't */

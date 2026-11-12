@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.12.1",
+  "version": "2026.11.12.2",
   "files": {
     "index.html": "73cd8be780167e1dce23401d5d01120164d347d9a0f0ac6b62df65bbbe58d58b",
     "tracker.css": "994b57e56ecb1b39bcc5d0890f71b037dcf96cc1d084cc5b3cdc8d78fe8ca13c",
@@ -20,7 +20,7 @@
     "tracker-editor.js": "56ea7448935669f14c7581f05253d886dd73893a4dfefe2f4c0a32ac26573cf2",
     "tracker-catalog.js": "9f26db4efa4e0619ef2ff5639716e6a48c6fb78b11272dc9a252ba6555e94358",
     "tracker-actions.js": "68db9cb65e46a2bcc24bd6b40935b1c3a9d0911091fe72584ab33c7b084e6761",
-    "tracker.js": "750d3a582e4bcbad64e1741464d3d341616f2b1b0c16145aa63decbe17e0b148"
+    "tracker.js": "1cf5b4a45d1340e9700fdabd9616517c20132673a4d5f74f06bc6fbb16f7de0a"
   },
   "assets": {
     "gifs/atg.gif": "c0d086c9d4c11045f252fb74091d0ec4d0133f46ba9d84f19185db88cd2725cb",

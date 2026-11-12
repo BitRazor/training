@@ -492,6 +492,7 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 .pbItem{display:flex; align-items:center; gap:10px; margin-top:8px; padding:12px 14px; border-radius:16px; background:var(--accTint); color:var(--acc)}
 .pbName{flex:1; color:var(--tx); font-weight:600}
 .pbKg{font-weight:800}
+.pbHow{flex:none; font-size:12.5px; color:var(--tx2)}   /* 2026-11-12: the set behind an estimated best, "85 kg × 12" */
 .sumNext{display:flex; align-items:center; justify-content:center; gap:8px; margin-top:20px; font-size:16px; font-weight:600}
 .sumNext .ic{color:var(--tx2)}
 
@@ -617,6 +618,14 @@ button.wrow:active{background:var(--raised)}
 .kDot{display:inline-block; width:9px; height:9px; border-radius:99px; background:var(--acc)}
 .kDot.partial{background:var(--warm)}
 .kDot.best{background:transparent; box-shadow:0 0 0 2px var(--tx); width:8px; height:8px}
+/* 2026-11-12: the estimated max: how it is worked out, the real max as a diamond, the button to log one */
+.pcHow{padding:2px 4px 2px; font-size:12.5px; line-height:1.35; color:var(--tx2)}
+.kDot.real{background:var(--tx); border-radius:1px; width:8px; height:8px; transform:rotate(45deg)}
+.progChart path.realMax{fill:var(--tx)}
+.progChart path.realMax.best{stroke:var(--acc); stroke-width:2.5}
+.maxBtn{margin:0 0 12px}
+.maxList{margin:0}
+.maxRow{align-items:center}
 .progChart svg{display:block; width:100%; height:auto; overflow:visible}
 .progChart .gLine{stroke:var(--line); stroke-width:1}
 .progChart .gLbl{fill:var(--tx3); font-size:10.5px; font-family:var(--font)}

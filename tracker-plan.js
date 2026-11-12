@@ -306,16 +306,20 @@ function jumpToNext(exId){
   if(target.scrollIntoView) target.scrollIntoView({ behavior: "smooth", block: "center" });
   flashCard(target);
 }
-/* per-lift progress: an inline-SVG line of kg over the diary — amber point = partial, ringed = best */
+/* per-lift progress: an inline-SVG line over the diary — amber point = partial, ringed = best. 2026-11-12: a lift with an
+   outside weight goes by its estimated max, as on the Progress page (tracker-progress.js sessionValue, liftBest) */
 function progHtml(hist){
   if(hist.length < 2) return "";
-  var kgs = hist.map(function(h){ return h.kg; }), min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs), span = (max - min) || 1;
+  var est = typeof byEstimate === "function" && byEstimate(hist[0].exId);
+  var kgs = hist.map(function(h){ return est ? sessionValue(h) : h.kg; }), min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs), span = (max - min) || 1;
+  var top = est ? liftBest(hist[0].exId) : null, best = top ? top.kg : max;
   var W = 320, H = 120, pad = 12, n = hist.length, X = function(i){ return pad + i * (W - 2 * pad) / (n - 1); }, Y = function(kg){ return H - pad - (kg - min) / span * (H - 2 * pad); };
-  var pts = hist.map(function(h, i){ return X(i).toFixed(1) + "," + Y(h.kg).toFixed(1); }).join(" ");
+  var pts = hist.map(function(h, i){ return X(i).toFixed(1) + "," + Y(kgs[i]).toFixed(1); }).join(" ");
   var area = pad + "," + (H - pad) + " " + pts + " " + X(n - 1).toFixed(1) + "," + (H - pad);
-  var dots = hist.map(function(h, i){ var b = h.kg === max; return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(h.kg).toFixed(1) + '" r="' + (b ? 5 : 3.5) + '" fill="' + (h.quality === "partial" ? "var(--warm)" : "var(--acc)") + '"' + (b ? ' stroke="var(--tx)" stroke-width="2"' : '') + '></circle>'; }).join("");
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="spark" role="img" aria-label="kg over time"><polygon points="' + area + '" fill="var(--accTint)"></polygon><polyline points="' + pts + '" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>' + dots + '</svg>' +
-    '<div class="progSum">' + hist[0].kg + ' kg <span class="progArrow">→</span> <b class="accT">' + hist[n - 1].kg + ' kg</b><span class="progDim"> · ' + icon("star", "sm") + ' best ' + max + ' kg</span></div>';
+  var dots = hist.map(function(h, i){ var b = kgs[i] === max; return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(kgs[i]).toFixed(1) + '" r="' + (b ? 5 : 3.5) + '" fill="' + (h.quality === "partial" ? "var(--warm)" : "var(--acc)") + '"' + (b ? ' stroke="var(--tx)" stroke-width="2"' : '') + '></circle>'; }).join("");
+  var f = function(x){ return String(Math.round(x * 100) / 100); };
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="spark" role="img" aria-label="' + (est ? "estimated max" : "kg") + ' over time"><polygon points="' + area + '" fill="var(--accTint)"></polygon><polyline points="' + pts + '" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>' + dots + '</svg>' +
+    '<div class="progSum">' + (est ? '<span class="progDim">Est. max </span>' : '') + f(kgs[0]) + ' kg <span class="progArrow">→</span> <b class="accT">' + f(kgs[n - 1]) + ' kg</b><span class="progDim"> · ' + icon("star", "sm") + ' best ' + f(best) + ' kg' + (top && top.real ? ' (real max)' : '') + '</span></div>';
 }
 
 /* ---------- the week sheet (12 weeks, current and finished marked) and the phase info sheet ---------- */

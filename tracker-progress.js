@@ -123,21 +123,77 @@ function isoOf(d){ return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" +
 /* Monday of the week a YYYY-MM-DD date sits in */
 function mondayOf(iso){ var d = new Date(iso + "T00:00:00"); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d; }
 function fmtNum(x){ return String(Math.round(x * 100) / 100); }
-/* the chart: kg over time (dates to scale), the best ringed, partial sessions amber */
-function bigChartHtml(hist){
+/* ---------- the estimated max (2026-11-12, his words: "80kg 12 reps might be similar or not progression if doing 85kg of 8
+   reps ... Maybe easiest way is to to have estimated max based on reps"): Epley, kg × (1 + reps / 30), the smart rule's
+   own "same effort" (tracker-smart.js), to 0.1 kg, from each session's best set. Only lifts with an outside weight: a
+   carry, a hold, a body-weight or a home lift keeps its weight. A real max he logs ("Log a real max", db.maxes
+   [{exId, date, kg}], additive: version 1 ignores it) counts as a best of its own. ---------- */
+function estMax(kg, reps){
+  if(!(typeof kg === "number" && isFinite(kg))) return kg;
+  return (typeof reps === "number" && reps > 0) ? Math.round(kg * (1 + reps / 30) * 10) / 10 : kg;
+}
+function byEstimate(exId){ var ex = exById(exId) || {}; return typeof smartKind === "function" ? smartKind(null, ex) === "lift" : true; }
+/* a diary session's best set: the most reps of its sets (a smart entry keeps each set's reps), else its reps */
+function bestSetReps(h){ var d = Array.isArray(h.done) ? h.done.filter(function(r){ return typeof r === "number" && r > 0; }) : []; return d.length ? Math.max.apply(null, d) : h.reps; }
+/* what a session is charted and compared by; and "80 kg × 12" (its best set) when that is an estimate */
+function sessionValue(h){ return byEstimate(h.exId) ? estMax(h.kg, bestSetReps(h)) : h.kg; }
+function sessionHow(h){ return byEstimate(h.exId) ? fmtNum(h.kg) + " kg × " + bestSetReps(h) : ""; }
+/* the real maxes of a lift, oldest first */
+function realMaxesFor(exId){ return (db.maxes || []).filter(function(m){ return m.exId === exId; }).sort(function(a, b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }); }
+/* on load (tracker.js normalize): keep only whole entries */
+function cleanMaxes(){
+  db.maxes = Array.isArray(db.maxes) ? db.maxes.filter(function(m){ return !!m && typeof m === "object" && typeof m.exId === "string" && !!m.exId &&
+    typeof m.kg === "number" && isFinite(m.kg) && m.kg > 0 && m.kg < 1000 && typeof m.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(m.date); }) : [];
+}
+/* "Log a real max": the number pad, today's date; the ones logged before listed with Remove (Undo on the toast) */
+function openMaxSheet(exId){
+  var ex = exById(exId) || { name: exId }, mine = (db.maxes || []).map(function(m, i){ return { m: m, i: i }; }).filter(function(o){ return o.m.exId === exId; }).reverse();
+  var list = mine.length ? '<div class="sectH">Logged</div><div class="list maxList">' + mine.map(function(o){ return '<div class="li maxRow"><span class="liB"><span class="liT">' + fmtNum(o.m.kg) + ' kg</span><span class="liS">' + esc(shortDate(o.m.date)) + '</span></span>' +
+    '<button class="btn sm" data-act="maxdel" data-i="' + o.i + '">Remove</button></div>'; }).join("") + '</div>' : '';
+  openModal({ mode: "number", title: "Real max · " + ex.name, message: "The most you lifted for one rep, tested for real today.", value: "", placeholder: "kg", okLabel: "Save", html: list,
+    onSubmit: function(v){
+      var kg = num(v); if(kg == null || !(kg > 0) || !(kg < 1000)){ toast("Type the weight in kg"); return; }
+      if(!Array.isArray(db.maxes)) db.maxes = [];
+      db.maxes.push({ exId: exId, date: todayISO(), kg: Math.round(kg * 100) / 100 }); save(); renderProgress();
+      toast("Real max " + fmtNum(kg) + " kg logged");
+    } });
+}
+function removeRealMax(i){
+  var m = (db.maxes || [])[i]; if(!m) return;
+  db.maxes.splice(i, 1); save(); closeModal(); renderProgress();
+  toast("Real max " + fmtNum(m.kg) + " kg removed", { undo: function(){ db.maxes.splice(Math.min(i, db.maxes.length), 0, m); save(); renderProgress(); } });
+}
+/* the chart: each session's value (the estimate, or the weight) over time (dates to scale), the best ringed, partial
+   sessions amber, real maxes as their own diamond */
+function bigChartHtml(hist, vals, maxes, what){
+  vals = vals || hist.map(function(h){ return h.kg; }); maxes = maxes || [];
   var W = 340, H = 170, pl = 34, pr = 12, pt = 14, pb = 26;
-  var kgs = hist.map(function(h){ return h.kg; }), min = Math.min.apply(null, kgs), max = Math.max.apply(null, kgs);
+  var all = vals.concat(maxes.map(function(m){ return m.kg; })), min = Math.min.apply(null, all), max = Math.max.apply(null, all);
   var lo = Math.floor(min - (max - min || 5) * 0.15), hi = Math.ceil(max + (max - min || 5) * 0.15); if(hi <= lo) hi = lo + 1;
-  var t = hist.map(function(h){ return new Date(h.ts + "T00:00:00").getTime(); }), t0 = Math.min.apply(null, t), t1 = Math.max.apply(null, t);
-  var X = function(i){ return t1 > t0 ? pl + (t[i] - t0) / (t1 - t0) * (W - pl - pr) : (hist.length > 1 ? pl + i / (hist.length - 1) * (W - pl - pr) : (pl + W - pr) / 2); };
+  var tOf = function(iso){ return new Date(iso + "T00:00:00").getTime(); };
+  var t = hist.map(function(h){ return tOf(h.ts); }), tAll = t.concat(maxes.map(function(m){ return tOf(m.date); })), t0 = Math.min.apply(null, tAll), t1 = Math.max.apply(null, tAll);
+  var XT = function(tt, i){ return t1 > t0 ? pl + (tt - t0) / (t1 - t0) * (W - pl - pr) : (hist.length > 1 && i != null ? pl + i / (hist.length - 1) * (W - pl - pr) : (pl + W - pr) / 2); };
+  var X = function(i){ return XT(t[i], i); };
   var Y = function(kg){ return pt + (hi - kg) / (hi - lo) * (H - pt - pb); };
-  var bestI = -1; hist.forEach(function(h, i){ if(bestI < 0 || h.kg > hist[bestI].kg) bestI = i; });
+  var bestI = -1; vals.forEach(function(v, i){ if(bestI < 0 || v > vals[bestI]) bestI = i; });
+  var topReal = maxes.length ? Math.max.apply(null, maxes.map(function(m){ return m.kg; })) : -Infinity, ringSession = vals[bestI] >= topReal;
   var grid = [lo, (lo + hi) / 2, hi].map(function(v){ return '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" class="gLine"></line><text x="' + (pl - 6) + '" y="' + (Y(v) + 4).toFixed(1) + '" class="gLbl" text-anchor="end">' + fmtNum(v) + '</text>'; }).join("");
-  var pts = hist.map(function(h, i){ return X(i).toFixed(1) + "," + Y(h.kg).toFixed(1); }).join(" ");
+  var pts = hist.map(function(h, i){ return X(i).toFixed(1) + "," + Y(vals[i]).toFixed(1); }).join(" ");
   var area = hist.length > 1 ? '<polygon points="' + X(0).toFixed(1) + ',' + (H - pb) + ' ' + pts + ' ' + X(hist.length - 1).toFixed(1) + ',' + (H - pb) + '" class="gArea"></polygon>' : '';
-  var dots = hist.map(function(h, i){ return '<circle class="pt' + (i === bestI ? " best" : "") + (h.quality === "partial" ? " partial" : "") + '" cx="' + X(i).toFixed(1) + '" cy="' + Y(h.kg).toFixed(1) + '" r="' + (i === bestI ? 6 : 4) + '"></circle>'; }).join("");
-  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="kg over time">' + grid + area + (hist.length > 1 ? '<polyline points="' + pts + '" class="gLine2"></polyline>' : '') + dots +
-    '<text x="' + pl + '" y="' + (H - 6) + '" class="gLbl">' + esc(shortDate(hist[0].ts)) + '</text><text x="' + (W - pr) + '" y="' + (H - 6) + '" class="gLbl" text-anchor="end">' + esc(shortDate(hist[hist.length - 1].ts)) + '</text></svg>';
+  var dots = hist.map(function(h, i){ var b = i === bestI && ringSession; return '<circle class="pt' + (b ? " best" : "") + (h.quality === "partial" ? " partial" : "") + '" cx="' + X(i).toFixed(1) + '" cy="' + Y(vals[i]).toFixed(1) + '" r="' + (b ? 6 : 4) + '"></circle>'; }).join("");
+  var real = maxes.map(function(m){ var x = XT(tOf(m.date), null), y = Y(m.kg), b = !ringSession && m.kg === topReal, r = b ? 7 : 5.5;
+    return '<path class="realMax' + (b ? " best" : "") + '" d="M' + x.toFixed(1) + ' ' + (y - r).toFixed(1) + 'L' + (x + r).toFixed(1) + ' ' + y.toFixed(1) + 'L' + x.toFixed(1) + ' ' + (y + r).toFixed(1) + 'L' + (x - r).toFixed(1) + ' ' + y.toFixed(1) + 'Z"></path>'; }).join("");
+  var days = hist.map(function(h){ return h.ts; }).concat(maxes.map(function(m){ return m.date; })).sort();
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + (what || "kg") + ' over time">' + grid + area + (hist.length > 1 ? '<polyline points="' + pts + '" class="gLine2"></polyline>' : '') + dots + real +
+    '<text x="' + pl + '" y="' + (H - 6) + '" class="gLbl">' + esc(shortDate(days[0])) + '</text><text x="' + (W - pr) + '" y="' + (H - 6) + '" class="gLbl" text-anchor="end">' + esc(shortDate(days[days.length - 1])) + '</text></svg>';
+}
+/* a lift's best: its best session value, or a real max above it (the day first reached; how: "80 kg × 12" or "real max") */
+function liftBest(exId){
+  var b = null, bv = -Infinity;
+  historyFor(exId).forEach(function(x){ var v = sessionValue(x); if(!b || v > bv){ b = x; bv = v; } });
+  var p = b ? { kg: bv, ts: b.ts, how: sessionHow(b) } : null;
+  if(byEstimate(exId)) realMaxesFor(exId).forEach(function(m){ if(!p || m.kg > p.kg) p = { kg: m.kg, ts: m.date, how: "real max", real: true }; });
+  return p;
 }
 function renderProgress(){
   var lifts = liftsWithHistory(), today = todayISO(), h = mainHead("Progress", lifts.length ? (db.history.length + " lifts logged") : "");
@@ -146,23 +202,28 @@ function renderProgress(){
     if(typeof bodyCardHtml === "function") h += bodyCardHtml();   /* 2026-11-11: weight, belly, neck (tracker-body.js) */
   } else {
     if(!ui.progLift || !lifts.some(function(l){ return l.id === ui.progLift; })) ui.progLift = lifts[0].id;
-    var sel = ui.progLift, hist = historyFor(sel), ex = exById(sel) || { name: sel };
-    var first = hist[0].kg, latest = hist[hist.length - 1].kg, best = Math.max.apply(null, hist.map(function(x){ return x.kg; }));
-    var ch = Math.round((latest - first) / first * 1000) / 10, chTx = (ch > 0 ? "+" : ch < 0 ? "−" : "") + Math.abs(ch) + "%";
+    var sel = ui.progLift, hist = historyFor(sel), ex = exById(sel) || { name: sel }, est = byEstimate(sel);
+    var vals = hist.map(sessionValue), maxes = est ? realMaxesFor(sel) : [], top = liftBest(sel);
+    var first = vals[0], latest = vals[vals.length - 1], best = top.kg;
+    var ch = first > 0 ? Math.round((latest - first) / first * 1000) / 10 : 0, chTx = (ch > 0 ? "+" : ch < 0 ? "−" : "") + Math.abs(ch) + "%";
     h += '<div class="chips scroll liftChips">' + lifts.map(function(l){ return '<button class="chip liftChip' + (l.id === sel ? " sel" : "") + '" data-act="proglift" data-ex="' + esc(l.id) + '">' + esc(l.name) + '</button>'; }).join("") + '</div>';
-    h += '<div class="card progChart"><div class="pcLift">' + esc(ex.name) + '</div><div class="pcKey"><span><i class="kDot"></i>full</span><span><i class="kDot partial"></i>partial</span><span><i class="kDot best"></i>best</span></div>' + bigChartHtml(hist) + '</div>';
+    h += '<div class="card progChart"><div class="pcLift">' + esc(ex.name) + '</div>' +
+      (est ? '<div class="pcHow">Est. max = kg × (1 + reps ÷ 30), from each session’s best set. Latest: ' + esc(sessionHow(hist[hist.length - 1])) + '.</div>' : '') +
+      '<div class="pcKey"><span><i class="kDot"></i>full</span><span><i class="kDot partial"></i>partial</span><span><i class="kDot best"></i>best</span>' + (maxes.length ? '<span><i class="kDot real"></i>real max</span>' : '') + '</div>' + bigChartHtml(hist, vals, maxes, est ? "estimated max" : "kg") + '</div>';
     h += '<div class="statGrid">' +
-      '<div class="stat"><span class="stK">First → latest</span><b class="stFirstLatest">' + fmtNum(first) + ' → ' + fmtNum(latest) + ' kg</b></div>' +
-      '<div class="stat"><span class="stK">' + icon("star", "sm") + 'Best</span><b class="stBest">' + fmtNum(best) + ' kg</b></div>' +
+      '<div class="stat"><span class="stK">First → latest' + (est ? ' est. max' : '') + '</span><b class="stFirstLatest">' + fmtNum(first) + ' → ' + fmtNum(latest) + ' kg</b></div>' +
+      '<div class="stat"><span class="stK">' + icon("star", "sm") + 'Best' + (top.real ? ' · real max' : '') + '</span><b class="stBest">' + fmtNum(best) + ' kg</b></div>' +
       '<div class="stat"><span class="stK">Change</span><b class="stChange' + (ch > 0 ? " up" : "") + '">' + chTx + '</b></div>' +
       '<div class="stat"><span class="stK">Sessions</span><b class="stSessions">' + hist.length + '</b></div></div>';
+    if(est) h += '<button class="btn tonal block maxBtn" data-act="maxlog" data-ex="' + esc(sel) + '">' + icon("plus") + 'Log a real max</button>';
     if(typeof bodyCardHtml === "function") h += bodyCardHtml();   /* 2026-11-11: weight, belly, neck (tracker-body.js) */
-    /* personal bests: each lift's best kg and the day it was first reached, newest first; a trophy on this week's */
+    /* personal bests: each lift's best (the estimate, a real max above it, or the weight) and the day it was first
+       reached, newest first; a trophy on this week's */
     var mon = isoOf(mondayOf(today));
-    var pbs = lifts.map(function(l){ var b = null; historyFor(l.id).forEach(function(x){ if(!b || x.kg > b.kg) b = x; }); return { id: l.id, name: l.name, kg: b.kg, ts: b.ts }; })
+    var pbs = lifts.map(function(l){ var b = liftBest(l.id); return { id: l.id, name: l.name, kg: b.kg, ts: b.ts, how: b.how }; })
       .sort(function(a, b){ return a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0; });
     h += '<div class="sectH">Personal bests</div><div class="list pbList2">' + pbs.map(function(p){ var tw = p.ts >= mon && p.ts <= today;
-      return '<div class="li pbRow' + (tw ? " thisWeek" : "") + '" data-date="' + p.ts + '"><span class="liI">' + icon(tw ? "trophy" : "star") + '</span><span class="liB"><span class="liT pbName">' + esc(p.name) + '</span><span class="liS pbDate">' + esc(shortDate(p.ts)) + (tw ? " · this week" : "") + '</span></span><span class="liV pbKg">' + fmtNum(p.kg) + ' kg</span></div>'; }).join("") + '</div>';
+      return '<div class="li pbRow' + (tw ? " thisWeek" : "") + '" data-date="' + p.ts + '"><span class="liI">' + icon(tw ? "trophy" : "star") + '</span><span class="liB"><span class="liT pbName">' + esc(p.name) + '</span><span class="liS pbDate">' + esc(shortDate(p.ts)) + (p.how ? " · " + esc(p.how) : "") + (tw ? " · this week" : "") + '</span></span><span class="liV pbKg">' + fmtNum(p.kg) + ' kg</span></div>'; }).join("") + '</div>';
   }
   h += consistencyHtml(today);
   $("#view-progress").innerHTML = h;

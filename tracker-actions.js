@@ -21,8 +21,9 @@ function openModal(o){
   } else if(o.mode === "text"){
     body = '<textarea class="mInput mArea" id="mText" placeholder="' + esc(o.placeholder||"") + '">' + esc(o.value||"") + '</textarea>';
   } else if(o.mode === "number"){
-    body = (typeof keypadHtml === "function") ? keypadHtml(o)
-      : '<input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" value="' + esc(o.value==null?"":o.value) + '" placeholder="' + esc(o.placeholder||"kg") + '">';
+    /* o.html under the pad (2026-11-12: the real maxes logged before, with Remove) */
+    body = ((typeof keypadHtml === "function") ? keypadHtml(o)
+      : '<input type="number" class="mInput" id="mNum" inputmode="decimal" step="any" value="' + esc(o.value==null?"":o.value) + '" placeholder="' + esc(o.placeholder||"kg") + '">') + (o.html || "");
   } else if(o.mode === "sheet"){
     body = o.html || "";
   } else if(o.mode === "line"){

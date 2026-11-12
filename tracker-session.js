@@ -414,13 +414,17 @@ function summaryData(pr, wk){
 }
 function fmtDur(m){ return m == null ? "—" : m < 60 ? m + " min" : Math.floor(m / 60) + " h " + pad2(m % 60) + " min"; }
 /* a lift's personal best today: today's heaviest beats every earlier diary entry (a first-ever session is not one) */
+/* today's bests: a session above every earlier one (2026-11-12: by the estimated max, as the Progress page, and above
+   any real max logged before today; tracker-progress.js sessionValue) */
 function bestsToday(ids){
-  var today = todayISO(), out = [];
+  var today = todayISO(), out = [], val = typeof sessionValue === "function" ? sessionValue : function(h){ return h.kg; };
   ids.forEach(function(id){
     var hs = historyFor(id), t = hs.filter(function(h){ return h.ts === today; }), e = hs.filter(function(h){ return h.ts < today; });
     if(!t.length || !e.length) return;
-    var kt = Math.max.apply(null, t.map(function(h){ return h.kg; })), ke = Math.max.apply(null, e.map(function(h){ return h.kg; }));
-    if(kt > ke) out.push({ id: id, name: (exById(id) || { name: id }).name, kg: kt });
+    var bt = t[0]; t.forEach(function(h){ if(val(h) > val(bt)) bt = h; });
+    var before = e.map(val).concat((typeof realMaxesFor === "function" && byEstimate(id)) ? realMaxesFor(id).filter(function(m){ return m.date < today; }).map(function(m){ return m.kg; }) : []);
+    var kt = val(bt), ke = Math.max.apply(null, before);
+    if(kt > ke) out.push({ id: id, name: (exById(id) || { name: id }).name, kg: kt, how: typeof sessionHow === "function" ? sessionHow(bt) : "" });
   });
   return out;
 }
@@ -437,7 +441,7 @@ function openSummary(S){
     '<div class="sumStats"><div class="sumStat"><b class="sumFull">' + S.full + '</b><span>full</span></div>' +
     '<div class="sumStat"><b class="sumPartial">' + S.part + '</b><span>partial</span></div>' +
     '<div class="sumStat"><b class="sumTime">' + fmtDur(S.mins) + '</b><span>time</span></div></div>' +
-    (S.pbs.length ? '<div class="sectH">Personal bests today</div><ul class="pbList">' + S.pbs.map(function(p){ return '<li class="pbItem">' + icon("trophy") + '<span class="pbName">' + esc(p.name) + '</span><b class="pbKg">' + p.kg + ' kg</b></li>'; }).join("") + '</ul>' : '') +
+    (S.pbs.length ? '<div class="sectH">Personal bests today</div><ul class="pbList">' + S.pbs.map(function(p){ return '<li class="pbItem">' + icon("trophy") + '<span class="pbName">' + esc(p.name) + '</span>' + (p.how ? '<span class="pbHow">' + esc(p.how) + '</span>' : '') + '<b class="pbKg">' + p.kg + ' kg</b></li>'; }).join("") + '</ul>' : '') +
     (S.sugs && S.sugs.length ? '<div class="sectH">New suggestions</div><ul class="sugList">' + S.sugs.map(function(g){ return '<li class="sugItem"><span class="sugName">' + esc(g.name) + '</span><b class="sugTo">' + esc(g.to) + '</b></li>'; }).join("") + '</ul>' : '') +
     (S.next ? '<div class="sumNext">' + icon("calendar") + '<span>' + esc(S.next) + '</span></div>' : '') + '</div>';
   openSheet(S.title, h, { cls: "sumCard", closeLabel: "Done" });

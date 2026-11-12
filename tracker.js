@@ -26,7 +26,7 @@ function seedDb(){
     programLib:clone(SEED_PROGRAM_LIB), activeProgram:DEFAULT_PROGRAM_ID,
     programState:{"hsr-base-12":{startedAt:null,completedAt:null,progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}}}},
     tested:clone(SEED_TESTED), progress:{"strength-a":{weeksDone:[]},"strength-b":{weeksDone:[]}},
-    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, schedule:null, dayNames:{}, logs:{}, targets:{}, body:[], settings:clone(SEED_SETTINGS)};
+    gear:{}, gearByCat:{}, bank:{}, notes:[], history:[], done:{}, sets:{}, session:null, schedule:null, dayNames:{}, logs:{}, targets:{}, body:[], maxes:[], settings:clone(SEED_SETTINGS)};
 }
 function migrate(){
   /* v1 → v2: add tested/progress/notes, target bodyweight; drop old logger/sessions + block-week/rest/bar settings */
@@ -185,6 +185,8 @@ function normalize(){
   if(typeof cleanSmartStores==="function") cleanSmartStores();
   /* 2026-11-11, additive: the body measurements (tracker-body.js); before the replay below, which reads the latest weight */
   if(typeof cleanBody==="function") cleanBody();
+  /* 2026-11-12, additive: the real maxes he logs (tracker-progress.js); version 1 ignores them */
+  if(typeof cleanMaxes==="function") cleanMaxes();
   /* the default switch to Smart HSR with his strength, weeks and ticks: once per data file (db.settings.smartSince) */
   if(typeof smartMigrate==="function") smartMigrate();
   /* Part 3 (2026-11-08): smart rule version 2 replays each lift's last session once per data file (db.settings.smartRule),
@@ -354,6 +356,8 @@ document.addEventListener("click",function(e){
   if(act==="notefilter"){ ui.noteFilter=t.getAttribute("data-ex")||null; renderLog(); return; }
   if(act==="setbw"){ onSetBw(); return; }
   if(act==="proglift"){ ui.progLift=t.getAttribute("data-ex"); renderProgress(); return; }
+  if(act==="maxlog"){ openMaxSheet(t.getAttribute("data-ex")); return; }   /* 2026-11-12: Log a real max (tracker-progress.js) */
+  if(act==="maxdel"){ removeRealMax(+t.getAttribute("data-i")); return; }
   if(act==="donetick"||act==="partialtick"){ onMark(t, act==="partialtick" ? "partial" : "full"); return; }   /* in place, so the card animates its collapse (tracker-session.js) */
   if(act==="nextex"){ jumpToNext(t.getAttribute("data-ex")); return; }
   if(act==="warmcollapse"){ var dd=t.closest("details.warmSec"); if(dd){ dd.open=false; ui.warmOpen=false; if(dd.scrollIntoView) dd.scrollIntoView({block:"start"}); } return; }

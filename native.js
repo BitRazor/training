@@ -6,7 +6,8 @@
    Native.isApp            true inside the Android app
    Native.haptic(kind)     a short buzz: "light" (default) | "medium" | "heavy" | "success" | "warning" | "error"
                            (browsers: navigator.vibrate where it exists)
-   Native.keepAwake(on)    keep the screen on (@capacitor-community/keep-awake; browsers: Screen Wake Lock)
+   Native.vibrate(pattern) a pattern [on, off, on, …] ms, the rest alarm (Haptics plugin; browsers: navigator.vibrate)
+   Native.keepAwake(on)   keep the screen on (@capacitor-community/keep-awake; browsers: Screen Wake Lock)
    Native.notifyAt(id, atMs, title, body) / Native.cancelNotify(id) / Native.notifyPermission("check"|"request")
                            the rest timer's alert (@capacitor/local-notifications, channel "rest", exact alarm through
                            the manifest's USE_EXACT_ALARM); browsers: no-ops that resolve
@@ -52,6 +53,16 @@
       }
       try { if (navigator.vibrate) navigator.vibrate({ heavy: 30, medium: 20 }[kind] || 10); } catch (e) {}
       return Promise.resolve();
+    },
+    /* a vibration pattern, [on, off, on, …] in ms (2026-11-12, the rest alarm): in the app the Haptics plugin buzzes each
+       "on" part at its time (its vibrate takes one length); browsers: navigator.vibrate */
+    vibrate: function (pattern) {
+      if (has("Haptics")) {
+        var at = 0;
+        pattern.forEach(function (ms, i) { if (i % 2 === 0) setTimeout(function () { P.Haptics.vibrate({ duration: ms }).catch(noop); }, at); at += ms; });
+        return;
+      }
+      try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
     },
     keepAwake: function (on) {
       wantAwake = !!on;

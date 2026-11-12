@@ -421,6 +421,11 @@ button.li:active,.li[data-act]:active{background:var(--raised)}
 .restBar.breath .restTrack > i{background:var(--ss)}
 .restBar.done{border-color:var(--acc); animation:restFlash .5s ease 3}
 .restBar.done .restLbl{font-size:16px; letter-spacing:.02em}
+/* 2026-11-12: the last 10 s count down big (tracker-session.js renderRest) */
+.restBar.final{border-color:var(--acc)}
+.restBar.final .restTime{font-size:44px; color:var(--acc)}
+.restBar.final.breath{border-color:var(--ss)}
+.restBar.final.breath .restTime{color:var(--ss)}
 @keyframes restFlash{50%{background:#3A4A12}}
 
 /* ===================== 10. sheets of the Workout ===================== */

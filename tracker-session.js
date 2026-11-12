@@ -10,12 +10,13 @@
      Stop the clock (the session ends: stoppedAt, the time freezes, the ticks stay, the rest timer ends; the next tick
      starts a new clock) or Reset it (no session, the ticks stay). When every tick of the session is undone (Undo,
      unticking), the session and its clock clear by themselves, with any rest timer that tick started;
-   - the rest timer (the smart rule of 2026-11-04, see restPlan): each lift rests its own restSec; a superset breathes
-     20 s between its lifts and, after the round's last lift, rests until the round's first lift is ready again; no
-     timer after a lift's last set. One at a time, kept on its end time (localStorage "training-tracker:v1:rest"), so
-     a re-render, a restart or a locked phone shows the right time; ±15 s, Skip; at zero a beep (only while visible),
-     a buzz and a flash; an Android alert for rests of 45 s or more, scheduled for the end time (native.js,
-     @capacitor/local-notifications);
+   - the rest timer (the smart rule of 2026-11-04, see restPlan): each lift rests its own restSec; a superset rests
+     between its lifts (since 2026-11-12 the round's rest split evenly, at least 30 s; it was a 20 s breath) and, after
+     the round's last lift, until the round's first lift is ready again; no timer after a lift's last set. One at a
+     time, kept on its end time (localStorage "training-tracker:v1:rest"), so a re-render, a restart or a locked phone
+     shows the right time; ±15 s, Skip; the last 10 s big, beeps at 3, 2, 1 and a long one at zero (only while
+     visible), a vibration and a flash; an Android alert for rests of 45 s or more, scheduled for the end time
+     (native.js, @capacitor/local-notifications);
    - keep awake while a tick is under 20 minutes old and the Workout is open;
    - Undo: a toast with Undo for 5 s after a set or lift tick and a week finish (the whole db as it was);
    - Finish week: the v1 week-done, then a summary sheet (full, partial, time, today's bests, the next session).
@@ -265,9 +266,10 @@ function loadRest(){
   try { var r = JSON.parse(localStorage.getItem(REST_KEY) || "null"); rest = (r && r.end && r.total && nowMs() < r.end + 5000) ? r : null; if(!rest) localStorage.removeItem(REST_KEY); } catch(e){ rest = null; }
 }
 function alertText(){ return "Next is " + rest.name + (rest.set ? " (set " + rest.set + ")" : ""); }
-/* the Android alert is for real rests: 45 s or more from the tick to the end (±15 s included), never a breath.
-   A timer stored before 2026-11-04 has no kind and no start: a rest of its total length */
-function alertWanted(r){ return !!r && r.kind !== "breath" && r.end - (r.start != null ? r.start : r.end - r.total * 1000) >= ALERT_MIN_SEC * 1000; }
+/* the Android alert is for real rests: 45 s or more from the tick to the end (±15 s included). Since 2026-11-12 a rest
+   between superset lifts too, when it is that long (the even split gives the heavy supersets about a minute); the short
+   ones (30 s) stay without. A timer stored before 2026-11-04 has no kind and no start: a rest of its total length */
+function alertWanted(r){ return !!r && r.end - (r.start != null ? r.start : r.end - r.total * 1000) >= ALERT_MIN_SEC * 1000; }
 function scheduleAlert(){ if(alertWanted(rest) && window.Native && Native.notifyAt) Native.notifyAt(REST_NOTE_ID, rest.end, "Rest done", alertText()); }
 function cancelAlert(){ if(window.Native && Native.cancelNotify) Native.cancelNotify(REST_NOTE_ID); }
 /* start the one timer from a restPlan */
@@ -309,7 +311,7 @@ function restLine(r, leftSec, done){
 function renderRest(){
   var bar = $("#restBar"), nb = $("#nextBar"); if(!bar) return;
   if(!rest){
-    if(!bar.hidden || bar.innerHTML){ bar.hidden = true; bar.innerHTML = ""; bar.classList.remove("done", "breath"); }
+    if(!bar.hidden || bar.innerHTML){ bar.hidden = true; bar.innerHTML = ""; bar.classList.remove("done", "breath", "final"); }
     if(nb && ui.view === "programs" && nb.innerHTML && !previewing()) nb.hidden = false;
     syncPillClass(); return;
   }
@@ -322,6 +324,7 @@ function renderRest(){
   }
   var breath = rest.kind === "breath", leftSec = Math.ceil(leftMs / 1000);
   bar.hidden = false; bar.classList.toggle("done", done); bar.classList.toggle("breath", breath);
+  bar.classList.toggle("final", !done && leftSec <= 10);   /* 2026-11-12: the last 10 s count down big */
   bar.querySelector(".restLbl").textContent = (breath ? "Breath" : "Rest") + (done ? " done" : "");
   bar.querySelector(".restTime").textContent = done ? "" : mmss(leftSec);
   bar.querySelector(".restNext").textContent = restLine(rest, leftSec, done);
@@ -331,12 +334,21 @@ function renderRest(){
 }
 /* the one ticker (twice a second while a timer runs or a session is live): drains the pill, ends the rest,
    moves the elapsed chip, lets the screen sleep 20 minutes after the last tick */
+/* the rest alarm (2026-11-12, his words: "notification sound is bad, I listen music and never hear that sound, would be
+   great if there will be some countdown or several beeps or something"): a short beep at 3, 2 and 1 s left and a long one
+   at zero, square waves (they cut through music; the old one was a soft double beep), a vibration at zero, and the time
+   big in the last 10 s (renderRest). Sound only while the app is on screen; a locked phone gets the Android alert. */
+var cdMark = null;   /* the last countdown second beeped, and the end time it was for */
 function restTick(){
   var now = nowMs();
+  if(rest && !rest.doneAt && rest.end - now > 0){
+    var s = Math.ceil((rest.end - now) / 1000);
+    if(s <= 3 && !(cdMark && cdMark.end === rest.end && cdMark.s <= s)){ cdMark = { end: rest.end, s: s }; restTone(false); }
+  }
   if(rest && rest.end - now <= 0){
     if(!rest.doneAt){
       rest.doneAt = now; saveRest();
-      if(now - rest.end < 3000 && !document.hidden){ beep(); Native.haptic("heavy"); cancelAlert(); }   /* in the app: no shade alert as well */
+      if(now - rest.end < 3000 && !document.hidden){ restTone(true); restBuzz(); cancelAlert(); }   /* in the app: no shade alert as well */
     } else if(now - rest.doneAt > 5000){ rest = null; saveRest(); if(ui.view === "programs") updateNextBar(ui.planProg, ui.planWeek); }
   }
   renderRest(); refreshSessionUi(); updateAwake(false);
@@ -345,17 +357,23 @@ function restTick(){
 function tickerNeeded(){ return !!rest || !!awakeOn || !!(db.session && db.session.date === todayISO() && db.session.stoppedAt == null); }
 function ensureTicker(){ if(!tickTimer) tickTimer = setInterval(restTick, 500); }
 function stopTicker(){ if(tickTimer){ clearInterval(tickTimer); tickTimer = null; } }
-/* a short double beep, only while the app is on screen (WebAudio, unlocked by the tick's tap) */
+/* WebAudio, unlocked by the tick's tap */
 function primeAudio(){ try { if(!audioCtx){ var AC = window.AudioContext || window.webkitAudioContext; if(AC) audioCtx = new AC(); } if(audioCtx && audioCtx.state === "suspended") audioCtx.resume(); } catch(e){} }
-function beep(){
+/* one beep: short (0.12 s, the countdown) or long (0.7 s, zero), only while the app is on screen */
+function restTone(long){
   try {
     if(!audioCtx || document.hidden) return;
-    var t0 = audioCtx.currentTime;
-    [0, 0.2].forEach(function(dt){ var o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.type = "sine"; o.frequency.value = 880;
-      g.gain.setValueAtTime(0.0001, t0 + dt); g.gain.exponentialRampToValueAtTime(0.35, t0 + dt + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.15);
-      o.connect(g); g.connect(audioCtx.destination); o.start(t0 + dt); o.stop(t0 + dt + 0.17); });
+    if(audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume();
+    var t0 = audioCtx.currentTime, len = long ? 0.7 : 0.12, o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = "square"; o.frequency.value = long ? 2093 : 1568;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.01);
+    g.gain.setValueAtTime(0.5, t0 + len - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+    o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0 + len + 0.01);
   } catch(e){}
 }
+/* buzz, buzz, long buzz at zero (native.js Native.vibrate) */
+var REST_BUZZ = [300, 150, 300, 150, 600];
+function restBuzz(){ if(window.Native && Native.vibrate) Native.vibrate(REST_BUZZ); else { try { if(navigator.vibrate) navigator.vibrate(REST_BUZZ); } catch(e){} } }
 /* notification permission: asked once, the first time a timer starts, with one line why (Android app only) */
 function askNotifyOnce(){
   if(!window.Native || !Native.isApp || !Native.notifyPermission || (db.settings && db.settings.notifAsked)) return;

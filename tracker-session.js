@@ -399,6 +399,8 @@ function ensureTicker(){ if(!tickTimer) tickTimer = setInterval(restTick, 500); 
 function stopTicker(){ if(tickTimer){ clearInterval(tickTimer); tickTimer = null; } }
 /* WebAudio, unlocked by the tick's tap */
 function primeAudio(){ try { if(!audioCtx){ var AC = window.AudioContext || window.webkitAudioContext; if(AC) audioCtx = new AC(); } if(audioCtx && audioCtx.state === "suspended") audioCtx.resume(); } catch(e){} }
+/* the beeps' loudness: 0.32 (0.5 until his gym report of 2026-11-12, "Beeps loud and even too loud a notch": about 4 dB less) */
+var REST_GAIN = 0.32;
 /* one beep: short (0.12 s, the countdown) or long (0.7 s, zero), only while the app is on screen */
 function restTone(long){
   try {
@@ -406,8 +408,8 @@ function restTone(long){
     if(audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume();
     var t0 = audioCtx.currentTime, len = long ? 0.7 : 0.12, o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.type = "square"; o.frequency.value = long ? 2093 : 1568;
-    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.5, t0 + 0.01);
-    g.gain.setValueAtTime(0.5, t0 + len - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(REST_GAIN, t0 + 0.01);
+    g.gain.setValueAtTime(REST_GAIN, t0 + len - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
     o.connect(g); g.connect(audioCtx.destination); o.start(t0); o.stop(t0 + len + 0.01);
   } catch(e){}
 }

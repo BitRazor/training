@@ -25,7 +25,9 @@
 /* the app's clock (tests replace it) */
 function nowMs(){ return Date.now(); }
 var REST_KEY = STORE_KEY + ":rest", REST_NOTE_ID = 4711, AWAKE_MS = 20 * 60000;
-var BREATH_SEC = 30, ALERT_MIN_SEC = 45;   /* the shortest rest between superset lifts (was 20 s until 2026-11-12); the shortest rest that gets an Android alert */
+/* the shortest rest between lifts (was 20 s until 2026-11-12); the shortest rest that gets the Android alert (45 s until his
+   gym report of 2026-11-12, "it doesn't work when phone locked": now every timer, as none is shorter than 30 s) */
+var BREATH_SEC = 30, ALERT_MIN_SEC = 30;
 var rest = null, tickTimer = null, awakeOn = null, audioCtx = null;
 function mmss(sec){ sec = Math.max(0, Math.floor(sec)); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s); }
 
@@ -377,7 +379,11 @@ function restTick(){
   var now = nowMs();
   if(rest && !rest.doneAt && rest.end - now > 0){
     var s = Math.ceil((rest.end - now) / 1000);
-    if(s <= 3 && !(cdMark && cdMark.end === rest.end && cdMark.s <= s)){ cdMark = { end: rest.end, s: s }; restTone(false); }
+    if(s <= 3 && !(cdMark && cdMark.end === rest.end && cdMark.s <= s)){
+      /* on screen the countdown takes over: the phone alert is called off before zero, so it never sounds as well */
+      if(!(cdMark && cdMark.end === rest.end) && !document.hidden) cancelAlert();
+      cdMark = { end: rest.end, s: s }; restTone(false);
+    }
   }
   if(rest && rest.end - now <= 0){
     if(!rest.doneAt){
@@ -409,11 +415,20 @@ function restTone(long){
 var REST_BUZZ = [300, 150, 300, 150, 600];
 function restBuzz(){ if(window.Native && Native.vibrate) Native.vibrate(REST_BUZZ); else { try { if(navigator.vibrate) navigator.vibrate(REST_BUZZ); } catch(e){} } }
 /* notification permission: asked once, the first time a timer starts, with one line why (Android app only) */
+/* 2026-11-12, his gym report ("it doesn't work when phone locked"): asked once ever until then (db.settings.notifAsked), so
+   a phone whose one ask was spent before the app had its alert part, or answered "Not now", never got an alert; seen on the
+   emulator: Android never asked, the app never asked again. Now asked with the first timer of a day (db.settings.notifAskedOn)
+   until he allows it; when the phone blocks it, the sheet says where to allow it */
 function askNotifyOnce(){
-  if(!window.Native || !Native.isApp || !Native.notifyPermission || (db.settings && db.settings.notifAsked)) return;
-  db.settings.notifAsked = true; save();
+  if(!window.Native || !Native.isApp || !Native.notifyPermission || !db.settings) return;
+  var today = todayISO(); if(db.settings.notifAskedOn === today) return;
   Native.notifyPermission("check").then(function(s){
     if(s === "granted" || s === "unavailable") return;
+    db.settings.notifAskedOn = today; save();
+    if(s === "denied"){
+      openSheet("Rest alerts are off", '<div class="mMsg">The phone blocks this app\'s notifications, so a locked phone stays silent when a rest is over. To allow them: the phone\'s Settings → Apps → Training → Notifications → on.</div>', { closeLabel: "OK" });
+      return;
+    }
     openSheet("Rest alerts", '<div class="mMsg">Allow notifications so the rest timer can tell you when your rest is over, even with the phone locked.</div>' +
       '<button class="btn primary big block" data-act="notifyallow">' + icon("bell") + 'Allow alerts</button>', { closeLabel: "Not now" });
   });

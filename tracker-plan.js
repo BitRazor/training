@@ -199,7 +199,7 @@ function renderPlan(){
   /* the gym supersets run 2 or 3 rounds (the head of each says which); the home day keeps its own wording */
   var roundsTx = P.home ? "3 rounds" : "as many rounds as the header says";
   h += '<div class="note footNote">Superset: one set of 1A, then one set of 1B, back to 1A — ' + roundsTx + '. Tick each lift\'s sets as you go: the rest timer starts, and the card folds away after its last set. ' +
-    (smart ? 'A tick means you did the target; tap a set\'s reps to log more or fewer, and the weight to log what you really lifted. After the last set, tap Easy, Good or Hard.' : 'Heavy lifts auto-calculate; tap a weight to log what you actually lifted.') + ' Notes collect on the Notes page.</div>';
+    (smart ? 'A tick means you did the target; tap a set\'s reps to log more or fewer, and the weight to log what you really lifted. After the last set, tap how it felt: Easy, Smooth, Solid or Hard.' :'Heavy lifts auto-calculate; tap a weight to log what you actually lifted.') + ' Notes collect on the Notes page.</div>';
   $("#view-programs").innerHTML = h;
   updateNextBar(prog, w);
   if(typeof refreshSessionUi === "function") refreshSessionUi();
@@ -219,7 +219,7 @@ function planCardHtml(prog, w, en, tag){
     '<div class="exName">' + esc(ex.name) + '</div><div class="doneLine">' + esc(tgt) + '</div></div>' +
     '<div class="ptL"><button class="exTick partial' + (st === "partial" ? " on" : "") + '" data-act="partialtick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" aria-label="done — partial" title="did it, but not fully">' + icon("half") + '</button>' +
     '<button class="exTick' + (st === "full" ? " on" : "") + '" data-act="donetick" data-prog="' + prog + '" data-week="' + w + '" data-item="' + exId + '" aria-label="done — full (all sets)">' + icon("check") + '</button></div></div>' +
-    (smart ? effortRowHtml(prog, w, en) : '') +   /* Part 2: Easy · Good · Hard, shown once the lift is done (tracker.css) */
+    (smart ? effortRowHtml(prog, w, en) : '') +   /* rule version 3: Easy · Smooth · Solid · Hard, shown once the lift is done (tracker.css) */
     '<div class="planBody"><div class="pbIn">' +
     '<div class="planPresc' + (tappable ? ' tap" data-act="setw" data-ex="' + exId + '" data-kind="' + pr.kind + '"' : '"') + '>' + pr.text + rate + (tappable ? ' <span class="editi">' + icon("edit", "sm") + '</span>' : '') + '</div>' +
     (rng ? '<div class="smartRange">' + esc(rng) + '</div>' : '') +

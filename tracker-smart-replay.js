@@ -16,10 +16,14 @@
       entry), or any target dated after it (a program switch); on the same day such a target counts as earlier only when
       the session started at it;
    4. a waiting suggestion that changes nothing (version 1's holds with their OK) goes. The diary is never changed.
-   Rule version 3 (2026-11-11, his rule; design.md part C): the replay above works out the last sessions with the CURRENT
-   rule (smartNext), so a file that never had it gets version 3's numbers and boxes and the mark 2026-11-11. A file already
-   replayed under version 2 (the mark 2026-11-08, his phone) keeps every target as it is, as he was told ("your current
-   numbers stay; the new rule starts at your next session"); only its waiting boxes go, because version 2 made them. */
+   Rule version 3 (2026-11-11, his rule) and his order for the update (2026-11-12): "you have not touch my registered
+   weights at all now, onlly the math model or algorythm". An update never changes a number he sees:
+   - a file already replayed under version 2 (the mark 2026-11-08, his phone) keeps every target as it is;
+   - a file with no mark (saved before the 2026-11-08 update and not since: that version worked it out again at every start)
+     is worked out the way that version showed it: what he did becomes the target, never a lighter weight (keep: the
+     lowering below the range is version 3's rule for the sessions he logs from now on, not for the ones already shown);
+   - in both, the waiting boxes go (the old rule made them), and the mark becomes 2026-11-11. The new rule makes its first
+     offers after his next session of each lift. The check: verify-v2-update-keeps-numbers.mjs (the office's tests). */
 var SMART_RULE = "2026-11-11";
 var SMART_RULE_V2 = "2026-11-08";
 var CHOSEN_HOW = ["use", "all", "edit", "start"];
@@ -36,7 +40,10 @@ function smartRuleMigrate(){
   db.history.forEach(function(h){ if(isSmartEntry(h)) ids[h.exId] = 1; });
   Object.keys(db.suggest).forEach(function(id){ ids[id] = 1; });
   Object.keys(ids).forEach(function(id){ replayLift(id, before[id] || null); });
+  db.suggest = {};
 }
+/* the rule's options for a session already shown to him: what he did stays the target (no lowering) */
+function replayOpts(en, ex){ var o = smartOpts(en, ex, bodyKgNow()); o.keep = true; return o; }
 /* a smart diary entry: it carries the target it was done at and each set's reps */
 function isSmartEntry(h){ return !!h && typeof h.exId === "string" && !!h.target && typeof h.target.reps === "number" && Array.isArray(h.done) && h.done.length > 0; }
 
@@ -78,7 +85,7 @@ function replayLift(exId, cur){
   if(!rec || chosenSince(exId, cur, rec)){ dropNoChange(exId); return; }
   var en = progEntry(rec.day, exId) || { exerciseId: exId }, k = smartKind(en, ex);
   if(k === "effort"){ dropNoChange(exId); return; }
-  var r = smartNext(rec.t, rec.log, smartOpts(en, ex, bodyKgNow())), key = rec.program + ":" + rec.day + ":" + rec.week + ":" + exId;
+  var r = smartNext(rec.t, rec.log, replayOpts(en, ex)), key =rec.program + ":" + rec.day + ":" + rec.week + ":" + exId;
   r.base.src = key + "@" + rec.cycle; r.base.at = rec.date;
   db.targets[exId] = r.base;
   if(r.next){
@@ -108,7 +115,7 @@ function lastFromDiary(exId){
     var h = x.h, t = { kg: h.target.kg, reps: h.target.reps, misses: 0 };
     if(prevT && (sameKR(t, prevT) || sameKR(t, prevB))) t.misses = st.misses;
     var log = { reps: h.done.slice(), kg: h.kg, effort: h.effort, partial: h.quality === "partial" };
-    var r = smartNext(t, log, smartOpts(progEntry(h.day, exId) || { exerciseId: exId }, ex, bodyKgNow()));
+    var r = smartNext(t, log, replayOpts(progEntry(h.day, exId) || { exerciseId: exId }, ex));
     prevT = t; prevB = r.base; st = { misses: r.base.misses };
     rec = { t: t, log: log, program: h.program, cycle: h.cycle || 1, day: h.day, week: h.week, date: String(h.ts || "") };
   });

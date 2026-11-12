@@ -88,7 +88,7 @@ function smartNext(t, log, o){
   var best = done.reduce(function(m, n){ return (typeof n === "number" && n > m) ? n : m; }, 0);   /* the most reps (or seconds) of any set */
   var b = { kg: used == null ? null : r2(used), reps: hit ? Math.min.apply(null, done) : (best > 0 && best < tr) ? best : tr, misses: hit ? 0 : (t.misses || 0) + 1 };
   if(o.hold) b.level = t.level || 0;
-  if(!hit && best > 0 && best < tr && best < o.lo){ var low = lowerInto(b, o); if(low){ b.kg = low.kg; b.reps = low.reps; if(o.hold) b.level = low.level; } }
+  if(!o.keep && !hit && best > 0 && best < tr && best < o.lo){ var low = lowerInto(b, o); if(low){ b.kg = low.kg; b.reps = low.reps; if(o.hold) b.level = low.level; } }
   var p = null;
   if(hit && steps > 0){ p = { kg: b.kg, reps: b.reps }; if(o.hold) p.level = b.level; for(var i = 0; i < steps; i++) p = stepUp(p, o); }
   if(!p || (kgEq(p.kg, b.kg) && p.reps === b.reps && (p.level || 0) === (b.level || 0))) return { base: b, next: null };

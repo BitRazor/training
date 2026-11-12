@@ -41,7 +41,9 @@ var SEED_EXERCISES = [
      Researched 2026-11-11 for rule version 3 (his "Based on exercise type backed on data"; kontor/dossiers/2026-11-11-rule-
      v3/rep-ranges.md): a range must also fit one weight step, since the reps restart at the same effort. Changed: the fly
      10–20, tibialis raise 10–20, hip flexion 10–20, external rotation 12–20 (rotator cuff: light loads as good as heavy),
-     wrist curls 8–15. The overhead press keeps his own 9–12 ("a bit towards more strength", 2026-10-17). */
+     wrist curls 8–15. The overhead press 10–15 on his word of 2026-11-12 (was his own 9–12 of 2026-10-17, "a bit towards
+     more strength"; the research's 10–15 is easier on the shoulder and smoother after a weight step). A range is the
+     math model only: a target he already has stays as it is, even outside the new range. */
   {id:"atg-split-squat",  name:"ATG Split Squat",            pattern:"squat",     loadType:"external", defaultUnit:"kg/leg", equip:"db", cat:"db", repCap:12},
   {id:"rdl",              name:"Romanian Deadlift",          pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"bar", repCap:10},
   {id:"leg-curl",         name:"Lying / Seated Leg Curl",    pattern:"hinge",     loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repFloor:8, repCap:12},
@@ -66,7 +68,7 @@ var SEED_EXERCISES = [
      so each asks for its own weight; the seated calf raise and the Copenhagen plank (now in the home plan) stay
      defined above for the diary. The back extension is body weight plus an optional plate (loadType "bodyweight"). */
   {id:"calf-raise-standing", name:"Standing Calf Raise",     pattern:"isolation", loadType:"external", defaultUnit:"kg",     inc:2.5, cat:"cable", repCap:12},
-  {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db", repFloor:9, repCap:12},   /* kg = ONE dumbbell */
+  {id:"db-overhead-press",name:"Standing Dumbbell Overhead Press", pattern:"v-push", loadType:"external", defaultUnit:"kg",  equip:"db", cat:"db", repFloor:10, repCap:15},   /* kg = ONE dumbbell */
   {id:"side-lying-er",    name:"Side-Lying Dumbbell External Rotation", pattern:"isolation", loadType:"external", defaultUnit:"kg/arm", equip:"db", cat:"db", repFloor:12, repCap:20},
   {id:"back-extension-45",name:"45° Back Extension",         pattern:"hinge",     loadType:"bodyweight", defaultUnit:"kg"},  /* kg = the optional plate */
   /* home sessions (owner 2026-10-13, home-plan.md version 2): body weight, every set by EFFORT (near failure) —

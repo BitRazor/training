@@ -442,7 +442,8 @@ function bestsToday(ids){
     var bt = t[0]; t.forEach(function(h){ if(val(h) > val(bt)) bt = h; });
     var before = e.map(val).concat((typeof realMaxesFor === "function" && byEstimate(id)) ? realMaxesFor(id).filter(function(m){ return m.date < today; }).map(function(m){ return m.kg; }) : []);
     var kt = val(bt), ke = Math.max.apply(null, before);
-    if(kt > ke) out.push({ id: id, name: (exById(id) || { name: id }).name, kg: kt, how: typeof sessionHow === "function" ? sessionHow(bt) : "" });
+    var est = typeof byEstimate === "function" && byEstimate(id);   /* compared unrounded, shown to 0.1 kg */
+    if(kt > ke) out.push({ id: id, name: (exById(id) || { name: id }).name, kg: est ? Math.round(kt * 10) / 10 : kt, how: typeof sessionHow === "function" ? sessionHow(bt) : "" });
   });
   return out;
 }
@@ -459,7 +460,7 @@ function openSummary(S){
     '<div class="sumStats"><div class="sumStat"><b class="sumFull">' + S.full + '</b><span>full</span></div>' +
     '<div class="sumStat"><b class="sumPartial">' + S.part + '</b><span>partial</span></div>' +
     '<div class="sumStat"><b class="sumTime">' + fmtDur(S.mins) + '</b><span>time</span></div></div>' +
-    (S.pbs.length ? '<div class="sectH">Personal bests today</div><ul class="pbList">' + S.pbs.map(function(p){ return '<li class="pbItem">' + icon("trophy") + '<span class="pbName">' + esc(p.name) + '</span>' + (p.how ? '<span class="pbHow">' + esc(p.how) + '</span>' : '') + '<b class="pbKg">' + p.kg + ' kg</b></li>'; }).join("") + '</ul>' : '') +
+    (S.pbs.length ? '<div class="sectH">Personal bests today' + (S.pbs.some(function(p){ return p.how; }) ? ' · est. max' : '') + '</div><ul class="pbList">' + S.pbs.map(function(p){ return '<li class="pbItem">' + icon("trophy") + '<span class="pbName">' + esc(p.name) + '</span>' + (p.how ? '<span class="pbHow">' + esc(p.how) + '</span>' : '') + '<b class="pbKg">' + p.kg + ' kg</b></li>'; }).join("") + '</ul>' : '') +
     (S.sugs && S.sugs.length ? '<div class="sectH">New suggestions</div><ul class="sugList">' + S.sugs.map(function(g){ return '<li class="sugItem"><span class="sugName">' + esc(g.name) + '</span><b class="sugTo">' + esc(g.to) + '</b></li>'; }).join("") + '</ul>' : '') +
     (S.next ? '<div class="sumNext">' + icon("calendar") + '<span>' + esc(S.next) + '</span></div>' : '') + '</div>';
   openSheet(S.title, h, { cls: "sumCard", closeLabel: "Done" });

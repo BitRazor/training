@@ -317,9 +317,9 @@ function progHtml(hist){
   var pts = hist.map(function(h, i){ return X(i).toFixed(1) + "," + Y(kgs[i]).toFixed(1); }).join(" ");
   var area = pad + "," + (H - pad) + " " + pts + " " + X(n - 1).toFixed(1) + "," + (H - pad);
   var dots = hist.map(function(h, i){ var b = kgs[i] === max; return '<circle cx="' + X(i).toFixed(1) + '" cy="' + Y(kgs[i]).toFixed(1) + '" r="' + (b ? 5 : 3.5) + '" fill="' + (h.quality === "partial" ? "var(--warm)" : "var(--acc)") + '"' + (b ? ' stroke="var(--tx)" stroke-width="2"' : '') + '></circle>'; }).join("");
-  var f = function(x){ return String(Math.round(x * 100) / 100); };
+  var f = function(x, exact){ var q = est && !exact ? 10 : 100; return String(Math.round(x * q) / q); };   /* an estimate to 0.1 kg */
   return '<svg viewBox="0 0 ' + W + ' ' + H + '" class="spark" role="img" aria-label="' + (est ? "estimated max" : "kg") + ' over time"><polygon points="' + area + '" fill="var(--accTint)"></polygon><polyline points="' + pts + '" fill="none" stroke="var(--acc)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"></polyline>' + dots + '</svg>' +
-    '<div class="progSum">' + (est ? '<span class="progDim">Est. max </span>' : '') + f(kgs[0]) + ' kg <span class="progArrow">→</span> <b class="accT">' + f(kgs[n - 1]) + ' kg</b><span class="progDim"> · ' + icon("star", "sm") + ' best ' + f(best) + ' kg' + (top && top.real ? ' (real max)' : '') + '</span></div>';
+    '<div class="progSum">' + (est ? '<span class="progDim">Est. max </span>' : '') + f(kgs[0]) + ' kg <span class="progArrow">→</span> <b class="accT">' + f(kgs[n - 1]) + ' kg</b><span class="progDim"> · ' + icon("star", "sm") + ' best ' + f(best, top && top.real) + ' kg' + (top && top.real ? ' (real max)' : '') + '</span></div>';
 }
 
 /* ---------- the week sheet (12 weeks, current and finished marked) and the phase info sheet ---------- */

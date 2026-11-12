@@ -128,16 +128,19 @@ function fmtNum(x){ return String(Math.round(x * 100) / 100); }
    own "same effort" (tracker-smart.js), to 0.1 kg, from each session's best set. Only lifts with an outside weight: a
    carry, a hold, a body-weight or a home lift keeps its weight. A real max he logs ("Log a real max", db.maxes
    [{exId, date, kg}], additive: version 1 ignores it) counts as a best of its own. ---------- */
+function estRaw(kg, reps){ return (typeof reps === "number" && reps > 0) ? kg * (1 + reps / 30) : kg; }
 function estMax(kg, reps){
   if(!(typeof kg === "number" && isFinite(kg))) return kg;
-  return (typeof reps === "number" && reps > 0) ? Math.round(kg * (1 + reps / 30) * 10) / 10 : kg;
+  return Math.round(estRaw(kg, reps) * 10) / 10;
 }
 function byEstimate(exId){ var ex = exById(exId) || {}; return typeof smartKind === "function" ? smartKind(null, ex) === "lift" : true; }
 /* a diary session's best set: the most reps of its sets (a smart entry keeps each set's reps), else its reps */
 function bestSetReps(h){ var d = Array.isArray(h.done) ? h.done.filter(function(r){ return typeof r === "number" && r > 0; }) : []; return d.length ? Math.max.apply(null, d) : h.reps; }
-/* what a session is charted and compared by; and "80 kg × 12" (its best set) when that is an estimate */
-function sessionValue(h){ return byEstimate(h.exId) ? estMax(h.kg, bestSetReps(h)) : h.kg; }
+/* what a session is charted and compared by, unrounded (so the same reps give exactly the weight's change; it is shown
+   to 0.1 kg, fmtVal); and "80 kg × 12" (its best set) when that is an estimate */
+function sessionValue(h){ return byEstimate(h.exId) ? estRaw(h.kg, bestSetReps(h)) : h.kg; }
 function sessionHow(h){ return byEstimate(h.exId) ? fmtNum(h.kg) + " kg × " + bestSetReps(h) : ""; }
+function fmtVal(x, est){ return fmtNum(est ? Math.round(x * 10) / 10 : x); }
 /* the real maxes of a lift, oldest first */
 function realMaxesFor(exId){ return (db.maxes || []).filter(function(m){ return m.exId === exId; }).sort(function(a, b){ return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }); }
 /* on load (tracker.js normalize): keep only whole entries */
@@ -191,8 +194,8 @@ function bigChartHtml(hist, vals, maxes, what){
 function liftBest(exId){
   var b = null, bv = -Infinity;
   historyFor(exId).forEach(function(x){ var v = sessionValue(x); if(!b || v > bv){ b = x; bv = v; } });
-  var p = b ? { kg: bv, ts: b.ts, how: sessionHow(b) } : null;
-  if(byEstimate(exId)) realMaxesFor(exId).forEach(function(m){ if(!p || m.kg > p.kg) p = { kg: m.kg, ts: m.date, how: "real max", real: true }; });
+  var est = byEstimate(exId), p = b ? { kg: bv, ts: b.ts, how: sessionHow(b), est: est } : null;
+  if(est) realMaxesFor(exId).forEach(function(m){ if(!p || m.kg > p.kg) p = { kg: m.kg, ts: m.date, how: "real max", real: true, est: false }; });
   return p;
 }
 function renderProgress(){
@@ -211,8 +214,8 @@ function renderProgress(){
       (est ? '<div class="pcHow">Est. max = kg × (1 + reps ÷ 30), from each session’s best set. Latest: ' + esc(sessionHow(hist[hist.length - 1])) + '.</div>' : '') +
       '<div class="pcKey"><span><i class="kDot"></i>full</span><span><i class="kDot partial"></i>partial</span><span><i class="kDot best"></i>best</span>' + (maxes.length ? '<span><i class="kDot real"></i>real max</span>' : '') + '</div>' + bigChartHtml(hist, vals, maxes, est ? "estimated max" : "kg") + '</div>';
     h += '<div class="statGrid">' +
-      '<div class="stat"><span class="stK">First → latest' + (est ? ' est. max' : '') + '</span><b class="stFirstLatest">' + fmtNum(first) + ' → ' + fmtNum(latest) + ' kg</b></div>' +
-      '<div class="stat"><span class="stK">' + icon("star", "sm") + 'Best' + (top.real ? ' · real max' : '') + '</span><b class="stBest">' + fmtNum(best) + ' kg</b></div>' +
+      '<div class="stat"><span class="stK">First → latest' + (est ? ' est. max' : '') + '</span><b class="stFirstLatest">' + fmtVal(first, est) + ' → ' + fmtVal(latest, est) + ' kg</b></div>' +
+      '<div class="stat"><span class="stK">' + icon("star", "sm") + 'Best' + (top.real ? ' · real max' : '') + '</span><b class="stBest">' + fmtVal(best, top.est) + ' kg</b></div>' +
       '<div class="stat"><span class="stK">Change</span><b class="stChange' + (ch > 0 ? " up" : "") + '">' + chTx + '</b></div>' +
       '<div class="stat"><span class="stK">Sessions</span><b class="stSessions">' + hist.length + '</b></div></div>';
     if(est) h += '<button class="btn tonal block maxBtn" data-act="maxlog" data-ex="' + esc(sel) + '">' + icon("plus") + 'Log a real max</button>';
@@ -220,10 +223,10 @@ function renderProgress(){
     /* personal bests: each lift's best (the estimate, a real max above it, or the weight) and the day it was first
        reached, newest first; a trophy on this week's */
     var mon = isoOf(mondayOf(today));
-    var pbs = lifts.map(function(l){ var b = liftBest(l.id); return { id: l.id, name: l.name, kg: b.kg, ts: b.ts, how: b.how }; })
+    var pbs = lifts.map(function(l){ var b = liftBest(l.id); return { id: l.id, name: l.name, kg: b.kg, ts: b.ts, how: b.how, est: b.est }; })
       .sort(function(a, b){ return a.ts < b.ts ? 1 : a.ts > b.ts ? -1 : 0; });
     h += '<div class="sectH">Personal bests</div><div class="list pbList2">' + pbs.map(function(p){ var tw = p.ts >= mon && p.ts <= today;
-      return '<div class="li pbRow' + (tw ? " thisWeek" : "") + '" data-date="' + p.ts + '"><span class="liI">' + icon(tw ? "trophy" : "star") + '</span><span class="liB"><span class="liT pbName">' + esc(p.name) + '</span><span class="liS pbDate">' + esc(shortDate(p.ts)) + (p.how ? " · " + esc(p.how) : "") + (tw ? " · this week" : "") + '</span></span><span class="liV pbKg">' + fmtNum(p.kg) + ' kg</span></div>'; }).join("") + '</div>';
+      return '<div class="li pbRow' + (tw ? " thisWeek" : "") + '" data-date="' + p.ts + '"><span class="liI">' + icon(tw ? "trophy" : "star") + '</span><span class="liB"><span class="liT pbName">' + esc(p.name) + '</span><span class="liS pbDate">' + esc(shortDate(p.ts)) + (p.how ? " · " + esc(p.how) : "") + (tw ? " · this week" : "") + '</span></span><span class="liV pbKg">' + fmtVal(p.kg, p.est) + ' kg</span></div>'; }).join("") + '</div>';
   }
   h += consistencyHtml(today);
   $("#view-progress").innerHTML = h;

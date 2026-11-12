@@ -362,6 +362,7 @@ document.addEventListener("click",function(e){
   if(act==="apprestart"){ appRestart(); return; }
   /* Part 1 (2026-11-04): the workout clock, the week schedule editor, renaming a workout */
   if(act==="clocksheet"){ openClockSheet(); return; }
+  if(act==="sessstart"){ startSessionNow(); return; }   /* 2026-11-12: the Start session button (tracker-session.js) */
   if(act==="clockstop"){ stopClock(); return; }
   if(act==="clockreset"){ resetClock(); return; }
   if(act==="schedday"){ openDaySheet(+t.getAttribute("data-day")); return; }

@@ -124,6 +124,13 @@ function touchSession(prog, week, before){
   else s.last = Math.max(s.last || now, now);   /* a clock that steps back never shortens the session below zero */
   save();
 }
+/* the Start session button (2026-11-12): the session starts now, as a first tick would start it, with nothing ticked */
+function startSessionNow(){
+  var prog = ui.planProg, week = ui.planWeek; if(!prog || previewing() || sessionFor(prog, week)) return;
+  touchSession(prog, week, tickKeys(prog, week));
+  if(db.session) { db.session.how = "button"; save(); }
+  refreshSessionUi();
+}
 function sessionFor(prog, week){ var s = db.session; return (s && !previewing() && s.prog === prog && s.week === week && s.date === todayISO() && s.program === db.activeProgram) ? s : null; }
 /* after an untick: when nothing the session ticked is still on (only what was on before it began, if anything), the
    session and its clock clear by themselves. true = cleared (the caller stops the rest timer that tick started).
@@ -144,6 +151,7 @@ function refreshSessionUi(){
   var chip = document.querySelector("#view-programs .shTime"), s = sessionFor(ui.planProg, ui.planWeek), stopped = !!(s && s.stoppedAt != null);
   var t = s ? mmss(clockSec(s)) : "", big = document.querySelector("#modal.open .clockBig");
   if(big && s) big.textContent = t;
+  var st = document.querySelector("#view-programs .shStart"); if(st) st.hidden = !!s || previewing();
   if(!chip) return;
   chip.hidden = !s; chip.classList.toggle("stopped", stopped);
   if(s){ var c = chip.querySelector(".shClock"); if(c) c.textContent = t; if(!stopped) ensureTicker(); }
@@ -154,7 +162,7 @@ function openClockSheet(){
   var stopped = s.stoppedAt != null;
   var row = function(act, ic, t, sub){ return '<button class="li clockRow" data-act="' + act + '"><span class="liI">' + icon(ic) + '</span><span class="liB"><span class="liT">' + t + '</span><span class="liS">' + sub + '</span></span></button>'; };
   openSheet("Workout clock", '<div class="clockSheet"><div class="clockBig' + (stopped ? " stopped" : "") + '">' + mmss(clockSec(s)) + '</div>' +
-    '<div class="clockSub">' + (stopped ? "Stopped at " + hhmm(s.stoppedAt) + ". Your next tick starts a new clock." : "Started at " + hhmm(s.start) + " with your first tick.") + '</div>' +
+    '<div class="clockSub">' + (stopped ? "Stopped at " + hhmm(s.stoppedAt) + ". Your next tick starts a new clock." : "Started at " + hhmm(s.start) + (s.how === "button" ? "." : " with your first tick.")) + '</div>' +
     '<div class="list clockList">' + (stopped ? '' : row("clockstop", "stop", "Stop the clock", "End the session here. Your ticks stay.")) +
     row("clockreset", "undo", "Reset the clock", "Clear it. Your ticks stay, and your next tick starts it again.") + '</div></div>', { cls: "clockCard" });
 }

@@ -144,7 +144,9 @@ function renderPlan(){
      stop or reset it, tracker-session.js), lifts done of total */
   h += '<div class="sessHead"><div class="shRow"><button class="shDay" data-act="rename" data-prog="' + prog + '" title="Rename this workout"><span class="shName">' + esc(shortName(prog)) + '</span>' + icon("edit", "sm shEdit") + '</button>' +
     '<button class="shWeek" data-act="weeksheet" aria-label="Pick a week">Week ' + w + icon("chevD", "sm") + '</button>' +
-    '<button class="shTime" data-act="clocksheet" title="Workout clock" hidden>' + icon("timer", "sm icRun") + icon("stop", "sm icStop") + '<span class="shClock"></span></button></div>' +
+    '<button class="shTime" data-act="clocksheet" title="Workout clock" hidden>' + icon("timer", "sm icRun") + icon("stop", "sm icStop") + '<span class="shClock"></span></button>' +
+    /* 2026-11-12 (his "Build them now"): start the clock before the first set; the first tick still starts it when this was not used */
+    '<button class="btn sm shStart" data-act="sessstart" hidden>' + icon("timer", "sm") + 'Start session</button></div>' +
     '<div class="bar shBar"><i style="width:' + Math.round(liftDone / (P.entries.length || 1) * 100) + '%"></i></div></div>';
   /* the day switcher: one segmented control, the home days grouped at its end (a home tab: his name for it, else the
      weekday it sits on in his week) */

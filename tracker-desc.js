@@ -67,8 +67,8 @@ var EX_DESC = {
     feel: "A burn in the front-of-shin muscle (tibialis). Nothing in the calf."
   },
   "hip-flexion": {
-    setup: "Low pulley, cuff on the working ankle, stand facing away, tall on the support leg, core braced, hips square.",
-    move: "Drive the knee up toward the chest to ~thigh-parallel, 3-s hold at the top, lower under control. 3×10/leg.",
+    setup: "Low pulley, cuff on the working ankle, stand facing away, tall on the support leg, core braced, hips square. Hold the machine's frame lightly with one hand, to steady you, not to pull: balance should not limit the weight.",
+    move: "Drive the knee up toward the chest to ~thigh-parallel, 3-s hold at the top, lower under control. 3 sets of 10–20 per leg.",
     cue: "Stand tall on one leg — don't lean back or arch. Foot dorsiflexed. If the right knee hurts, scale the weight down yourself.",
     feel: "The hip flexor at the front of the hip working, plus balance and standing-core holding you steady."
   },

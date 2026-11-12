@@ -181,11 +181,12 @@ function renderPlan(){
      between the cards) · the finishers (block "finisher") · anything else as a plain card */
   blocksFor(prog).forEach(function(b){
     if(b.kind === "ss"){
-      /* the head says the rest rule (tracker-session.js restPlan): a 20 s breath between the lifts, and the round
-         starts again once 1A has had its own rest */
-      var grp = b.entries, ssN = b.n;
+      /* the head says the rest rule (tracker-session.js restPlan): the round's rest split evenly between the lifts (at least
+         30 s), and the round starts again once 1A has had its own rest (2026-11-12, his "between next exercises should be
+         enough to get breath back") */
+      var grp = b.entries, ssN = b.n, betweenS = grp[1] ? splitRestFor(prog, w, grp[0].exerciseId, grp[1].exerciseId) : BREATH_SEC;
       h += '<div class="ssGroup"><div class="blockHead ssHead"><span class="ssTitle">Superset ' + ssN + '</span>' +
-           '<span class="ssHow">' + grp[0].sets + ' rounds · breath between · ' + ssN + 'A again after ' + fmtMin(restSecondsFor(prog, grp[0].exerciseId)) + '</span>' +
+           '<span class="ssHow">' + grp[0].sets + ' rounds · ~' + betweenS + ' s between · ' + ssN + 'A again after ' + fmtMin(restSecondsFor(prog, grp[0].exerciseId)) + '</span>' +
            '<span class="ssPair">' + grp.map(function(g, j){ var gx = exById(g.exerciseId) || { name: g.exerciseId }; return '<b>' + ssN + String.fromCharCode(65 + j) + '</b> ' + esc(gx.name); }).join(' <span class="ssArrow">⇄</span> ') + '</span></div>';
       grp.forEach(function(g, j){ if(j > 0) h += '<div class="ssLink" aria-hidden="true"><span>' + icon("arrowDown", "sm") + 'then ' + ssN + String.fromCharCode(65 + j) + '</span></div>'; h += planCardHtml(prog, w, g, ssN + String.fromCharCode(65 + j)); });
       h += '</div>';

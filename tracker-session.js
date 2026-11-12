@@ -24,7 +24,7 @@
 /* the app's clock (tests replace it) */
 function nowMs(){ return Date.now(); }
 var REST_KEY = STORE_KEY + ":rest", REST_NOTE_ID = 4711, AWAKE_MS = 20 * 60000;
-var BREATH_SEC = 20, ALERT_MIN_SEC = 45;   /* the superset breath; the shortest rest that gets an Android alert */
+var BREATH_SEC = 30, ALERT_MIN_SEC = 45;   /* the shortest rest between superset lifts (was 20 s until 2026-11-12); the shortest rest that gets an Android alert */
 var rest = null, tickTimer = null, awakeOn = null, audioCtx = null;
 function mmss(sec){ sec = Math.max(0, Math.floor(sec)); var h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return (h ? h + ":" + pad2(m) : String(m)) + ":" + pad2(s); }
 
@@ -217,6 +217,18 @@ function tickedAt(prog, week, exId, i){
      counted from its tick in this round (its full rest when that time is unknown), never less than the breath;
      with only the breath left, the breath before the first lift. After the final round: no timer.
    Out-of-order ticks: when the lift's partners are done, its next set is its own, so it rests its own time. */
+/* the expected length of one set of a lift (for the even split): 4 s a rep at its target reps (a carry: its seconds), kept
+   between 25 and 90 s */
+function setSecondsFor(prog, week, id){
+  var en = progEntry(prog, id), ex = exById(id) || {}; if(!en) return 40;
+  var reps = null, carry = false;
+  if(typeof smartOn === "function" && smartOn()){ var t = sessTarget(prog, week, en); reps = t ? t.reps : null; carry = smartKind(en, ex) === "carry"; }
+  if(reps == null) reps = en.reps || 10;
+  return Math.max(25, Math.min(90, carry ? reps * 3 : reps * 4));
+}
+/* the rest after the round's lift before the next one: half of what the first lift's own rest leaves after the next lift's
+   set, at least BREATH_SEC */
+function splitRestFor(prog, week, firstId, nextId){ return Math.max(BREATH_SEC, Math.round((restSecondsFor(prog, firstId) - setSecondsFor(prog, week, nextId)) / 2)); }
 function restPlan(prog, week, exId, i){
   if(!exId || exId.indexOf("wu:") === 0) return null;
   var b = blockOf(prog, exId); if(!b || setTicks(prog, week, exId).every(Boolean)) return null;
@@ -231,7 +243,12 @@ function restPlan(prog, week, exId, i){
   var round = ids.filter(function(id){ return setCount(prog, id) > i; }), k = round.indexOf(exId);
   if(k < round.length - 1){
     var nx = round.slice(k + 1).filter(open)[0];
-    return nx ? plan("breath", now + BREATH_SEC * 1000, nx, tagOf(nx)) : own();
+    if(!nx) return own();
+    /* 2026-11-12 (his "between next exercises should be enough to get breath back"): the round's rest split evenly, at
+       least 30 s, and never less than what the next lift still needs of its own rest since its tick in the last round */
+    var x = splitRestFor(prog, week, round[0], nx), tn = i > 0 ? tickedAt(prog, week, nx, i - 1) : null;
+    if(tn != null) x = Math.max(x, Math.ceil((tn + restSecondsFor(prog, nx) * 1000 - now) / 1000));
+    return plan("breath", now + x * 1000, nx, tagOf(nx));
   }
   if(i >= Math.max.apply(null, ids.map(function(id){ return setCount(prog, id); })) - 1) return null;   /* the final round is over */
   var first = round[0];
